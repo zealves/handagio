@@ -30,7 +30,7 @@ export const live = {
   videoW: 1280,
   videoH: 720,
   /** Notas MIDI a soar agora → intensidade (para o teclado de piano). */
-  notes: new Map<number, { level: number; color: string }>(),
+  notes: new Map<number, { level: number; color: string; held: boolean }>(),
   /** Pads de percussão iluminados (8). */
   pads: new Array<number>(10).fill(0),
   /** Disparos recentes para a onda de partículas. */

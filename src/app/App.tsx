@@ -19,6 +19,15 @@ export function App() {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
+  useEffect(() => {
+    const offKeys = session.installKeyboard();
+    const offSync = session.installStoreSync();
+    return () => {
+      offKeys();
+      offSync();
+    };
+  }, []);
+
   return (
     <div className={s.app} data-view={view}>
       <TopBar onShare={() => {}} onDownload={() => {}} canDownload={false} />

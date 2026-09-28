@@ -1,16 +1,24 @@
 // Orquestrador (sem React): câmara → visão → gestos → áudio. Corre o seu próprio ciclo rAF,
 // separado do render da interface.
+import { audio } from '../audio/engine';
+import { DRUMS, instrumentInfo } from '../audio/instruments';
 import { clamp, degreeToMidi, noteName, scaleLength } from '../audio/theory';
-import { getState, setState } from '../state/store';
-import { live } from '../state/live';
+import { live, pushBurst } from '../state/live';
+import { getState, setState, useStore, type Store } from '../state/store';
 import { openCamera, stopStream, CameraError } from '../vision/camera';
-import { fingerDegree, isActive } from '../vision/fingerMap';
+import { fingerDegree, isActive, KEYMAP, slotOf } from '../vision/fingerMap';
 import { GestureEngine, type GestureOptions } from '../vision/gestureEngine';
 import { assignHands, HandTracker } from '../vision/handTracker';
 import { MotionDetector } from '../vision/motionFallback';
+import { FINGER_COLORS } from '../ui/theme';
 
 const NO_RESULT_MS = 6000;
 const LOAD_TIMEOUT_MS = 20000;
+const KEY_VELOCITY = 0.75;
+/** Nível contínuo equivalente ao ganho 0.16 que o protótipo usava no modo teclado. */
+const KEY_CONT_LEVEL = Math.sqrt(0.16 / 0.18);
+
+const fingerPan = (i: number) => (i - 4.5) / 6;
 
 class Session {
   video: HTMLVideoElement | null = null;
@@ -23,18 +31,23 @@ class Session {
   private lastT = 0;
   private lastProcT = 0;
   private lastVideoTime = -1;
-  private frame = 0;
   private fpsCount = 0;
   private fpsT = 0;
   private startedOnce = false;
+  private keysDown = new Set<string>();
+  /** Nota MIDI a soar em cada dedo (para apagar a tecla certa no noteOff). */
+  private fingerNote: (number | null)[] = new Array(10).fill(null);
 
   constructor() {
     this.gesture.on('noteOn', ({ finger, velocity, shift }) =>
-      this.noteOn(finger, velocity, shift),
+      this.fingerOn(finger, velocity, shift),
     );
-    this.gesture.on('noteOff', ({ finger }) => this.noteOff(finger));
+    this.gesture.on('noteOff', ({ finger }) => this.fingerOff(finger));
+    this.gesture.on('glide', ({ finger, pitch }) => {
+      audio.glide(finger, this.fingerMidi(finger, 0) + pitch);
+    });
     this.gesture.on('continuous', ({ finger, level, pitch }) =>
-      this.continuous(finger, level, pitch),
+      this.fingerContinuous(finger, level, pitch),
     );
   }
 
@@ -50,7 +63,7 @@ class Session {
       thumbs: s.thumbs,
       heightPitch: s.heightPitch,
       glide: s.glide,
-      continuous: false,
+      continuous: instrumentInfo(s.instrument).kind === 'continuous',
       scaleLen: scaleLength(s.scale),
       calibration: s.calibration,
     };
@@ -62,25 +75,276 @@ class Session {
     return degreeToMidi(fingerDegree(i, s.thumbs) + shift, s);
   }
 
-  // ---------- eventos de gestos ----------
-  noteOn(i: number, _velocity: number, shift: number): void {
-    if (!isActive(i, getState().thumbs)) return;
-    const midi = this.fingerMidi(i, shift);
-    const fx = live.fx[i];
-    fx.flash = 1;
-    fx.midi = midi;
-    fx.label = noteName(midi);
-    setState({ lastNote: fx.label });
+  // ---------- áudio ----------
+  /** Cria/retoma o AudioContext (só depois de um gesto do utilizador). */
+  ensureAudio(): void {
+    audio.init();
+    void audio.resume();
+    this.syncParams(getState());
   }
 
-  noteOff(_i: number): void {}
+  private syncParams(s: Store): void {
+    audio.setParams({
+      volume: s.volume,
+      muted: s.muted,
+      reverb: s.reverb,
+      echo: s.echo,
+      filter: s.filter,
+      drive: s.drive,
+      pitch: s.pitch,
+    });
+  }
 
-  continuous(i: number, level: number, _pitch: number): void {
-    live.fx[i].flash = Math.max(live.fx[i].flash, level);
+  // ---------- disparos ----------
+  /** Disparo de um dedo (câmara, modo movimento ou teclado). */
+  fingerOn(i: number, velocity: number, shift: number): void {
+    const s = getState();
+    if (!audio.ready || !isActive(i, s.thumbs)) return;
+    const info = instrumentInfo(s.instrument);
+    const fx = live.fx[i];
+    fx.flash = 1;
+    if (info.kind === 'drum') {
+      const slot = slotOf(i, s.thumbs);
+      this.playDrum(slot, velocity, i);
+      fx.label = DRUMS[info.id].labels[slot];
+      return;
+    }
+    if (info.kind === 'continuous') return;
+    const midi = this.fingerMidi(i, shift);
+    fx.midi = midi;
+    fx.label = noteName(midi);
+    this.releaseFingerNote(i);
+    this.fingerNote[i] = midi;
+    this.playNote(i, midi, velocity, fingerPan(i), FINGER_COLORS[i], info.sustain);
+    const tip = live.fingers[i].tip;
+    pushBurst({
+      x: tip?.x ?? (i + 0.5) / 10,
+      y: tip?.y ?? 0.6,
+      color: FINGER_COLORS[i],
+      strength: velocity,
+    });
+  }
+
+  fingerOff(i: number): void {
+    audio.noteOff(i);
+    this.releaseFingerNote(i);
+  }
+
+  private releaseFingerNote(i: number): void {
+    const m = this.fingerNote[i];
+    if (m === null) return;
+    const n = live.notes.get(m);
+    if (n) n.held = false;
+    this.fingerNote[i] = null;
+  }
+
+  fingerContinuous(i: number, level: number, pitch: number): void {
+    if (!audio.ready) return;
+    const m = this.fingerMidi(i, 0) + pitch;
+    audio.continuous(i, m, level);
+    const fx = live.fx[i];
+    fx.flash = Math.max(fx.flash, level);
+    fx.midi = m;
+    fx.label = noteName(m);
+    if (level > 0.05) {
+      live.notes.set(Math.round(m), {
+        level: Math.max(level, 0.3),
+        color: FINGER_COLORS[i],
+        held: false,
+      });
+      setState({ lastNote: fx.label });
+    }
+  }
+
+  /** Toca uma nota melódica numa voz identificada por `key`. */
+  playNote(
+    key: number | string,
+    midi: number,
+    vel: number,
+    pan: number,
+    color: string,
+    held: boolean,
+  ): void {
+    const s = getState();
+    audio.noteOn(key, s.instrument, midi, vel, pan);
+    live.notes.set(midi, { level: 1, color, held });
+    setState({ lastNote: noteName(midi) });
+  }
+
+  playDrum(slot: number, vel: number, finger?: number): void {
+    const s = getState();
+    const kit = DRUMS[s.instrument];
+    if (!kit) return;
+    audio.drum(kit.id, slot, vel);
+    live.pads[slot] = 1;
+    setState({ lastNote: kit.labels[slot] });
+    const c = FINGER_COLORS[finger ?? [1, 2, 3, 4, 6, 7, 8, 9][slot] ?? 0];
+    const tip = finger !== undefined ? live.fingers[finger].tip : null;
+    pushBurst({ x: tip?.x ?? (slot + 0.5) / 8, y: tip?.y ?? 0.7, color: c, strength: vel });
+  }
+
+  // ---------- interface (teclado de piano e pads com rato/toque) ----------
+  pianoDown(midi: number, vel = 0.8): void {
+    this.ensureAudio();
+    this.startLoop();
+    const info = instrumentInfo(getState().instrument);
+    if (info.kind === 'drum') {
+      this.playDrum(((midi % 8) + 8) % 8, vel);
+      return;
+    }
+    if (info.kind === 'continuous') {
+      // o theremin é contínuo; pelo teclado toca como um lead curto
+      audio.noteOn(`k${midi}`, 'synth', midi, vel, 0);
+      live.notes.set(midi, { level: 1, color: FINGER_COLORS[7], held: true });
+      return;
+    }
+    const pan = clamp((midi - 60) / 30, -0.8, 0.8);
+    this.playNote(
+      `k${midi}`,
+      midi,
+      vel,
+      pan,
+      FINGER_COLORS[((midi % 10) + 10) % 10],
+      info.sustain || true,
+    );
+  }
+
+  pianoUp(midi: number): void {
+    audio.noteOff(`k${midi}`);
+    const n = live.notes.get(midi);
+    if (n) n.held = false;
+  }
+
+  padDown(slot: number, vel = 0.85): void {
+    this.ensureAudio();
+    this.startLoop();
+    const s = getState();
+    const kit = DRUMS[s.instrument] ?? DRUMS.drums;
+    if (!DRUMS[s.instrument]) {
+      // Com um instrumento melódico, os pads tocam o kit acústico.
+      audio.drum(kit.id, slot, vel);
+      live.pads[slot] = 1;
+      setState({ lastNote: kit.labels[slot] });
+      return;
+    }
+    this.playDrum(slot, vel);
+  }
+
+  // ---------- modo teclado ----------
+  installKeyboard(): () => void {
+    const typing = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (!t) return false;
+      const tag = t.tagName;
+      return (
+        tag === 'INPUT' ||
+        tag === 'SELECT' ||
+        tag === 'TEXTAREA' ||
+        t.isContentEditable ||
+        t.getAttribute('role') === 'slider'
+      );
+    };
+    const down = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || typing(e)) return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        this.ensureAudio();
+        this.startLoop();
+        live.spaceHeld = true;
+        return;
+      }
+      const k = e.key.toLowerCase();
+      if (!(k in KEYMAP) || this.keysDown.has(k)) return;
+      const i = KEYMAP[k];
+      if (!isActive(i, getState().thumbs)) return;
+      this.ensureAudio();
+      this.startLoop();
+      this.keysDown.add(k);
+      const f = live.fingers[i];
+      f.curl = 1;
+      f.down = true;
+      if (this.gestureOptions().continuous) {
+        this.fingerContinuous(i, KEY_CONT_LEVEL, 0);
+        live.fx[i].flash = 1;
+      } else this.fingerOn(i, KEY_VELOCITY, 0);
+    };
+    const up = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        live.spaceHeld = false;
+        return;
+      }
+      const k = e.key.toLowerCase();
+      if (!(k in KEYMAP) || !this.keysDown.has(k)) return;
+      this.keysDown.delete(k);
+      const i = KEYMAP[k];
+      const f = live.fingers[i];
+      f.curl = 0;
+      f.down = false;
+      if (this.gestureOptions().continuous) audio.continuous(i, this.fingerMidi(i, 0), 0);
+      else this.fingerOff(i);
+    };
+    const blur = () => {
+      live.spaceHeld = false;
+      this.keysDown.forEach((k) => {
+        const i = KEYMAP[k];
+        live.fingers[i].down = false;
+        live.fingers[i].curl = 0;
+        this.fingerOff(i);
+      });
+      this.keysDown.clear();
+    };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    window.addEventListener('blur', blur);
+    return () => {
+      window.removeEventListener('keydown', down);
+      window.removeEventListener('keyup', up);
+      window.removeEventListener('blur', blur);
+    };
+  }
+
+  // ---------- reações ao store ----------
+  installStoreSync(): () => void {
+    return useStore.subscribe((s, prev) => {
+      if (
+        s.volume !== prev.volume ||
+        s.muted !== prev.muted ||
+        s.reverb !== prev.reverb ||
+        s.echo !== prev.echo ||
+        s.filter !== prev.filter ||
+        s.drive !== prev.drive ||
+        s.pitch !== prev.pitch
+      )
+        this.syncParams(s);
+      if (s.instrument !== prev.instrument) {
+        this.releaseAll();
+        if (instrumentInfo(prev.instrument).kind === 'continuous') audio.destroyTheremin();
+      }
+      if (s.thumbs !== prev.thumbs) {
+        this.releaseAll();
+        live.fingers.forEach((f) => {
+          f.curl = 0;
+          f.tip = null;
+        });
+        this.motion?.reset();
+      }
+      if (s.root !== prev.root || s.scale !== prev.scale || s.octave !== prev.octave)
+        this.releaseAll();
+      if ((s.cameraId !== prev.cameraId || s.lowRes !== prev.lowRes) && this.stream)
+        void this.restartCamera();
+    });
+  }
+
+  releaseAll(): void {
+    this.gesture.releaseAll();
+    audio.releaseAll();
+    for (let i = 0; i < 10; i++) this.releaseFingerNote(i);
+    live.notes.forEach((n) => (n.held = false));
   }
 
   // ---------- arranque ----------
   async start(): Promise<void> {
+    this.ensureAudio();
     if (this.startedOnce) return;
     this.startedOnce = true;
     setState({ started: true, status: 'A pedir acesso à câmara…' });
@@ -102,7 +366,7 @@ class Session {
         else if (getState().status.startsWith('Pronto')) setState({ status: '' });
       }, NO_RESULT_MS);
     } catch (e) {
-      console.warn('[visão] detetor de mãos indisponível', e);
+      console.info('[visão] detetor de mãos indisponível, a usar o modo movimento.', e);
       this.useMotion();
     }
   }
@@ -131,7 +395,6 @@ class Session {
 
   /** Troca de câmara ou de resolução com a app a correr. */
   async restartCamera(): Promise<void> {
-    if (!this.stream) return;
     try {
       await this.openCamera();
       this.motion?.reset();
@@ -166,7 +429,6 @@ class Session {
     this.lastT = now;
     const s = getState();
     const v = this.video;
-    this.frame++;
 
     const fresh = !!v && v.readyState >= 2 && v.currentTime !== this.lastVideoTime;
     if (fresh && v) {
@@ -188,9 +450,20 @@ class Session {
         }
       } else if (s.engine === 'motion' && this.motion) {
         const o = this.gestureOptions();
-        this.motion.process(v, dt, { ...o, continuous: o.continuous, sustain: false });
+        this.motion.process(v, dt, {
+          sensitivity: o.sensitivity,
+          thumbs: o.thumbs,
+          continuous: o.continuous,
+          sustain: instrumentInfo(s.instrument).sustain,
+        });
       }
     }
+
+    // boca
+    if (live.spaceHeld) live.mouthTarget = 1;
+    else if (now - live.lipsT > 600) live.mouthTarget = 0;
+    live.mouth += (live.mouthTarget - live.mouth) * Math.min(1, dt * 18);
+    audio.setMouth(live.mouth, s.mouthFx);
 
     if (now - this.fpsT > 1000) {
       live.fps = this.fpsCount;
@@ -198,6 +471,13 @@ class Session {
       this.fpsT = now;
     }
     for (const fx of live.fx) fx.flash = Math.max(0, fx.flash - dt * 2.2);
+    for (let k = 0; k < live.pads.length; k++) live.pads[k] = Math.max(0, live.pads[k] - dt * 3);
+    live.notes.forEach((n, m) => {
+      if (!n.held) {
+        n.level -= dt * 2.5;
+        if (n.level <= 0) live.notes.delete(m);
+      }
+    });
   }
 
   stop(): void {
