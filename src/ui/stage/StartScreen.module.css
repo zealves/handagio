@@ -1,0 +1,61 @@
+.start {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px;
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(61, 123, 255, 0.35), transparent 60%),
+    radial-gradient(circle at 70% 80%, rgba(255, 79, 216, 0.18), transparent 55%), var(--stage-bg);
+  color: #e8eeff;
+}
+.start h2 {
+  font-family: var(--font-title);
+  font-weight: 600;
+  font-size: clamp(20px, 2.6vw, 30px);
+  margin: 0;
+}
+.start p {
+  margin: 0;
+  max-width: 52ch;
+  color: #aab5da;
+}
+.go {
+  position: relative;
+  border: 0;
+  padding: 14px 28px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 16px;
+  color: #06101f;
+  background: linear-gradient(90deg, #35e0ff, #8b5cff 60%, #ff4fd8);
+  box-shadow: 0 0 24px rgba(53, 224, 255, 0.45);
+  transition: transform var(--t-fast);
+}
+.go:hover {
+  transform: translateY(-1px);
+}
+.privacy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #8f9bc2;
+  max-width: 52ch;
+}
+.keys {
+  font-size: 12.5px;
+  color: #8f9bc2;
+}
+.keys kbd {
+  font: 600 11px var(--font-body);
+  padding: 1px 6px;
+  border-radius: 5px;
+  border: 1px solid rgba(140, 170, 255, 0.35);
+  margin: 0 1px;
+}

@@ -1,0 +1,25 @@
+export type View = 'som' | 'musica' | 'camara';
+export type Engine = 'none' | 'hands' | 'motion' | 'keyboard';
+export type Quantize = 'off' | '1/8' | '1/16';
+export type ThemeName = 'dark' | 'light';
+export type LoopBars = 1 | 2 | 4;
+export type MouthFxId =
+  'wah' | 'filter' | 'dist' | 'echo' | 'vibrato' | 'robot' | 'tremolo' | 'swell' | 'off';
+
+export const MOUTH_FX: { id: MouthFxId; label: string; desc: string }[] = [
+  { id: 'wah', label: 'Wah', desc: 'O som abre como uma voz' },
+  { id: 'filter', label: 'Filtro', desc: 'Fechada abafa, aberta brilha' },
+  { id: 'dist', label: 'Distorção', desc: 'Satura com a boca aberta' },
+  { id: 'echo', label: 'Eco espacial', desc: 'Repetições que se prolongam' },
+  { id: 'vibrato', label: 'Vibrato', desc: 'O tom ondula' },
+  { id: 'robot', label: 'Voz de robô', desc: 'Modulação em anel' },
+  { id: 'tremolo', label: 'Tremolo', desc: 'O volume pulsa' },
+  { id: 'swell', label: 'Expressão', desc: 'Só soa com a boca aberta' },
+  { id: 'off', label: 'Nenhum', desc: 'Sem efeito' },
+];
+
+/** Limiares por dedo obtidos na calibração (null = usa a sensibilidade). */
+export interface Calibration {
+  open: number[]; // dobra média com os dedos esticados (10)
+  closed: number[]; // dobra média com os dedos dobrados (10)
+}

@@ -1,0 +1,54 @@
+/* Design tokens — estúdio noturno. O tema claro redefine os mesmos tokens. */
+:root {
+  --bg: #0b1020;
+  --bg-2: #0f1630;
+  --glass: rgba(22, 30, 58, 0.55);
+  --glass-strong: rgba(18, 25, 50, 0.8);
+  --line: rgba(140, 170, 255, 0.16);
+  --line-strong: rgba(140, 170, 255, 0.32);
+  --ink: #e8eeff;
+  --muted: #8f9bc2;
+  --cyan: #35e0ff;
+  --blue: #3d7bff;
+  --violet: #8b5cff;
+  --magenta: #ff4fd8;
+  --rec: #ff3b4e;
+  --grad: linear-gradient(90deg, var(--cyan), var(--blue) 35%, var(--violet) 65%, var(--magenta));
+  --glow: 0 0 18px rgba(53, 224, 255, 0.45);
+  --radius: 18px;
+  --radius-sm: 12px;
+  --blur: blur(14px);
+  --t-fast: 150ms;
+  --t-med: 220ms;
+  --font-title: 'Sora', 'Space Grotesk', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --stage-bg: #060a16;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg: #eef1fa;
+  --bg-2: #e3e8f6;
+  --glass: rgba(255, 255, 255, 0.7);
+  --glass-strong: rgba(255, 255, 255, 0.92);
+  --line: rgba(40, 60, 130, 0.14);
+  --line-strong: rgba(40, 60, 130, 0.3);
+  --ink: #141a33;
+  --muted: #56608a;
+  --cyan: #0094b8;
+  --blue: #2457d6;
+  --violet: #6a3de0;
+  --magenta: #c21f9f;
+  --rec: #d61f33;
+  --glow: 0 0 12px rgba(0, 148, 184, 0.3);
+  --stage-bg: #10162c;
+  color-scheme: light;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-fast: 0ms;
+    --t-med: 0ms;
+    --glow: 0 0 6px rgba(53, 224, 255, 0.25);
+  }
+}
