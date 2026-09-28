@@ -53,6 +53,7 @@ export interface Runtime {
   looper: { state: 'idle' | 'armed' | 'recording' | 'playing'; layers: number; bar: number };
   calibrating: string | null;
   lastRecordingId: string | null;
+  videoSize: { w: number; h: number } | null;
 }
 
 export type Store = Prefs &
@@ -115,6 +116,7 @@ export const useStore = create<Store>()(
       looper: { state: 'idle', layers: 0, bar: 0 },
       calibrating: null,
       lastRecordingId: null,
+      videoSize: null,
       set: (p) => set(p),
     }),
     {

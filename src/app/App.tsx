@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useStore } from '../state/store';
+import { session } from './session';
 import { EffectsPanel } from '../ui/panels/EffectsPanel';
 import { InstrumentSelect } from '../ui/panels/InstrumentSelect';
 import { RecordPanel } from '../ui/panels/RecordPanel';
@@ -13,7 +14,6 @@ import { TopBar } from './TopBar';
 export function App() {
   const view = useStore((st) => st.view);
   const theme = useStore((st) => st.theme);
-  const set = useStore((st) => st.set);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -29,7 +29,7 @@ export function App() {
           <StatusPanel />
         </aside>
         <section className={s.center} aria-label="Palco da câmara">
-          <CameraStage onStart={() => set({ started: true })} />
+          <CameraStage onStart={() => void session.start()} />
         </section>
         <aside className={`${s.col} ${s.right}`} aria-label="Visualizadores e efeitos">
           <VisualizerPanel />
