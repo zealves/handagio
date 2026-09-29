@@ -59,6 +59,17 @@ Simplificar a interface para pôr o foco em tocar, sem perder nenhuma função. 
 
 A câmara e a deteção continuam ativas nos três modos. O vídeo gravado segue sempre o que se vê: é a regra de privacidade.
 
+
+### Alteração pedida durante a implementação (fundo por defeito)
+
+O utilizador quer ver as mãos, não a si próprio. Por isso:
+
+- `stageBg` começa em `maos`. A ordem passa a Só mãos → Ondas → Câmara.
+- O botão 👁 da barra alterna só entre `maos` e `ondas`; a partir de `camara`, volta a `maos`.
+- A Câmara fica como opção escondida: no menu ⋯ (grupo "Fundo do palco", em último lugar) e nas Definições, com o toggle "Mostrar a imagem da câmara" na secção Câmara (ligado = `camara`, desligado = `maos`).
+- A migração da v1 passa sempre para `maos`, porque na v1 a câmara era o valor por defeito e não se distingue quem a escolheu.
+- A faixa de ondas por baixo do palco aparece com os fundos `maos` e `camara` (≥ 1100 px, `showWaves`); com `ondas` não aparece, porque as ondas já ocupam o palco.
+
 ## Gavetas
 
 Componente `Drawer`, feito sobre `<dialog>` com `showModal()`, o que dá de forma nativa o foco preso, o Esc e o `inert` no resto da página: no desktop e no tablet é lateral direita, sobreposta ao palco (o palco não encolhe); no telemóvel é uma folha inferior até 70% da altura. Só pode haver uma aberta de cada vez (`drawer: DrawerId | null`). Fecha com Esc, com um clique fora ou com o botão ×. Usa `role="dialog"`, `aria-modal="true"`, foco preso e o resto da página `inert`, e o foco volta ao controlo que a abriu. **O conteúdo só é montado enquanto a gaveta está aberta.**
