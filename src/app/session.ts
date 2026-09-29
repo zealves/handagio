@@ -21,6 +21,8 @@ import { isTypingTarget } from '../lib/keys';
 
 const NO_RESULT_MS = 6000;
 const LOAD_TIMEOUT_MS = 20000;
+/** Espera depois de escolher um instrumento antes de carregar as amostras. */
+const SAMPLE_LOAD_DELAY_MS = 300;
 const KEY_VELOCITY = 0.75;
 /** Nível contínuo equivalente ao ganho 0.16 que o protótipo usava no modo teclado. */
 const KEY_CONT_LEVEL = Math.sqrt(0.16 / 0.18);
@@ -45,6 +47,8 @@ class Session {
   private fpsCount = 0;
   private fpsT = 0;
   private startedOnce = false;
+  /** Carregamento das amostras adiado depois de mudar de instrumento (percorrer com , e .). */
+  private sampleTimer: ReturnType<typeof setTimeout> | null = null;
   private keysDown = new Set<string>();
   /** Nota MIDI a soar em cada dedo (para apagar a tecla certa no noteOff). */
   private fingerNote: (number[] | null)[] = new Array(10).fill(null);
@@ -455,10 +459,16 @@ class Session {
 
   // ---------- reações ao store ----------
   installStoreSync(): () => void {
+    samples.setCurrent(getState().instrument);
     const offSamples = samples.on('status', ({ id, status }) => {
-      if (status === 'idle') return;
-      setState({ sampleStatus: { ...getState().sampleStatus, [id]: status } });
+      const next = { ...getState().sampleStatus };
+      // `idle`: os buffers saíram da memória (instrumento usado há mais tempo)
+      if (status === 'idle') delete next[id];
+      else next[id] = status;
+      setState({ sampleStatus: next });
     });
+    // sem rede o carregamento falha; quando a rede volta, tenta de novo o instrumento atual
+    const offOnline = samples.retryOnOnline(window, () => (audio.ready ? audio.ctx : null));
     const offStore = useStore.subscribe((s, prev) => {
       if (
         s.volume !== prev.volume ||
@@ -473,7 +483,15 @@ class Session {
       if (s.instrument !== prev.instrument) {
         this.releaseAll();
         if (instrumentInfo(prev.instrument).kind === 'continuous') audio.destroyTheremin();
-        this.loadSamples(s.instrument);
+        samples.setCurrent(s.instrument);
+        // ao percorrer instrumentos só se carrega aquele onde se para (~300 ms); tocar antes
+        // disso começa logo o carregamento (noteOn)
+        if (this.sampleTimer) clearTimeout(this.sampleTimer);
+        const id = s.instrument;
+        this.sampleTimer = setTimeout(() => {
+          this.sampleTimer = null;
+          this.loadSamples(id);
+        }, SAMPLE_LOAD_DELAY_MS);
       }
       if (s.thumbs !== prev.thumbs) {
         this.releaseAll();
@@ -496,7 +514,10 @@ class Session {
     });
     return () => {
       offSamples();
+      offOnline();
       offStore();
+      if (this.sampleTimer) clearTimeout(this.sampleTimer);
+      this.sampleTimer = null;
     };
   }
 
