@@ -47,7 +47,7 @@ export function App() {
             <ControlBar />
           </div>
         </div>
-        {stageBg === 'camara' && showWaves && <WaveViz className={s.strip} />}
+        {stageBg !== 'ondas' && showWaves && <WaveViz className={s.strip} />}
       </main>
       <DrawerHost />
       <SettingsDialog />

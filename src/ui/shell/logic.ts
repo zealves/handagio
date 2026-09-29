@@ -31,9 +31,10 @@ export function searchInstruments(
 export function groupByFamily(
   list: InstrumentInfo[],
 ): { family: Family; items: InstrumentInfo[] }[] {
-  return FAMILIES.map((family) => ({ family, items: list.filter((i) => i.family === family) })).filter(
-    (g) => g.items.length > 0,
-  );
+  return FAMILIES.map((family) => ({
+    family,
+    items: list.filter((i) => i.family === family),
+  })).filter((g) => g.items.length > 0);
 }
 
 export const recentInfos = (ids: string[]): InstrumentInfo[] =>
@@ -47,14 +48,14 @@ export function nextInstrument(id: string, dir: 1 | -1, filter = 'Todos'): strin
   return list[(k + dir + list.length) % list.length].id;
 }
 
-export const STAGE_BGS: StageBg[] = ['camara', 'maos', 'ondas'];
+export const STAGE_BGS: StageBg[] = ['maos', 'ondas', 'camara'];
 export const STAGE_BG_LABEL: Record<StageBg, string> = {
   camara: 'Câmara',
   maos: 'Só mãos',
   ondas: 'Ondas',
 };
-export const nextStageBg = (bg: StageBg): StageBg =>
-  STAGE_BGS[(STAGE_BGS.indexOf(bg) + 1) % STAGE_BGS.length];
+/** O botão 👁 da barra só alterna entre mãos e ondas; a partir de câmara, volta a mãos. */
+export const nextStageBg = (bg: StageBg): StageBg => (bg === 'maos' ? 'ondas' : 'maos');
 
 export const DRAWER_IDS: DrawerId[] = [
   'instrumentos',
@@ -73,11 +74,14 @@ export const DRAWER_TITLES: Record<DrawerId, string> = {
   rato: 'Tocar com o rato',
 };
 
-/** Migração do `persist`: v1 tinha `showVideo`; a v2 usa `stageBg`. */
+/**
+ * Migração do `persist`: v1 tinha `showVideo`; a v2 usa `stageBg`. Na v1 a câmara era o
+ * valor por defeito e não se distingue quem a escolheu, por isso passa sempre a `maos`.
+ */
 export function migratePrefs(old: unknown, version: number): Record<string, unknown> {
   const o: Record<string, unknown> = { ...((old as Record<string, unknown> | null) ?? {}) };
   if (version < 2) {
-    o.stageBg = o.showVideo === false ? 'maos' : 'camara';
+    o.stageBg = 'maos';
     delete o.showVideo;
   }
   return o;

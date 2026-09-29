@@ -10,6 +10,7 @@ import {
   pushRecent,
   recentInfos,
   searchInstruments,
+  STAGE_BGS,
 } from './logic';
 
 describe('pushRecent', () => {
@@ -80,11 +81,17 @@ describe('nextInstrument', () => {
   });
 });
 
+describe('STAGE_BGS', () => {
+  it('mãos primeiro, câmara escondida no fim', () => {
+    expect(STAGE_BGS).toEqual(['maos', 'ondas', 'camara']);
+  });
+});
+
 describe('nextStageBg', () => {
-  it('roda câmara → mãos → ondas → câmara', () => {
-    expect(nextStageBg('camara')).toBe('maos');
+  it('roda só entre mãos e ondas; câmara volta a mãos', () => {
     expect(nextStageBg('maos')).toBe('ondas');
-    expect(nextStageBg('ondas')).toBe('camara');
+    expect(nextStageBg('ondas')).toBe('maos');
+    expect(nextStageBg('camara')).toBe('maos');
   });
 });
 
@@ -93,15 +100,15 @@ describe('migratePrefs', () => {
     const m = migratePrefs({ showVideo: false, bpm: 90 }, 1);
     expect(m).toEqual({ stageBg: 'maos', bpm: 90 });
   });
-  it('v1 com showVideo true (ou ausente) passa a câmara', () => {
-    expect(migratePrefs({ showVideo: true }, 1)).toEqual({ stageBg: 'camara' });
-    expect(migratePrefs({}, 1)).toEqual({ stageBg: 'camara' });
+  it('v1 com showVideo true (ou ausente) passa sempre a só mãos', () => {
+    expect(migratePrefs({ showVideo: true }, 1)).toEqual({ stageBg: 'maos' });
+    expect(migratePrefs({}, 1)).toEqual({ stageBg: 'maos' });
   });
   it('estado nulo não rebenta', () => {
-    expect(migratePrefs(null, 1)).toEqual({ stageBg: 'camara' });
+    expect(migratePrefs(null, 1)).toEqual({ stageBg: 'maos' });
   });
   it('v2 fica igual', () => {
-    expect(migratePrefs({ stageBg: 'ondas' }, 2)).toEqual({ stageBg: 'ondas' });
+    expect(migratePrefs({ stageBg: 'camara' }, 2)).toEqual({ stageBg: 'camara' });
   });
 });
 

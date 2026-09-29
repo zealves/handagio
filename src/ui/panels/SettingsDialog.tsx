@@ -21,6 +21,7 @@ export function SettingsDialog() {
       calibration: x.calibration,
       calibrating: x.calibrating,
       engine: x.engine,
+      stageBg: x.stageBg,
       userPresets: x.userPresets,
       octave: x.octave,
       heightPitch: x.heightPitch,
@@ -164,6 +165,12 @@ export function SettingsDialog() {
             label="Baixar a resolução (computadores mais lentos)"
             checked={st.lowRes}
             onChange={(v) => st.set({ lowRes: v })}
+          />
+          <Toggle
+            label="Mostrar a imagem da câmara"
+            checked={st.stageBg === 'camara'}
+            onChange={(v) => st.set({ stageBg: v ? 'camara' : 'maos' })}
+            testId="show-camera"
           />
         </section>
 

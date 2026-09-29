@@ -99,7 +99,7 @@ export const DEFAULT_PREFS: Prefs = {
   thumbs: false,
   heightPitch: true,
   glide: true,
-  stageBg: 'camara',
+  stageBg: 'maos',
   showWaves: true,
   recentInstruments: [],
   volume: 0.75,
