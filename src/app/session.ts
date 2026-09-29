@@ -8,6 +8,7 @@ import { getState, setState, useStore, type Store } from '../state/store';
 import { openCamera, stopStream, CameraError } from '../vision/camera';
 import { fingerDegree, isActive, KEYMAP, slotOf } from '../vision/fingerMap';
 import { GestureEngine, type GestureOptions } from '../vision/gestureEngine';
+import { FaceTracker, mouthOpenness } from '../vision/faceTracker';
 import { assignHands, HandTracker } from '../vision/handTracker';
 import { MotionDetector } from '../vision/motionFallback';
 import { FINGER_COLORS } from '../ui/theme';
@@ -26,6 +27,8 @@ class Session {
   readonly gesture = new GestureEngine(live.fingers);
   private motion: MotionDetector | null = null;
   private hands = new HandTracker();
+  private face = new FaceTracker();
+  private frame = 0;
   private detections = 0;
   private raf = 0;
   private lastT = 0;
@@ -369,6 +372,13 @@ class Session {
       console.info('[visão] detetor de mãos indisponível, a usar o modo movimento.', e);
       this.useMotion();
     }
+    try {
+      await this.face.init(LOAD_TIMEOUT_MS);
+      setState({ faceState: 'ok' });
+    } catch (e) {
+      console.info('[visão] detetor da boca indisponível.', e);
+      setState({ faceState: 'unavailable' });
+    }
   }
 
   async openCamera(): Promise<void> {
@@ -457,6 +467,19 @@ class Session {
           sustain: instrumentInfo(s.instrument).sustain,
         });
       }
+      // A face corre em fotogramas alternados.
+      if (this.face.ready && ++this.frame % 2 === 0) {
+        try {
+          const lm = this.face.detect(v, now);
+          if (lm) {
+            live.lips = lm;
+            live.lipsT = now;
+            live.mouthTarget = mouthOpenness(lm);
+          }
+        } catch (e) {
+          console.warn('[visão] erro na deteção da face', e);
+        }
+      }
     }
 
     // boca
@@ -486,6 +509,7 @@ class Session {
     stopStream(this.stream);
     this.stream = null;
     this.hands.close();
+    this.face.close();
     this.motion?.reset();
   }
 }
