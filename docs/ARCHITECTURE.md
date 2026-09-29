@@ -18,10 +18,11 @@ teclado A S D F / J K L Ç ─────────────────�
 - **`src/vision`** e **`src/audio`**: TypeScript puro, sem React. Comunicam por eventos tipados (`lib/emitter.ts`). O `GestureEngine` emite `noteOn(finger, velocity, shift)`, `noteOff(finger)`, `continuous(finger, level, pitch)` e `glide(finger, pitch)`.
 - **`src/app/session.ts`**: o orquestrador. Liga a câmara, carrega os modelos (timeout de 20 s; sem resultados em 6 s passa ao modo movimento), corre o ciclo de deteção num `requestAnimationFrame` próprio, traduz eventos de gestos em notas (escala, tónica, oitava, polegares), aplica a quantização, grava no looper e gere a calibração e o modo teclado.
 - **`src/state`**:
-  - `store.ts` (Zustand + `persist`): preferências (guardadas em `localStorage`) e estado de baixa frequência (vista, estado da câmara, gravação, looper).
+  - `store.ts` (Zustand + `persist`): preferências (guardadas em `localStorage`) e estado de baixa frequência (gaveta aberta, interface escondida, estado da câmara, gravação, looper).
   - `live.ts`: store transitório com os valores a 60 fps (dobras e pontas dos dedos, pontos das mãos e dos lábios, nível da boca, notas a soar, pads, disparos para as partículas). Nunca passa por estado React.
   - `presets.ts`, `recordingsDb.ts` (IndexedDB), `stageCanvases.ts` (canvas do palco para o compositor de vídeo).
-- **`src/ui`**: componentes React que só desenham. Todos os canvas usam um único rAF partilhado (`ui/frame.ts`: `useCanvas`, `useFrame`); as luzes do teclado e dos pads mudam o DOM diretamente nesse ciclo.
+- **`src/ui`**: componentes React que só desenham. Todos os canvas usam um único rAF partilhado (`ui/frame.ts`: `useCanvas`, `useFrame`), que deixa de desenhar canvases fora do ecrã ou de tamanho 0 (exceto os do palco); as luzes do teclado e dos pads mudam o DOM diretamente nesse ciclo.
+- **`src/ui/shell/`**: a barra de controlo (`ControlBar`), as gavetas (`Drawer`, `DrawerHost`, sobre `<dialog>`, com o conteúdo só montado enquanto abertas), o menu `MoreMenu`, o seletor de instrumentos (`InstrumentPicker`), o visualizador de ondas (`WaveViz`), o registo de efeitos (`effects.tsx`) e o ecrã inteiro/atalhos (`fullscreen.ts`, `shortcuts.ts`, `useAutoHide.ts`). A lógica pura (pesquisa, recentes, próximo instrumento, migração de preferências, próximo fundo do palco) está em `logic.ts`, com testes em `logic.test.ts`.
 
 ## Áudio
 

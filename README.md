@@ -12,15 +12,17 @@ Um instrumento musical que se toca com as mãos à frente da webcam. Cada dedo t
 2. Mostra as duas mãos à câmara, com os dedos esticados.
 3. Dobra um dedo para tocar a nota dele. O mindinho esquerdo é a nota mais grave e o mindinho direito a mais aguda. Os polegares estão desligados por defeito (liga-os em **Motor de som → Usar também os polegares**).
 4. Quanto mais depressa dobras, mais forte soa. Sobe ou desce a mão para mudar o tom.
-5. Abre a boca para aplicar o efeito escolhido no painel **Efeitos** (wah, filtro, distorção, eco, vibrato, robô, tremolo ou expressão).
+5. Abre a boca para aplicar o efeito escolhido na gaveta **Efeitos** (wah, filtro, distorção, eco, vibrato, robô, tremolo ou expressão).
 
 Sem câmara, toca com o teclado: **A S D F** (mão esquerda) e **J K L Ç** (mão direita); **G** e **H** são os polegares. Segura **Espaço** para simular a boca aberta. O teclado de piano e os pads também se tocam com o rato ou com toque.
 
-### Vistas
+### Interface
 
-- **Som**: vista completa, com instrumentos, visualizadores e efeitos.
-- **Música**: foco no teclado de piano, nos pads e no looper.
-- **Câmara**: palco em ecrã inteiro, com o mínimo de interface.
+O palco da câmara ocupa o espaço livre; por cima fica uma barra de controlo fina com o instrumento, a escala, reverb e eco (só em ecrãs largos), o tempo, o fundo do palco, gravar, o looper e um menu **⋯** com o resto. O que não cabe na barra fica em gavetas (Instrumentos, Escala e acordes, Efeitos, Tempo e looper, Gravações, Tocar com o rato), abertas uma de cada vez.
+
+- **👁 Fundo do palco**: alterna entre **Só mãos** (por defeito — vês as mãos e as partículas, mas não a ti próprio, nem na gravação) e **Ondas** (as ondas do som em grande). A **Câmara** fica escondida como opção no menu ⋯ e nas Definições ("Mostrar a imagem da câmara"), para quem preferir ver-se.
+- **⛶ Ecrã inteiro** (tecla `E`) e **esconder a interface** (tecla `I`, ou no menu ⋯): fica só o palco. Mexer o rato ou tocar no ecrã volta a mostrar a barra por 3 segundos.
+- **`,` e `.`** passam ao instrumento anterior ou seguinte sem abrir a gaveta.
 
 ### Funcionalidades
 
@@ -65,7 +67,7 @@ src/
   state/    store Zustand (preferências persistidas), store transitório a 60 fps, presets, IndexedDB
   vision/   câmara, HandLandmarker, FaceLandmarker, dobra dos dedos, gestos, modo movimento, calibração
   audio/    motor Web Audio, patches, kits, efeitos, teoria, metrónomo, looper, gravação, analisador
-  ui/       painéis, palco (overlay, HUD, partículas), teclado, pads, controlos, ícones
+  ui/       palco (overlay, HUD, partículas), barra e gavetas (shell/), painéis, teclado, pads, controlos, ícones
 docs/       DECISIONS.md, ARCHITECTURE.md
 ```
 
