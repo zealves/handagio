@@ -30,3 +30,8 @@
   color: var(--muted);
   text-align: center;
 }
+.mouse {
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+}

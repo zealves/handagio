@@ -5,7 +5,6 @@ import {
   refreshRecordings,
   removeRecording,
   shareRecording,
-  toggleRecording,
 } from '../../app/recording';
 import type { RecordingMeta } from '../../state/recordingsDb';
 import { useStore } from '../../state/store';
@@ -82,22 +81,12 @@ function Item({ r }: { r: RecordingMeta }) {
 }
 
 export function RecordPanel() {
-  const recording = useStore((st) => st.recording);
   const recordVideo = useStore((st) => st.recordVideo);
   const list = useStore((st) => st.recordings);
   const set = useStore((st) => st.set);
   useEffect(() => void refreshRecordings(), []);
   return (
     <div className={s.wrap}>
-      <button
-        type="button"
-        className={s.rec}
-        aria-pressed={recording}
-        onClick={() => void toggleRecording()}
-        data-testid="record"
-      >
-        {recording ? 'Parar' : 'Gravar'}
-      </button>
       <Panel title="Gravações" defaultOpen>
         <Toggle
           label="Gravar também vídeo"
@@ -111,7 +100,7 @@ export function RecordPanel() {
             ))}
           </ul>
         ) : (
-          <p className={s.empty}>Ainda não há gravações. Carrega em GRAVAR e toca.</p>
+          <p className={s.empty}>Ainda não há gravações. Carrega em ⏺ na barra e toca.</p>
         )}
       </Panel>
     </div>

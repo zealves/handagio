@@ -47,6 +47,14 @@
 .body {
   min-width: 0;
 }
+.flat {
+  min-width: 0;
+}
+.flat + .flat {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
 @media (max-width: 1099px) {
   .toggle {
     cursor: pointer;

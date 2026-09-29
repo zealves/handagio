@@ -158,13 +158,6 @@
   border-left: 0;
 }
 
-:global([data-view='musica']) .piano {
-  height: 150px;
-}
-:global([data-view='musica']) .pads {
-  grid-template-columns: repeat(4, 72px);
-  grid-auto-rows: 70px;
-}
 @media (max-width: 1099px) {
   .strip {
     grid-template-columns: minmax(0, 1fr) auto;
