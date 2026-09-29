@@ -1,0 +1,269 @@
+{
+  "version": 1,
+  "instruments": {
+    "bass": {
+      "source": "bass-electric",
+      "origin": "Karoryfer Samples (CC0)",
+      "notes": {
+        "E1": 2.5,
+        "G1": 2.5,
+        "Cs2": 2.5,
+        "G2": 2.5,
+        "Cs3": 2.5,
+        "G3": 2.5
+      },
+      "gain": 0.546
+    },
+    "bassoon": {
+      "source": "bassoon",
+      "origin": "VSCO 2 Community Edition (CC0)",
+      "notes": {
+        "G2": 3,
+        "A2": 3,
+        "C3": 3,
+        "G3": 3,
+        "C4": 3,
+        "E4": 3,
+        "G4": 3,
+        "C5": 3
+      },
+      "gain": 0.672
+    },
+    "brass": {
+      "source": "trumpet",
+      "origin": "VSCO 2 Community Edition (CC0)",
+      "notes": {
+        "F3": 3,
+        "A3": 3,
+        "C4": 3,
+        "F4": 3,
+        "As4": 3,
+        "F5": 3,
+        "C6": 3
+      },
+      "gain": 0.503
+    },
+    "cello": {
+      "source": "cello",
+      "origin": "Freesound, pack 12408 \"Real Cello Notes\" de flcellogrl (CC-BY 3.0)",
+      "notes": {
+        "C2": 3,
+        "F2": 3,
+        "As2": 3,
+        "Ds3": 2.641,
+        "Gs3": 2.322,
+        "Cs4": 2.7,
+        "Fs4": 2.479,
+        "C5": 3
+      },
+      "gain": 0.764
+    },
+    "clarinet": {
+      "source": "clarinet",
+      "origin": "VSCO 2 Community Edition (CC0)",
+      "notes": {
+        "D3": 3,
+        "F3": 3,
+        "As3": 3,
+        "D4": 3,
+        "F4": 3,
+        "As4": 3,
+        "F5": 3,
+        "As5": 3
+      },
+      "gain": 0.494
+    },
+    "contrabass": {
+      "source": "contrabass",
+      "origin": "VSCO 2 Community Edition (CC0)",
+      "notes": {
+        "Fs1": 3,
+        "As1": 3,
+        "D2": 3,
+        "Gs2": 3,
+        "Cs3": 3,
+        "E3": 3
+      },
+      "gain": 0.532
+    },
+    "eguitar": {
+      "source": "guitar-electric",
+      "origin": "Karoryfer Samples (CC0)",
+      "notes": {
+        "E2": 3,
+        "A2": 3,
+        "C3": 3,
+        "Ds3": 3,
+        "A3": 3,
+        "Ds4": 3,
+        "A4": 3,
+        "Ds5": 3
+      },
+      "gain": 0.786
+    },
+    "flute": {
+      "source": "flute",
+      "origin": "VSCO 2 Community Edition (CC0)",
+      "notes": {
+        "C4": 3,
+        "E4": 3,
+        "A4": 3,
+        "E5": 3,
+        "A5": 3,
+        "E6": 3,
+        "A6": 3,
+        "C7": 3
+      },
+      "gain": 0.487
+    },
+    "guitar": {
+      "source": "guitar-acoustic",
+      "origin": "University of Iowa Musical Instrument Samples (sem restrições)",
+      "notes": {
+        "E2": 3,
+        "Gs2": 3,
+        "Cs3": 3,
+        "Fs3": 3,
+        "B3": 3,
+        "E4": 3,
+        "A4": 3,
+        "D5": 3
+      },
+      "gain": 0.581
+    },
+    "harp": {
+      "source": "harp",
+      "origin": "VSCO 2 Community Edition (CC0)",
+      "notes": {
+        "D2": 3,
+        "A2": 3,
+        "E3": 3,
+        "B3": 3,
+        "A4": 3,
+        "E5": 3,
+        "D6": 3,
+        "B6": 2.743
+      },
+      "gain": 0.688
+    },
+    "horn": {
+      "source": "french-horn",
+      "origin": "VSCO 2 Community Edition (CC0)",
+      "notes": {
+        "C2": 3,
+        "Ds2": 3,
+        "G2": 3,
+        "D3": 3,
+        "F3": 3,
+        "C4": 3,
+        "D5": 3,
+        "F5": 3
+      },
+      "gain": 0.439
+    },
+    "organ": {
+      "source": "organ",
+      "origin": "VSCO 2 Community Edition (CC0)",
+      "notes": {
+        "C2": 3,
+        "Fs2": 3,
+        "C3": 3,
+        "Fs3": 3,
+        "C4": 3,
+        "Fs4": 3,
+        "Ds5": 3,
+        "C6": 3
+      },
+      "gain": 0.655
+    },
+    "piano": {
+      "source": "piano",
+      "origin": "VSCO 2 Community Edition (CC0)",
+      "notes": {
+        "C3": 3,
+        "F3": 3,
+        "As3": 3,
+        "Ds4": 3,
+        "Gs4": 3,
+        "Cs5": 3,
+        "Fs5": 3,
+        "C6": 3
+      },
+      "gain": 0.602
+    },
+    "sax": {
+      "source": "saxophone",
+      "origin": "Karoryfer Samples (CC0)",
+      "notes": {
+        "Cs3": 3,
+        "Fs3": 3,
+        "B3": 3,
+        "E4": 3,
+        "A4": 3,
+        "Ds5": 3,
+        "A5": 3
+      },
+      "gain": 0.403
+    },
+    "trombone": {
+      "source": "trombone",
+      "origin": "VSCO 2 Community Edition (CC0)",
+      "notes": {
+        "Cs2": 3,
+        "F2": 3,
+        "Gs2": 3,
+        "C3": 3,
+        "Ds3": 3,
+        "Gs3": 3,
+        "C4": 3,
+        "F4": 3
+      },
+      "gain": 1.666
+    },
+    "tuba": {
+      "source": "tuba",
+      "origin": "VSCO 2 Community Edition (CC0)",
+      "notes": {
+        "F1": 3,
+        "As1": 3,
+        "Ds2": 3,
+        "As2": 3,
+        "D3": 3,
+        "F3": 3,
+        "As3": 3,
+        "D4": 3
+      },
+      "gain": 0.427
+    },
+    "violin": {
+      "source": "violin",
+      "origin": "VSCO 2 Community Edition (CC0)",
+      "notes": {
+        "G3": 3,
+        "C4": 3,
+        "E4": 3,
+        "G4": 3,
+        "C5": 3,
+        "E5": 3,
+        "A5": 3,
+        "E6": 3
+      },
+      "gain": 0.647
+    },
+    "xylophone": {
+      "source": "xylophone",
+      "origin": "VSCO 2 Community Edition (CC0)",
+      "notes": {
+        "G4": 1.5,
+        "C5": 1.5,
+        "G5": 1.5,
+        "C6": 1.5,
+        "G6": 1.5,
+        "C7": 1.47,
+        "G7": 1.385,
+        "C8": 1.14
+      },
+      "gain": 1.056
+    }
+  }
+}
