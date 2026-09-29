@@ -6,7 +6,7 @@ Versões segundo [SemVer](https://semver.org/lang/pt-BR/). A mais recente fica n
 
 Interface redesenhada para pôr o foco em tocar. A lógica de som e de visão não muda.
 
-- Palco da câmara em primeiro plano, com uma barra de controlo e gavetas no lugar das três colunas e dos separadores.
+- Palco em primeiro plano, com uma barra de controlo e gavetas no lugar das três colunas e dos separadores.
 - Ecrã inteiro (`E`) e esconder interface (`I`), com a barra a espreitar ao mexer o rato.
 - Fundo do palco: Só mãos (a pessoa não aparece, nem na gravação; é o valor por defeito), Ondas ou Câmara (opção escondida no menu ⋯ e nas Definições).
 - Um só visualizador (ondas sobrepostas); os canvases fora do ecrã deixam de desenhar.
