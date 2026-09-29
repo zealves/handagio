@@ -24,6 +24,8 @@ export function makeKit(deps: VoiceDeps, t: number, out: GainNode) {
   const { ctx } = deps;
   const sources: AudioScheduledSourceNode[] = [];
   const all: AudioNode[] = [];
+  /** LFOs que modulam o ganho de saída: têm de se calar no largar (senão a nota continua). */
+  const gainLfos: GainNode[] = [];
   const K: Kit = {
     ctx,
     t,
@@ -94,6 +96,7 @@ export function makeKit(deps: VoiceDeps, t: number, out: GainNode) {
       o.start(t);
       sources.push(o);
       all.push(o, g);
+      if (param === out.gain) gainLfos.push(g);
       return { o, g };
     },
     ks: deps.ks,
@@ -102,7 +105,7 @@ export function makeKit(deps: VoiceDeps, t: number, out: GainNode) {
       return n;
     },
   };
-  return { K, sources, all };
+  return { K, sources, all, gainLfos };
 }
 
 /** Toca uma voz melódica. `when` permite agendar (quantização, looper). */
@@ -123,7 +126,7 @@ export function playVoice(
   p.pan.value = Math.max(-1, Math.min(1, pan));
   out.connect(p);
   p.connect(dest);
-  const { K, sources, all } = makeKit(deps, t, out);
+  const { K, sources, all, gainLfos } = makeKit(deps, t, out);
   all.push(out, p);
   const v = 0.15 + 0.85 * vel;
   const setFreq = patch.build?.(K, freq, vel, v) || (() => {});
@@ -144,6 +147,7 @@ export function playVoice(
       out.gain.cancelScheduledValues(n);
       out.gain.setValueAtTime(out.gain.value, n);
       out.gain.setTargetAtTime(0, n, r);
+      silenceLfos(n, r / 2);
       end(n + r * 6 + 0.05);
     },
     kill() {
@@ -152,9 +156,19 @@ export function playVoice(
       out.gain.cancelScheduledValues(n);
       out.gain.setValueAtTime(out.gain.value, n);
       out.gain.setTargetAtTime(0, n, 0.01);
+      silenceLfos(n, 0.005);
       end(n + 0.06);
     },
   };
+  // Desvio consciente do protótipo: lá, o LFO ligado a `out.gain` (copos de cristal, piano
+  // elétrico) continuava a modular depois do largar e a nota soava até ~5 s, com tremolo.
+  function silenceLfos(n: number, tau: number) {
+    for (const g of gainLfos) {
+      g.gain.cancelScheduledValues(n);
+      g.gain.setValueAtTime(g.gain.value, n);
+      g.gain.setTargetAtTime(0, n, tau);
+    }
+  }
   function end(at: number) {
     for (const s of sources) {
       try {
