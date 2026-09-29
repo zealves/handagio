@@ -228,6 +228,63 @@ test('sem Fullscreen API (iPhone), o botão esconde a interface', async ({ page 
   await page.goto('/?debug');
   await page.getByTestId('fullscreen').click();
   await expect(page.getByTestId('bar-slot')).toHaveCSS('opacity', '0');
+  // escondida, a barra sai da ordem do Tab
+  await expect(page.getByTestId('bar-slot')).toHaveCSS('visibility', 'hidden');
+  // no toque não há teclado: a barra espreita e o ⋯ volta a mostrar a interface
+  await page.mouse.move(200, 200);
+  await page.mouse.move(220, 220);
+  await expect(page.getByTestId('bar-slot')).toHaveCSS('opacity', '1');
+  await page.getByTestId('more').click();
+  await expect(page.getByTestId('menu-hide')).toContainText('Mostrar interface');
+  await page.getByTestId('menu-hide').click();
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.store.getState().uiHidden),
+    )
+    .toBe(false);
+  await expect(page.getByTestId('bar-slot')).toHaveCSS('opacity', '1');
+  await expect(page.locator('header').first()).toBeVisible();
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('com uma gaveta aberta, I e E não mexem na interface', async ({ page }) => {
+  const errors = watchConsole(page);
+  await page.goto('/?debug');
+  await page.getByTestId('chip-scale').click();
+  const drawer = page.getByTestId('drawer');
+  await expect(drawer).toBeVisible();
+  await drawer.getByRole('button', { name: /^Fechar/ }).focus();
+  await page.keyboard.press('i');
+  await page.keyboard.press('e');
+  await page.waitForTimeout(100);
+  expect(
+    await page.evaluate(() => ({
+      uiHidden: (window as unknown as { __vsc: Vsc }).__vsc.store.getState().uiHidden,
+      fullscreen: !!document.fullscreenElement,
+    })),
+  ).toEqual({ uiHidden: false, fullscreen: false });
+  await expect(drawer).toBeVisible();
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('câmara em retrato no desktop: a barra não passa do palco', async ({ page }) => {
+  const errors = watchConsole(page);
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.goto('/?debug');
+  await page.evaluate(() =>
+    (window as unknown as { __vsc: Vsc }).__vsc.store
+      .getState()
+      .set({ videoSize: { w: 720, h: 1280 } }),
+  );
+  const stage = (await page.getByTestId('stage').boundingBox())!;
+  // os chips que não cabem deslizam dentro da barra: o ⋯ chega-se sem sair do palco
+  const more = page.getByTestId('more');
+  await more.scrollIntoViewIfNeeded();
+  const box = (await more.boundingBox())!;
+  expect(box.x).toBeGreaterThanOrEqual(stage.x);
+  expect(box.x + box.width).toBeLessThanOrEqual(stage.x + stage.width + 0.5);
+  await more.click();
+  await expect(page.getByTestId('menu-efeitos')).toBeInViewport({ ratio: 1 });
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
@@ -249,13 +306,70 @@ for (const showVideo of [false, true]) {
   });
 }
 
-for (const vp of [
+const VIEWPORTS = [
   { width: 1440, height: 900 },
   { width: 1024, height: 768 },
   { width: 390, height: 844 },
   { width: 844, height: 390 },
   { width: 320, height: 568 },
-]) {
+];
+
+for (const vp of VIEWPORTS) {
+  test(`menu ⋯ ${vp.width}×${vp.height}: cabe no ecrã e abre as gavetas`, async ({ page }) => {
+    const errors = watchConsole(page);
+    await page.setViewportSize(vp);
+    await page.goto('/?debug');
+    await page.getByTestId('more').click();
+    const menu = page.getByRole('menu', { name: 'Mais opções' });
+    const box = (await menu.boundingBox())!;
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height).toBeLessThanOrEqual(vp.height);
+    expect(box.x + box.width).toBeLessThanOrEqual(vp.width);
+    // o foco entra no primeiro item e as setas percorrem o menu
+    await expect(page.getByTestId('menu-instrumentos')).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(page.getByTestId('menu-escala')).toBeFocused();
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('ArrowUp');
+    await expect(page.getByTestId('menu-hide')).toBeFocused();
+    // todos os itens se alcançam (o menu desliza se não couber)
+    for (const id of ['menu-efeitos', 'menu-rato', 'menu-bg-camara', 'menu-hide']) {
+      const item = page.getByTestId(id);
+      await item.scrollIntoViewIfNeeded();
+      await expect(item).toBeInViewport({ ratio: 1 });
+    }
+    // Esc fecha o menu e devolve o foco ao ⋯
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+    await expect(page.getByTestId('more')).toBeFocused();
+    // uma gaveta aberta pelo menu devolve o foco ao ⋯ ao fechar
+    await page.getByTestId('more').click();
+    await page.getByTestId('menu-efeitos').click();
+    const drawer = page.getByTestId('drawer');
+    await expect(drawer).toBeVisible();
+    await expect(drawer.getByTestId('effects')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(drawer).toBeHidden();
+    await expect(page.getByTestId('more')).toBeFocused();
+    // o menu também escolhe o fundo e esconde a interface
+    await page.getByTestId('more').click();
+    await page.getByTestId('menu-bg-camara').click();
+    await expect
+      .poll(() =>
+        page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.store.getState().stageBg),
+      )
+      .toBe('camara');
+    await page.getByTestId('more').click();
+    await page.getByTestId('menu-hide').click();
+    await expect
+      .poll(() =>
+        page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.store.getState().uiHidden),
+      )
+      .toBe(true);
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+
   test(`layout ${vp.width}×${vp.height}: sem scroll horizontal, palco e barra à vista`, async ({
     page,
   }) => {
@@ -270,6 +384,11 @@ for (const vp of [
     await expect(page.getByTestId('control-bar')).toBeInViewport();
     await expect(page.getByTestId('chip-instrument')).toBeInViewport();
     await expect(page.getByTestId('more')).toBeInViewport();
+    // alvos de toque abaixo de 1100px: pelo menos 40×40
+    if (vp.width < 1100) {
+      const rec = (await page.getByTestId('chip-recordings').boundingBox())!;
+      expect(Math.min(rec.width, rec.height)).toBeGreaterThanOrEqual(40);
+    }
     // com o fundo por defeito (só mãos), a faixa de ondas aparece por baixo do palco no desktop
     if (vp.width === 1440) await expect(page.getByTestId('waves')).toBeVisible();
     expect(errors, errors.join('\n')).toEqual([]);
