@@ -2,7 +2,17 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ChordMode, ScaleName } from '../audio/theory';
 import type { RecordingMeta } from './recordingsDb';
-import type { Calibration, Engine, LoopBars, MouthFxId, Quantize, ThemeName, View } from './types';
+import type {
+  Calibration,
+  DrawerId,
+  Engine,
+  LoopBars,
+  MouthFxId,
+  Quantize,
+  StageBg,
+  ThemeName,
+  View,
+} from './types';
 
 /** Preferências que se guardam em localStorage e entram nos presets. */
 export interface SoundSettings {
@@ -27,6 +37,9 @@ export interface Prefs extends SoundSettings {
   heightPitch: boolean;
   glide: boolean;
   showVideo: boolean;
+  stageBg: StageBg;
+  showWaves: boolean;
+  recentInstruments: string[];
   volume: number;
   muted: boolean;
   cameraId: string | null;
@@ -50,6 +63,8 @@ export interface Runtime {
   recording: boolean;
   recordStart: number;
   settingsOpen: boolean;
+  drawer: DrawerId | null;
+  uiHidden: boolean;
   engineOpen: boolean;
   faceState: 'waiting' | 'ok' | 'unavailable';
   looper: { state: 'idle' | 'armed' | 'recording' | 'playing'; layers: number; bar: number };
@@ -87,6 +102,9 @@ export const DEFAULT_PREFS: Prefs = {
   heightPitch: true,
   glide: true,
   showVideo: true,
+  stageBg: 'camara',
+  showWaves: true,
+  recentInstruments: [],
   volume: 0.75,
   muted: false,
   cameraId: null,
@@ -115,6 +133,8 @@ export const useStore = create<Store>()(
       recording: false,
       recordStart: 0,
       settingsOpen: false,
+      drawer: null,
+      uiHidden: false,
       engineOpen: false,
       faceState: 'waiting',
       looper: { state: 'idle', layers: 0, bar: 0 },
