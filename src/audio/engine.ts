@@ -108,6 +108,34 @@ export class AudioEngine {
     this.deps = { ctx, noise, ks: (f, d, s, b) => this.ksBuffer(f, d, s, b) };
     this.ready = true;
     this.applyParams();
+    this.unlockOnGesture();
+  }
+
+  /**
+   * iOS: o som só arranca em gestos que ativam a página (touchend, click, keydown; o
+   * pointerdown de toque não conta) e o contexto pode ficar "interrupted" ao abrir a
+   * câmara. Em cada gesto destes retoma o contexto e toca um buffer mudo.
+   * O audioSession "playback" (Safari 17+) faz o som ignorar o interruptor de silêncio.
+   */
+  private unlockOnGesture(): void {
+    const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+    if (session) {
+      try {
+        session.type = 'playback';
+      } catch {
+        /* não suportado */
+      }
+    }
+    const unlock = () => {
+      if (this.ctx.state === 'running') return;
+      void this.ctx.resume().catch(() => {});
+      const src = this.ctx.createBufferSource();
+      src.buffer = this.ctx.createBuffer(1, 1, this.ctx.sampleRate);
+      src.connect(this.ctx.destination);
+      src.start();
+    };
+    for (const ev of ['touchend', 'click', 'keydown'])
+      document.addEventListener(ev, unlock, { capture: true, passive: true });
   }
 
   async resume(): Promise<void> {
