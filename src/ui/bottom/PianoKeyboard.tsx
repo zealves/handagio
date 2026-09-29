@@ -3,6 +3,7 @@
 // diretamente no DOM, sem re-render.
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { session } from '../../app/session';
+import { SAMPLED_BY_ID } from '../../audio/instruments';
 import { noteName, pitchClassName } from '../../audio/theory';
 import { live } from '../../state/live';
 import { useStore } from '../../state/store';
@@ -15,6 +16,8 @@ const WIDE = 470;
 
 export function PianoKeyboard() {
   const octave = useStore((st) => st.octave);
+  const instrument = useStore((st) => st.instrument);
+  const register = SAMPLED_BY_ID[instrument]?.register ?? 0;
   const wrap = useRef<HTMLDivElement>(null);
   const [octaves, setOctaves] = useState(3);
   useEffect(() => {
@@ -23,7 +26,7 @@ export function PianoKeyboard() {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const first = 12 * octave; // Dó uma oitava abaixo da oitava base
+  const first = 12 * (octave + register); // Dó uma oitava abaixo da oitava base, ajustado ao registo
   const keys = Array.from({ length: octaves * 12 + 1 }, (_, k) => first + k);
   const whites = keys.filter((m) => !BLACK.has(m % 12));
   const refs = useRef(new Map<number, HTMLButtonElement>());
