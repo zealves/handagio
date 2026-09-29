@@ -29,12 +29,12 @@
 .stage video {
   object-fit: fill;
   transform: scaleX(-1);
-  transition: opacity var(--t-med);
+  opacity: 0;
 }
 .dim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(6, 10, 22, 0.15), rgba(6, 10, 22, 0.45));
+  background: radial-gradient(ellipse at center, rgba(20, 30, 70, 0.35), rgba(6, 10, 22, 0.85));
   pointer-events: none;
 }
 .status {
@@ -77,15 +77,4 @@
   .window {
     width: 100%;
   }
-}
-
-/* Fundo "Ondas": o visualizador ocupa o palco e as mãos ficam mais discretas. */
-.bgWaves {
-  opacity: 0.9;
-}
-.stage[data-bg='ondas'] [data-layer='hands'] {
-  opacity: 0.6;
-}
-.stage:not([data-bg='camara']) .dim {
-  background: radial-gradient(ellipse at center, rgba(20, 30, 70, 0.35), rgba(6, 10, 22, 0.85));
 }

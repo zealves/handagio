@@ -7,16 +7,8 @@ import { NOTE_NAMES } from '../../audio/theory';
 import { useStore } from '../../state/store';
 import type { DrawerId } from '../../state/types';
 import { instrumentIcon } from '../icons/InstrumentIcons';
-import {
-  IconChevron,
-  IconEye,
-  IconLoop,
-  IconMetronome,
-  IconMusic,
-  IconSliders,
-} from '../icons/UiIcons';
+import { IconChevron, IconLoop, IconMetronome, IconMusic, IconSliders } from '../icons/UiIcons';
 import { EFFECTS } from './effects';
-import { nextStageBg, STAGE_BG_LABEL } from './logic';
 import { MoreMenu } from './MoreMenu';
 import s from './ControlBar.module.css';
 
@@ -35,7 +27,6 @@ export function ControlBar() {
       scale: x.scale,
       bpm: x.bpm,
       metronome: x.metronome,
-      stageBg: x.stageBg,
       recording: x.recording,
       loop: x.looper.state,
       set: x.set,
@@ -98,16 +89,6 @@ export function ControlBar() {
         <IconMetronome />
         <span className={s.label}>{st.bpm}</span>
         {st.metronome && <i className={s.dot} aria-hidden />}
-      </button>
-      <button
-        type="button"
-        className={`${s.chip} ${s.mid}`}
-        onClick={() => st.set({ stageBg: nextStageBg(st.stageBg) })}
-        data-testid="stage-bg"
-        aria-label={`Fundo do palco: ${STAGE_BG_LABEL[st.stageBg]}. Mudar`}
-      >
-        <IconEye />
-        <span className={s.label}>{STAGE_BG_LABEL[st.stageBg]}</span>
       </button>
       <div className={s.recGroup}>
         <button

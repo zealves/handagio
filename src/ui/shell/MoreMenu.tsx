@@ -1,11 +1,11 @@
-// Menu ⋯: todas as gavetas, o fundo do palco e esconder/mostrar a interface. No telemóvel é o
+// Menu ⋯: todas as gavetas e esconder/mostrar a interface. No telemóvel é o
 // menu principal. Vai para o <body> (portal): a barra tem backdrop-filter e transform, que
 // prenderiam o position: fixed; assim o menu nunca sai do ecrã.
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore, type Prefs, type Runtime } from '../../state/store';
 import { IconMore } from '../icons/UiIcons';
-import { DRAWER_IDS, DRAWER_TITLES, STAGE_BG_LABEL, STAGE_BGS } from './logic';
+import { DRAWER_IDS, DRAWER_TITLES } from './logic';
 import s from './ControlBar.module.css';
 
 /** Posição do menu a partir do botão ⋯ (o CSS escolhe que variáveis usa em cada layout). */
@@ -24,7 +24,6 @@ function anchor(btn: HTMLElement): CSSProperties {
 export function MoreMenu() {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<CSSProperties>({});
-  const bg = useStore((st) => st.stageBg);
   const uiHidden = useStore((st) => st.uiHidden);
   const set = useStore((st) => st.set);
   const root = useRef<HTMLDivElement>(null);
@@ -103,22 +102,6 @@ export function MoreMenu() {
                 {DRAWER_TITLES[d]}
               </button>
             ))}
-            <div role="group" aria-label="Fundo do palco" className={s.menuGroup}>
-              <span>Fundo do palco</span>
-              {STAGE_BGS.map((b) => (
-                <button
-                  key={b}
-                  type="button"
-                  role="menuitemradio"
-                  tabIndex={-1}
-                  aria-checked={bg === b}
-                  onClick={() => pick({ stageBg: b })}
-                  data-testid={`menu-bg-${b}`}
-                >
-                  {STAGE_BG_LABEL[b]}
-                </button>
-              ))}
-            </div>
             <button
               type="button"
               role="menuitem"

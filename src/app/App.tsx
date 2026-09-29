@@ -15,8 +15,6 @@ import { TopBar } from './TopBar';
 export function App() {
   const theme = useStore((st) => st.theme);
   const uiHidden = useStore((st) => st.uiHidden);
-  const stageBg = useStore((st) => st.stageBg);
-  const showWaves = useStore((st) => st.showWaves);
   const size = useStore((st) => st.videoSize);
   const peek = useAutoHide(uiHidden);
 
@@ -47,7 +45,7 @@ export function App() {
             <ControlBar />
           </div>
         </div>
-        {stageBg !== 'ondas' && showWaves && <WaveViz className={s.strip} />}
+        <WaveViz className={s.strip} />
       </main>
       <DrawerHost />
       <SettingsDialog />

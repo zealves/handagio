@@ -48,12 +48,11 @@ export async function startRecording(): Promise<void> {
     recorder.start(
       withVideo
         ? {
-            get video() {
-              return compositeSources(getState().stageBg, v, stageCanvases).video;
-            },
+            // a câmara só serve para o tamanho: a gravação nunca inclui a imagem da pessoa
+            video: compositeSources(stageCanvases).video,
             width: live.videoW,
             height: live.videoH,
-            layers: () => compositeSources(getState().stageBg, v, stageCanvases).layers,
+            layers: () => compositeSources(stageCanvases).layers,
             hud: () => {
               const st = getState();
               return [`Nota: ${st.lastNote}`, `Voz: ${instrumentInfo(st.instrument).name}`];

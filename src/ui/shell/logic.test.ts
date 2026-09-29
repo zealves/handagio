@@ -5,12 +5,10 @@ import {
   groupByFamily,
   migratePrefs,
   nextInstrument,
-  nextStageBg,
   normalize,
   pushRecent,
   recentInfos,
   searchInstruments,
-  STAGE_BGS,
 } from './logic';
 
 describe('pushRecent', () => {
@@ -81,46 +79,26 @@ describe('nextInstrument', () => {
   });
 });
 
-describe('STAGE_BGS', () => {
-  it('mãos primeiro, câmara escondida no fim', () => {
-    expect(STAGE_BGS).toEqual(['maos', 'ondas', 'camara']);
-  });
-});
-
-describe('nextStageBg', () => {
-  it('roda só entre mãos e ondas; câmara volta a mãos', () => {
-    expect(nextStageBg('maos')).toBe('ondas');
-    expect(nextStageBg('ondas')).toBe('maos');
-    expect(nextStageBg('camara')).toBe('maos');
-  });
-});
-
 describe('migratePrefs', () => {
-  it('v1 com showVideo false passa a só mãos', () => {
-    const m = migratePrefs({ showVideo: false, bpm: 90 }, 1);
-    expect(m).toEqual({ stageBg: 'maos', bpm: 90 });
+  it('v1 perde showVideo e mantém o resto', () => {
+    expect(migratePrefs({ showVideo: false, bpm: 90 }, 1)).toEqual({ bpm: 90 });
   });
-  it('v1 com showVideo true (ou ausente) passa sempre a só mãos', () => {
-    expect(migratePrefs({ showVideo: true }, 1)).toEqual({ stageBg: 'maos' });
-    expect(migratePrefs({}, 1)).toEqual({ stageBg: 'maos' });
+  it('v2 perde stageBg e showWaves e mantém o resto', () => {
+    expect(migratePrefs({ stageBg: 'camara', showWaves: false, bpm: 90 }, 2)).toEqual({ bpm: 90 });
   });
   it('estado nulo não rebenta', () => {
-    expect(migratePrefs(null, 1)).toEqual({ stageBg: 'maos' });
+    expect(migratePrefs(null, 1)).toEqual({});
   });
-  it('v2 fica igual', () => {
-    expect(migratePrefs({ stageBg: 'camara' }, 2)).toEqual({ stageBg: 'camara' });
+  it('v3 fica igual', () => {
+    expect(migratePrefs({ bpm: 90 }, 3)).toEqual({ bpm: 90 });
   });
 });
 
 describe('compositeSources', () => {
-  const c = { waves: 'W', particles: 'P', overlay: 'O' };
-  it('câmara: vídeo e camadas sem ondas', () => {
-    expect(compositeSources('camara', 'V', c)).toEqual({ video: 'V', layers: ['P', 'O'] });
-  });
-  it('só mãos: nunca passa o vídeo', () => {
-    expect(compositeSources('maos', 'V', c)).toEqual({ video: null, layers: ['P', 'O'] });
-  });
-  it('ondas: sem vídeo, ondas por baixo', () => {
-    expect(compositeSources('ondas', 'V', c)).toEqual({ video: null, layers: ['W', 'P', 'O'] });
+  it('nunca inclui o vídeo da câmara; camadas são partículas e mãos', () => {
+    expect(compositeSources({ particles: 'P', overlay: 'O' })).toEqual({
+      video: null,
+      layers: ['P', 'O'],
+    });
   });
 });

@@ -10,7 +10,6 @@ import type {
   LoopBars,
   MouthFxId,
   Quantize,
-  StageBg,
   ThemeName,
 } from './types';
 
@@ -36,8 +35,6 @@ export interface Prefs extends SoundSettings {
   thumbs: boolean;
   heightPitch: boolean;
   glide: boolean;
-  stageBg: StageBg;
-  showWaves: boolean;
   recentInstruments: string[];
   volume: number;
   muted: boolean;
@@ -99,8 +96,6 @@ export const DEFAULT_PREFS: Prefs = {
   thumbs: false,
   heightPitch: true,
   glide: true,
-  stageBg: 'maos',
-  showWaves: true,
   recentInstruments: [],
   volume: 0.75,
   muted: false,
@@ -142,7 +137,7 @@ export const useStore = create<Store>()(
     }),
     {
       name: 'vision-sound-cam:prefs',
-      version: 2,
+      version: 3,
       migrate: (old, version) => migratePrefs(old, version) as unknown as Store,
       partialize: (s) => Object.fromEntries(PREF_KEYS.map((k) => [k, s[k]])) as Partial<Store>,
     },

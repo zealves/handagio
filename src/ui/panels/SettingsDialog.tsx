@@ -21,13 +21,11 @@ export function SettingsDialog() {
       calibration: x.calibration,
       calibrating: x.calibrating,
       engine: x.engine,
-      stageBg: x.stageBg,
       userPresets: x.userPresets,
       octave: x.octave,
       heightPitch: x.heightPitch,
       glide: x.glide,
       sensitivity: x.sensitivity,
-      showWaves: x.showWaves,
       set: x.set,
     })),
   );
@@ -166,12 +164,6 @@ export function SettingsDialog() {
             checked={st.lowRes}
             onChange={(v) => st.set({ lowRes: v })}
           />
-          <Toggle
-            label="Mostrar a imagem da câmara"
-            checked={st.stageBg === 'camara'}
-            onChange={(v) => st.set({ stageBg: v ? 'camara' : 'maos' })}
-            testId="show-camera"
-          />
         </section>
 
         <section className={s.section}>
@@ -244,12 +236,6 @@ export function SettingsDialog() {
             value={Math.round(st.volume * 100)}
             onChange={(v) => st.set({ volume: v / 100 })}
             format={(v) => `${v}%`}
-          />
-          <Toggle
-            label="Mostrar ondas por baixo do palco"
-            checked={st.showWaves}
-            onChange={(v) => st.set({ showWaves: v })}
-            testId="show-waves"
           />
           <div className={s.row} style={{ justifyContent: 'space-between' }}>
             <span className={p.field} id={`${id}-th`}>

@@ -1,8 +1,8 @@
 // Lógica pura do shell da interface (sem React nem DOM): pesquisa, recentes, rotação de
-// instrumentos e fundos, migração das preferências e fontes da composição de vídeo.
+// instrumentos, migração das preferências e fontes da composição de vídeo.
 import { INSTRUMENT_BY_ID, INSTRUMENTS, type InstrumentInfo } from '../../audio/instruments';
 import { FAMILIES, type Family } from '../../audio/patches/types';
-import type { DrawerId, StageBg } from '../../state/types';
+import type { DrawerId } from '../../state/types';
 
 export function pushRecent(list: string[], id: string, max = 6): string[] {
   return [id, ...list.filter((x) => x !== id)].slice(0, max);
@@ -48,15 +48,6 @@ export function nextInstrument(id: string, dir: 1 | -1, filter = 'Todos'): strin
   return list[(k + dir + list.length) % list.length].id;
 }
 
-export const STAGE_BGS: StageBg[] = ['maos', 'ondas', 'camara'];
-export const STAGE_BG_LABEL: Record<StageBg, string> = {
-  camara: 'Câmara',
-  maos: 'Só mãos',
-  ondas: 'Ondas',
-};
-/** O botão 👁 da barra só alterna entre mãos e ondas; a partir de câmara, volta a mãos. */
-export const nextStageBg = (bg: StageBg): StageBg => (bg === 'maos' ? 'ondas' : 'maos');
-
 export const DRAWER_IDS: DrawerId[] = [
   'instrumentos',
   'escala',
@@ -75,26 +66,23 @@ export const DRAWER_TITLES: Record<DrawerId, string> = {
 };
 
 /**
- * Migração do `persist`: v1 tinha `showVideo`; a v2 usa `stageBg`. Na v1 a câmara era o
- * valor por defeito e não se distingue quem a escolheu, por isso passa sempre a `maos`.
+ * Migração do `persist`: a v1 tinha `showVideo` e a v2 `stageBg` e `showWaves`. Desde a v3 o
+ * palco mostra sempre só as mãos e as ondas estão sempre por baixo: as chaves antigas saem.
  */
 export function migratePrefs(old: unknown, version: number): Record<string, unknown> {
   const o: Record<string, unknown> = { ...((old as Record<string, unknown> | null) ?? {}) };
-  if (version < 2) {
-    o.stageBg = 'maos';
+  if (version < 3) {
     delete o.showVideo;
+    delete o.stageBg;
+    delete o.showWaves;
   }
   return o;
 }
 
-/** O que entra no vídeo gravado: segue o fundo do palco (a pessoa só aparece com `camara`). */
-export function compositeSources<V, C>(
-  bg: StageBg,
-  video: V | null,
-  c: { waves: C | null; particles: C | null; overlay: C | null },
-): { video: V | null; layers: (C | null)[] } {
-  return {
-    video: bg === 'camara' ? video : null,
-    layers: bg === 'ondas' ? [c.waves, c.particles, c.overlay] : [c.particles, c.overlay],
-  };
+/** O que entra no vídeo gravado: nunca a imagem da câmara, só as partículas e as mãos. */
+export function compositeSources<C>(c: { particles: C | null; overlay: C | null }): {
+  video: null;
+  layers: (C | null)[];
+} {
+  return { video: null, layers: [c.particles, c.overlay] };
 }
