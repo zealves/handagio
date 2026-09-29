@@ -14,6 +14,7 @@ Interface redesenhada para pôr o foco em tocar, e instrumentos acústicos grava
 - Efeitos em cartões (reverb, eco/delay, pitch, filtro, drive, boca), com reverb e eco à mão na barra.
 - Layout para telemóvel (folha inferior), tablet, desktop e paisagem baixa.
 - Oitava, sensibilidade, altura da mão e deslizar passam para as Definições, com a lista de atalhos.
+- Notas dos dedos em modo Escala (tónica no indicador direito ou no mindinho esquerdo) ou Personalizado (a nota de cada dedo escolhida à mão); polegares mais difíceis de disparar sem querer, com sensibilidade própria.
 - Instrumentos acústicos com gravações reais e 9 novos (contrabaixo, clarinete, fagote, trompa, trombone, tuba, guitarra acústica, guitarra elétrica, xilofone), cada um no seu registo.
 
 ## [1.0.0] — 2026-09-29

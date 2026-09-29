@@ -10,11 +10,23 @@ Um instrumento musical que se toca com as mãos à frente da webcam. Cada dedo t
 
 1. Abre a app e carrega em **Ligar câmara e som**. Permite o acesso à câmara.
 2. Mostra as duas mãos à câmara, com os dedos esticados.
-3. Dobra um dedo para tocar a nota dele. O mindinho esquerdo é a nota mais grave e o mindinho direito a mais aguda. Os polegares estão desligados por defeito (liga-os em **Motor de som → Usar também os polegares**).
+3. Dobra um dedo para tocar a nota dele. O mindinho esquerdo é a nota mais grave e o mindinho direito a mais aguda. Os polegares estão desligados por defeito (liga-os em **Escala e acordes → Usar também os polegares**).
 4. Quanto mais depressa dobras, mais forte soa. Sobe ou desce a mão para mudar o tom.
 5. Abre a boca para aplicar o efeito escolhido na gaveta **Efeitos** (wah, filtro, distorção, eco, vibrato, robô, tremolo ou expressão).
 
 Sem câmara, toca com o teclado: **A S D F** (mão esquerda) e **J K L Ç** (mão direita); **G** e **H** são os polegares. Segura **Espaço** para simular a boca aberta. O teclado de piano e os pads também se tocam com o rato ou com toque.
+
+### Como os dedos tocam notas
+
+Na gaveta **Escala e acordes** escolhes como cada dedo sabe que nota tocar. A fila "notas de cada dedo", no fundo da gaveta, mostra sempre o que cada dedo toca, da esquerda para a direita.
+
+- **Escala** (por defeito): os dedos tocam as notas de uma escala, uma a seguir à outra, a subir do mindinho esquerdo para o mindinho direito.
+  - A **escala** é a lista de notas que se podem tocar. Na Pentatónica (5 notas por oitava) qualquer combinação soa bem.
+  - A **tónica** é a nota de partida da escala (a "casa"). **Tónica no** escolhe que dedo a toca: o **indicador direito** (as notas descem para a esquerda e sobem para a direita) ou o **mindinho esquerdo** (as notas só sobem, do mindinho esquerdo ao direito).
+  - Exemplo, Dó Pentatónica com a tónica no indicador direito: `Ré3 Mi3 Sol3 Lá3 | Dó4 Ré4 Mi4 Sol4` (mão esquerda | mão direita). Com a tónica no mindinho esquerdo: `Dó4 Ré4 Mi4 Sol4 | Lá4 Dó5 Ré5 Mi5`.
+  - A **oitava base** (nas definições) sobe ou desce tudo, e a altura da mão desloca as notas pela escala enquanto tocas.
+- **Personalizado**: escolhes a nota exata de cada dedo. Toca num dedo da fila, escolhe a nota (Dó a Si) e a oitava, e ouves logo como soa; **Copiar da escala** começa pelas notas que o modo Escala está a tocar. Aqui a altura da mão e o deslizar não mudam o tom, e os acordes são sempre maiores (Tríade: a nota e as que ficam 4 e 7 meios-tons acima).
+- **Polegares**: com **Usar também os polegares**, tocam 10 dedos em vez de 8. O polegar mexe-se sem querer quando dobras os outros dedos, por isso só toca se ficar bem dobrado durante um instante; se tocar sem querer ou custar a tocar, ajusta **Sensibilidade dos polegares** nas definições (secção Mãos).
 
 ### Interface
 
