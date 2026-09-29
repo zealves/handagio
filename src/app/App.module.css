@@ -27,11 +27,20 @@
   gap: 14px;
 }
 
-/* Vista Música: foco no teclado, pads e looper. */
-.app[data-view='musica'] .grid {
-  grid-template-columns: 290px minmax(0, 1fr);
+/* Na vista Música o looper sobe para o topo da coluna direita. */
+.looper {
+  min-width: 0;
 }
-.app[data-view='musica'] .right {
+.app[data-view='musica'] .looper {
+  order: -1;
+}
+
+/* Painéis que só aparecem em certas vistas (data-views="som musica"). */
+.only {
+  display: contents;
+}
+.app[data-view='som'] .only:not([data-views~='som']),
+.app[data-view='musica'] .only:not([data-views~='musica']) {
   display: none;
 }
 
@@ -49,15 +58,11 @@
   .app {
     padding: 10px 12px 16px;
   }
-  .grid,
-  .app[data-view='musica'] .grid {
+  .grid {
     grid-template-columns: minmax(0, 1fr);
   }
   .center {
     order: -1;
-  }
-  .app[data-view='musica'] .right {
-    display: flex;
   }
 }
 @media (max-width: 600px) {

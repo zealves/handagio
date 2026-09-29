@@ -2,6 +2,8 @@
 // separado do render da interface.
 import { audio } from '../audio/engine';
 import { DRUMS, instrumentInfo } from '../audio/instruments';
+import { Looper, type LoopEvent } from '../audio/looper';
+import { Clock, quantizeTime, STEPS_PER_BAR, STEPS_PER_BEAT, TapTempo } from '../audio/metronome';
 import { clamp, degreeToMidi, noteName, scaleLength } from '../audio/theory';
 import { live, pushBurst } from '../state/live';
 import { getState, setState, useStore, type Store } from '../state/store';
@@ -40,6 +42,15 @@ class Session {
   private keysDown = new Set<string>();
   /** Nota MIDI a soar em cada dedo (para apagar a tecla certa no noteOff). */
   private fingerNote: (number | null)[] = new Array(10).fill(null);
+  readonly clock = new Clock({
+    now: () => audio.now,
+    setInterval: (fn, ms) => setInterval(fn, ms),
+    clearInterval: (id) => clearInterval(id as ReturnType<typeof setInterval>),
+  });
+  readonly looper = new Looper();
+  private tapper = new TapTempo();
+  private loopSeq = 0;
+  private timers = new Set<ReturnType<typeof setTimeout>>();
 
   constructor() {
     this.gesture.on('noteOn', ({ finger, velocity, shift }) =>
@@ -52,6 +63,7 @@ class Session {
     this.gesture.on('continuous', ({ finger, level, pitch }) =>
       this.fingerContinuous(finger, level, pitch),
     );
+    this.clock.on('step', ({ step, time }) => this.onStep(step, time));
   }
 
   attachVideo(v: HTMLVideoElement | null): void {
@@ -81,9 +93,14 @@ class Session {
   // ---------- áudio ----------
   /** Cria/retoma o AudioContext (só depois de um gesto do utilizador). */
   ensureAudio(): void {
+    const first = !audio.ready;
     audio.init();
     void audio.resume();
-    this.syncParams(getState());
+    if (first) {
+      this.syncParams(getState());
+      this.clock.setBpm(getState().bpm);
+      this.clock.start();
+    }
   }
 
   private syncParams(s: Store): void {
@@ -106,9 +123,10 @@ class Session {
     const info = instrumentInfo(s.instrument);
     const fx = live.fx[i];
     fx.flash = 1;
+    const when = quantizeTime(audio.now, this.clock.anchor, this.clock.bpm, s.quantize);
     if (info.kind === 'drum') {
       const slot = slotOf(i, s.thumbs);
-      this.playDrum(slot, velocity, i);
+      this.playDrum(slot, velocity, i, when);
       fx.label = DRUMS[info.id].labels[slot];
       return;
     }
@@ -118,7 +136,7 @@ class Session {
     fx.label = noteName(midi);
     this.releaseFingerNote(i);
     this.fingerNote[i] = midi;
-    this.playNote(i, midi, velocity, fingerPan(i), FINGER_COLORS[i], info.sustain);
+    this.playNote(i, midi, velocity, fingerPan(i), FINGER_COLORS[i], info.sustain, when);
     const tip = live.fingers[i].tip;
     pushBurst({
       x: tip?.x ?? (i + 0.5) / 10,
@@ -130,6 +148,7 @@ class Session {
 
   fingerOff(i: number): void {
     audio.noteOff(i);
+    this.looper.release(this.clock.positionAt(audio.now), String(i));
     this.releaseFingerNote(i);
   }
 
@@ -159,7 +178,7 @@ class Session {
     }
   }
 
-  /** Toca uma nota melódica numa voz identificada por `key`. */
+  /** Toca uma nota melódica numa voz identificada por `key` (e grava-a no looper). */
   playNote(
     key: number | string,
     midi: number,
@@ -167,18 +186,51 @@ class Session {
     pan: number,
     color: string,
     held: boolean,
+    when?: number,
   ): void {
     const s = getState();
-    audio.noteOn(key, s.instrument, midi, vel, pan);
-    live.notes.set(midi, { level: 1, color, held });
-    setState({ lastNote: noteName(midi) });
+    audio.noteOn(key, s.instrument, midi, vel, pan, when);
+    this.at(when, () => {
+      live.notes.set(midi, { level: 1, color, held });
+      setState({ lastNote: noteName(midi) });
+    });
+    this.looper.record(this.clock.positionAt(when ?? audio.now), {
+      kind: 'note',
+      midi,
+      vel,
+      pan,
+      dur: 2,
+      instrument: s.instrument,
+      key: String(key),
+    });
   }
 
-  playDrum(slot: number, vel: number, finger?: number): void {
-    const s = getState();
-    const kit = DRUMS[s.instrument];
+  /** Corre `fn` quando o áudio chegar a `when` (para as luzes acompanharem a quantização). */
+  private at(when: number | undefined, fn: () => void): void {
+    const ms = when === undefined ? 0 : (when - audio.now) * 1000;
+    if (ms <= 4) return fn();
+    const id = setTimeout(() => {
+      this.timers.delete(id);
+      fn();
+    }, ms);
+    this.timers.add(id);
+  }
+
+  playDrum(slot: number, vel: number, finger?: number, when?: number, kitId?: string): void {
+    const kit = DRUMS[kitId ?? getState().instrument];
     if (!kit) return;
-    audio.drum(kit.id, slot, vel);
+    audio.drum(kit.id, slot, vel, 0, when);
+    this.looper.record(this.clock.positionAt(when ?? audio.now), {
+      kind: 'drum',
+      slot,
+      vel,
+      instrument: kit.id,
+    });
+    this.at(when, () => this.showDrum(kit.id, slot, vel, finger));
+  }
+
+  private showDrum(kitId: string, slot: number, vel: number, finger?: number): void {
+    const kit = DRUMS[kitId];
     live.pads[slot] = 1;
     setState({ lastNote: kit.labels[slot] });
     const c = FINGER_COLORS[finger ?? [1, 2, 3, 4, 6, 7, 8, 9][slot] ?? 0];
@@ -214,6 +266,7 @@ class Session {
 
   pianoUp(midi: number): void {
     audio.noteOff(`k${midi}`);
+    this.looper.release(this.clock.positionAt(audio.now), `k${midi}`);
     const n = live.notes.get(midi);
     if (n) n.held = false;
   }
@@ -221,16 +274,91 @@ class Session {
   padDown(slot: number, vel = 0.85): void {
     this.ensureAudio();
     this.startLoop();
+    // Com um instrumento melódico, os pads tocam o kit acústico.
     const s = getState();
-    const kit = DRUMS[s.instrument] ?? DRUMS.drums;
-    if (!DRUMS[s.instrument]) {
-      // Com um instrumento melódico, os pads tocam o kit acústico.
-      audio.drum(kit.id, slot, vel);
-      live.pads[slot] = 1;
-      setState({ lastNote: kit.labels[slot] });
+    this.playDrum(slot, vel, undefined, undefined, DRUMS[s.instrument] ? s.instrument : 'drums');
+  }
+
+  // ---------- tempo, metrónomo e looper ----------
+  private onStep(step: number, time: number): void {
+    const s = getState();
+    const lp = this.looper;
+    const counting = lp.state === 'armed' || lp.state === 'recording';
+    if ((s.metronome || counting) && step % STEPS_PER_BEAT === 0)
+      audio.click(time, step % STEPS_PER_BAR === 0);
+    const stepDur = this.clock.stepDur;
+    for (const { ev, offset } of lp.eventsAt(step))
+      this.playLoopEvent(ev, time + offset * stepDur, stepDur);
+    // estado visual (atrasado até ao momento real do passo)
+    this.at(time, () => {
+      live.step = step;
+      if (lp.advance(step) || (step % STEPS_PER_BAR === 0 && lp.state !== 'idle'))
+        this.publishLooper();
+    });
+  }
+
+  private playLoopEvent(ev: LoopEvent, when: number, stepDur: number): void {
+    const s = getState();
+    const cur = instrumentInfo(s.instrument);
+    if (ev.kind === 'drum') {
+      const kit = !s.loopFreeze && cur.kind === 'drum' ? cur.id : ev.instrument;
+      audio.drum(kit, ev.slot, ev.vel, 0, when);
+      this.at(when, () => this.showDrum(kit, ev.slot, ev.vel));
       return;
     }
-    this.playDrum(slot, vel);
+    const inst = !s.loopFreeze && cur.kind === 'melodic' ? cur.id : ev.instrument;
+    const key = `L${++this.loopSeq}`;
+    audio.noteOn(key, inst, ev.midi, ev.vel, ev.pan, when);
+    const color = FINGER_COLORS[((ev.midi % 10) + 10) % 10];
+    this.at(when, () => live.notes.set(ev.midi, { level: 1, color, held: true }));
+    this.at(when + ev.dur * stepDur, () => {
+      audio.noteOff(key);
+      const n = live.notes.get(ev.midi);
+      if (n) n.held = false;
+    });
+  }
+
+  private publishLooper(): void {
+    const lp = this.looper;
+    setState({
+      looper: {
+        state: lp.state,
+        layers: lp.layers.length,
+        bar: lp.barAt(this.clock.positionAt(audio.now)),
+      },
+    });
+  }
+
+  /** Botão principal do looper: gravar → (a tocar) sobrepor → fechar a camada. */
+  loopRecord(): void {
+    this.ensureAudio();
+    const lp = this.looper;
+    const now = audio.now;
+    if (lp.state === 'idle') {
+      lp.arm(this.clock.nextBarTime(now + 0.05).step, getState().loopBars);
+    } else if (lp.state === 'playing') {
+      if (lp.overdubbing) lp.stopOverdub(this.clock.positionAt(now));
+      else lp.startOverdub();
+    } else if (lp.state === 'armed') {
+      lp.clear();
+    }
+    this.publishLooper();
+  }
+
+  loopUndo(): void {
+    this.looper.undo();
+    this.publishLooper();
+  }
+
+  loopClear(): void {
+    this.looper.clear();
+    this.publishLooper();
+  }
+
+  tapTempo(): void {
+    this.ensureAudio();
+    const bpm = this.tapper.tap(performance.now());
+    if (bpm) setState({ bpm });
   }
 
   // ---------- modo teclado ----------
@@ -333,6 +461,7 @@ class Session {
       }
       if (s.root !== prev.root || s.scale !== prev.scale || s.octave !== prev.octave)
         this.releaseAll();
+      if (s.bpm !== prev.bpm) this.clock.setBpm(s.bpm);
       if ((s.cameraId !== prev.cameraId || s.lowRes !== prev.lowRes) && this.stream)
         void this.restartCamera();
     });
@@ -508,6 +637,9 @@ class Session {
     this.raf = 0;
     stopStream(this.stream);
     this.stream = null;
+    this.clock.stop();
+    this.timers.forEach(clearTimeout);
+    this.timers.clear();
     this.hands.close();
     this.face.close();
     this.motion?.reset();

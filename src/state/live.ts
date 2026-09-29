@@ -35,6 +35,8 @@ export const live = {
   pads: new Array<number>(10).fill(0),
   /** Disparos recentes para a onda de partículas. */
   bursts: [] as Burst[],
+  /** Passo atual do relógio (semicolcheias), para os indicadores de tempo. */
+  step: -1,
   /** Contador de fotogramas de deteção (para o HUD). */
   fps: 0,
 };

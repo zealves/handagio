@@ -3,9 +3,11 @@ import { useStore } from '../state/store';
 import { session } from './session';
 import { EffectsPanel } from '../ui/panels/EffectsPanel';
 import { InstrumentSelect } from '../ui/panels/InstrumentSelect';
+import { LooperPanel } from '../ui/panels/LooperPanel';
 import { RecordPanel } from '../ui/panels/RecordPanel';
 import { SoundMakerPanel } from '../ui/panels/SoundMakerPanel';
 import { StatusPanel } from '../ui/panels/StatusPanel';
+import { TempoPanel } from '../ui/panels/TempoPanel';
 import { VisualizerPanel } from '../ui/panels/VisualizerPanel';
 import { BottomStrip } from '../ui/bottom/BottomStrip';
 import { CameraStage } from '../ui/stage/CameraStage';
@@ -34,9 +36,14 @@ export function App() {
       <TopBar onShare={() => {}} onDownload={() => {}} canDownload={false} />
       <main className={s.grid}>
         <aside className={`${s.col} ${s.left}`} aria-label="Som e instrumentos">
-          <SoundMakerPanel />
+          <div className={s.only} data-views="som">
+            <SoundMakerPanel />
+          </div>
           <InstrumentSelect />
-          <StatusPanel />
+          <div className={s.only} data-views="som">
+            <StatusPanel />
+          </div>
+          <TempoPanel />
         </aside>
         <section className={s.center} aria-label="Palco da câmara">
           <CameraStage
@@ -45,9 +52,14 @@ export function App() {
           />
         </section>
         <aside className={`${s.col} ${s.right}`} aria-label="Visualizadores e efeitos">
-          <VisualizerPanel />
+          <div className={s.only} data-views="som">
+            <VisualizerPanel />
+          </div>
           <EffectsPanel />
           <RecordPanel />
+          <div className={s.looper}>
+            <LooperPanel />
+          </div>
         </aside>
       </main>
     </div>

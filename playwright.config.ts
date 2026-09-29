@@ -8,8 +8,14 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:4173',
     permissions: ['camera'],
+    // Chromium completo (headless novo) com GPU: no headless-shell o WebGL é por software e a
+    // deteção bloqueia a thread principal durante centenas de ms.
+    channel: 'chromium',
     launchOptions: {
       args: [
+        '--enable-gpu',
+        '--ignore-gpu-blocklist',
+        ...(process.platform === 'darwin' ? ['--use-angle=metal'] : []),
         '--use-fake-device-for-media-stream',
         '--use-fake-ui-for-media-stream',
         '--autoplay-policy=no-user-gesture-required',
