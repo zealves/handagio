@@ -28,4 +28,6 @@ Instrumento musical controlado pela webcam: dobrar um dedo toca uma nota, abrir 
 - Fórmulas e valores de deteção/som vêm de `reference/maos-musicais.html`; não aproximar.
 - Decisões ambíguas ficam em `docs/DECISIONS.md` (numeradas).
 - Antes de cada commit: `npm run build && npm run lint && npm test`.
+- Commits em inglês, no formato Conventional Commits (`feat: …`, `fix: …`, `ci: …`, `docs: …`, `chore: …`), assunto no imperativo, minúsculas, sem ponto final, até ~72 caracteres; corpo opcional com bullets. Autor único: José Alves, sem `Co-Authored-By` nem outras linhas de atribuição.
+- Deploy: `.github/workflows/deploy.yml` envia `dist/` por FTP para `handagio.com/` (addon domain) a cada push para `main`. Nunca usar `public_html/`, que é o site do zalves.com. Nomes do workflow e dos passos em inglês.
 - Sem `alert`/`confirm`: confirmações por segundo clique; diálogos com `<dialog>`.
