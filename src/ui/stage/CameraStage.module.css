@@ -79,9 +79,8 @@
   margin-inline: auto;
 }
 :global([data-view='camara']) .stage {
-  aspect-ratio: auto;
-  height: calc(100vh - 150px);
-  min-height: 320px;
+  width: min(100%, calc(max(320px, 100vh - 150px) * var(--ar)));
+  margin-inline: auto;
 }
 @media (max-width: 600px) {
   .window {

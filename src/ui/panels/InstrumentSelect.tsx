@@ -1,8 +1,9 @@
-import { useRef, type KeyboardEvent } from 'react';
+import { useEffect, useRef, type KeyboardEvent } from 'react';
 import { INSTRUMENTS, instrumentInfo } from '../../audio/instruments';
 import { FAMILIES } from '../../audio/patches/types';
 import { useStore } from '../../state/store';
 import { INSTRUMENT_ICONS } from '../icons/InstrumentIcons';
+import { prefersReducedMotion } from '../theme';
 import { Panel } from './Panel';
 import s from './panels.module.css';
 
@@ -13,6 +14,12 @@ export function InstrumentSelect() {
   const filter = useStore((st) => st.familyFilter);
   const set = useStore((st) => st.set);
   const grid = useRef<HTMLDivElement>(null);
+  // Traz a tile ativa à vista quando o instrumento muda (por exemplo, ao carregar um preset).
+  useEffect(() => {
+    grid.current
+      ?.querySelector<HTMLElement>('[aria-pressed="true"]')
+      ?.scrollIntoView({ block: 'nearest', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+  }, [instrument, filter]);
   const list = filter === 'Todos' ? INSTRUMENTS : INSTRUMENTS.filter((i) => i.family === filter);
 
   // Setas movem o foco entre tiles (3 colunas).

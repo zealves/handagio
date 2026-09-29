@@ -22,20 +22,21 @@ export function Panel({ title, extra, children, className, defaultOpen = true, t
       data-testid={testId}
     >
       <div className={s.head}>
-        <button
-          type="button"
-          className={s.toggle}
-          aria-expanded={open}
-          aria-controls={`${id}-b`}
-          onClick={() => setOpen((o) => !o)}
-        >
-          <span className={s.chev}>
-            <IconChevron width={14} height={14} />
-          </span>
-          <h2 className={s.title} id={`${id}-t`}>
+        <h2 className={s.title}>
+          <button
+            type="button"
+            className={s.toggle}
+            id={`${id}-t`}
+            aria-expanded={open}
+            aria-controls={`${id}-b`}
+            onClick={() => setOpen((o) => !o)}
+          >
+            <span className={s.chev}>
+              <IconChevron width={14} height={14} />
+            </span>
             {title}
-          </h2>
-        </button>
+          </button>
+        </h2>
         {extra && <div className={s.extra}>{extra}</div>}
       </div>
       <div className={s.body} id={`${id}-b`}>

@@ -23,6 +23,8 @@
   --font-title: 'Sora', 'Space Grotesk', system-ui, sans-serif;
   --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --stage-bg: #060a16;
+  --tile-bg: rgba(10, 16, 36, 0.35);
+  --canvas-bg: linear-gradient(180deg, rgba(6, 10, 22, 0.5), rgba(6, 10, 22, 0.2));
   color-scheme: dark;
 }
 
@@ -42,6 +44,8 @@
   --rec: #d61f33;
   --glow: 0 0 12px rgba(0, 148, 184, 0.3);
   --stage-bg: #10162c;
+  --tile-bg: rgba(255, 255, 255, 0.6);
+  --canvas-bg: linear-gradient(180deg, #121a36, #1a2446);
   color-scheme: light;
 }
 

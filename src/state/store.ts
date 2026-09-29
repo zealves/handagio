@@ -17,6 +17,7 @@ export interface SoundSettings {
   drive: number; // 0..1
   mouthFx: MouthFxId;
   bpm: number;
+  quantize: Quantize;
 }
 
 export interface Prefs extends SoundSettings {
@@ -30,7 +31,6 @@ export interface Prefs extends SoundSettings {
   cameraId: string | null;
   lowRes: boolean;
   theme: ThemeName;
-  quantize: Quantize;
   metronome: boolean;
   recordVideo: boolean;
   loopBars: LoopBars;
@@ -75,6 +75,7 @@ export const DEFAULT_SOUND: SoundSettings = {
   drive: 0,
   mouthFx: 'wah',
   bpm: 120,
+  quantize: 'off',
 };
 
 export const DEFAULT_PREFS: Prefs = {
@@ -89,7 +90,6 @@ export const DEFAULT_PREFS: Prefs = {
   cameraId: null,
   lowRes: false,
   theme: 'dark',
-  quantize: 'off',
   metronome: false,
   recordVideo: false,
   loopBars: 2,

@@ -7,12 +7,14 @@ import { Clock, quantizeTime, STEPS_PER_BAR, STEPS_PER_BEAT, TapTempo } from '..
 import { clamp, degreeToMidi, noteName, scaleLength } from '../audio/theory';
 import { live, pushBurst } from '../state/live';
 import { getState, setState, useStore, type Store } from '../state/store';
-import { openCamera, stopStream, CameraError } from '../vision/camera';
+import { CameraError, listCameras, openCamera, stopStream } from '../vision/camera';
 import { fingerDegree, isActive, KEYMAP, slotOf } from '../vision/fingerMap';
 import { GestureEngine, type GestureOptions } from '../vision/gestureEngine';
+import { CalibrationCollector, type CalPhase } from '../vision/calibration';
 import { FaceTracker, mouthOpenness } from '../vision/faceTracker';
 import { assignHands, HandTracker } from '../vision/handTracker';
 import { MotionDetector } from '../vision/motionFallback';
+import type { Pt } from '../vision/types';
 import { FINGER_COLORS } from '../ui/theme';
 
 const NO_RESULT_MS = 6000;
@@ -51,6 +53,9 @@ class Session {
   private tapper = new TapTempo();
   private loopSeq = 0;
   private timers = new Set<ReturnType<typeof setTimeout>>();
+  private cal: { collector: CalibrationCollector; phase: CalPhase } | null = null;
+  /** Diagnóstico: pára a deteção real para se poderem injetar mãos com `feedHands`. */
+  detectionPaused = false;
 
   constructor() {
     this.gesture.on('noteOn', ({ finger, velocity, shift }) =>
@@ -119,7 +124,7 @@ class Session {
   /** Disparo de um dedo (câmara, modo movimento ou teclado). */
   fingerOn(i: number, velocity: number, shift: number): void {
     const s = getState();
-    if (!audio.ready || !isActive(i, s.thumbs)) return;
+    if (!audio.ready || !isActive(i, s.thumbs) || this.cal) return;
     const info = instrumentInfo(s.instrument);
     const fx = live.fx[i];
     fx.flash = 1;
@@ -191,7 +196,8 @@ class Session {
     const s = getState();
     audio.noteOn(key, s.instrument, midi, vel, pan, when);
     this.at(when, () => {
-      live.notes.set(midi, { level: 1, color, held });
+      // se a nota já foi solta antes de soar (quantização), a luz não fica presa
+      live.notes.set(midi, { level: 1, color, held: held && audio.hasVoice(key) });
       setState({ lastNote: noteName(midi) });
     });
     this.looper.record(this.clock.positionAt(when ?? audio.now), {
@@ -254,14 +260,7 @@ class Session {
       return;
     }
     const pan = clamp((midi - 60) / 30, -0.8, 0.8);
-    this.playNote(
-      `k${midi}`,
-      midi,
-      vel,
-      pan,
-      FINGER_COLORS[((midi % 10) + 10) % 10],
-      info.sustain || true,
-    );
+    this.playNote(`k${midi}`, midi, vel, pan, FINGER_COLORS[((midi % 10) + 10) % 10], true);
   }
 
   pianoUp(midi: number): void {
@@ -572,17 +571,13 @@ class Session {
     const fresh = !!v && v.readyState >= 2 && v.currentTime !== this.lastVideoTime;
     if (fresh && v) {
       this.lastVideoTime = v.currentTime;
-      if (s.engine === 'hands') {
+      if (s.engine === 'hands' && !this.detectionPaused) {
         try {
           const r = this.hands.detect(v, now);
           if (r) {
             this.detections++;
             this.fpsCount++;
-            const pdt = clamp((now - this.lastProcT) / 1000, 0.008, 0.1);
-            this.lastProcT = now;
-            live.hands = r.hands;
-            live.handsT = now;
-            this.gesture.process(assignHands(r.hands), pdt, this.gestureOptions());
+            this.processHands(r.hands, now);
           }
         } catch (e) {
           console.warn('[visão] erro na deteção', e);
@@ -611,6 +606,12 @@ class Session {
       }
     }
 
+    if (this.cal)
+      this.cal.collector.add(
+        this.cal.phase,
+        live.fingers.map((f) => (f.tip ? f.curl : null)),
+      );
+
     // boca
     if (live.spaceHeld) live.mouthTarget = 1;
     else if (now - live.lipsT > 600) live.mouthTarget = 0;
@@ -630,6 +631,71 @@ class Session {
         if (n.level <= 0) live.notes.delete(m);
       }
     });
+  }
+
+  private processHands(hands: Pt[][], now: number): void {
+    const pdt = clamp((now - this.lastProcT) / 1000, 0.008, 0.1);
+    this.lastProcT = now;
+    live.hands = hands;
+    live.handsT = now;
+    this.gesture.process(assignHands(hands), pdt, this.gestureOptions());
+  }
+
+  /** Diagnóstico e testes: injeta pontos de mãos (já em espelho) no pipeline real. */
+  feedHands(hands: Pt[][]): void {
+    this.detectionPaused = true;
+    if (getState().engine !== 'hands') setState({ engine: 'hands' });
+    this.processHands(hands, performance.now());
+  }
+
+  // ---------- calibração ----------
+  async calibrate(): Promise<void> {
+    if (this.cal) return;
+    if (getState().engine !== 'hands') {
+      setState({ status: 'A calibração precisa da deteção das mãos. Liga a câmara primeiro.' });
+      return;
+    }
+    this.releaseAll();
+    const collector = new CalibrationCollector();
+    const step = async (phase: CalPhase, text: string) => {
+      this.cal = { collector, phase };
+      for (let k = 3; k > 0; k--) {
+        setState({ calibrating: `${text} ${k}…`, status: `${text} ${k}…` });
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    };
+    try {
+      await step('open', 'Mostra as duas mãos e estica bem todos os dedos.');
+      await step('closed', 'Agora dobra todos os dedos, como um punho.');
+    } finally {
+      this.cal = null;
+    }
+    const { calibration, fingers } = collector.result();
+    if (fingers >= 4) {
+      setState({
+        calibration,
+        calibrating: null,
+        status: `Calibração feita para ${fingers} dedos. Podes voltar a calibrar ou repor nas definições.`,
+      });
+    } else {
+      setState({
+        calibrating: null,
+        status:
+          'Não consegui ver bem os dedos. Põe as mãos à frente da câmara com boa luz e tenta outra vez.',
+      });
+    }
+    setTimeout(() => {
+      if (
+        getState().status.startsWith('Calibração feita') ||
+        getState().status.startsWith('Não consegui')
+      )
+        setState({ status: '' });
+    }, 5000);
+  }
+
+  // ---------- câmaras ----------
+  async cameras(): Promise<{ id: string; label: string }[]> {
+    return listCameras();
   }
 
   stop(): void {

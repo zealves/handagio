@@ -6,6 +6,7 @@ import { EffectsPanel } from '../ui/panels/EffectsPanel';
 import { InstrumentSelect } from '../ui/panels/InstrumentSelect';
 import { LooperPanel } from '../ui/panels/LooperPanel';
 import { RecordPanel } from '../ui/panels/RecordPanel';
+import { SettingsDialog } from '../ui/panels/SettingsDialog';
 import { SoundMakerPanel } from '../ui/panels/SoundMakerPanel';
 import { StatusPanel } from '../ui/panels/StatusPanel';
 import { TempoPanel } from '../ui/panels/TempoPanel';
@@ -40,7 +41,7 @@ export function App() {
         onDownload={() => void downloadRecording()}
         canDownload={!!lastRecording}
       />
-      <main className={s.grid}>
+      <main className={s.grid} id="conteudo">
         <aside className={`${s.col} ${s.left}`} aria-label="Som e instrumentos">
           <div className={s.only} data-views="som">
             <SoundMakerPanel />
@@ -68,6 +69,7 @@ export function App() {
           </div>
         </aside>
       </main>
+      <SettingsDialog />
     </div>
   );
 }

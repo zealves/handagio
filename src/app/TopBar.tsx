@@ -34,6 +34,7 @@ export function TopBar({ onShare, onDownload, canDownload }: Props) {
       <div className={s.center}>
         <Tabs<View>
           label="Vista"
+          controls="conteudo"
           value={view}
           onChange={(v) => set({ view: v })}
           items={[

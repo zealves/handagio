@@ -23,13 +23,15 @@
   font-variant: small-caps;
   margin: 0;
   color: var(--ink);
+  flex: 1;
+  min-width: 0;
 }
 .toggle {
   all: unset;
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 1;
+  width: 100%;
   cursor: default;
 }
 .chev {

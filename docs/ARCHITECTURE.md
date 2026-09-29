@@ -1,12 +1,47 @@
 # Arquitetura
 
 ```
-câmara ─► vision/handTracker ─► vision/gestureEngine ─► eventos ─► audio/engine ─► saída
-       └► vision/faceTracker ─► abertura da boca ─────────────────► audio/effects/mouthFx
+             ┌──────────────── src/app/session.ts (rAF próprio) ────────────────┐
+câmara ──► vision/camera ──► vision/handTracker ──► vision/gestureEngine ──┐     │
+                        └──► vision/faceTracker ──► abertura da boca       │     │
+                        └──► vision/motionFallback (modo movimento) ───────┤     │
+teclado A S D F / J K L Ç ─────────────────────────────────────────────────┤     │
+                                                                           ▼     │
+                    audio/metronome (Clock) ─► quantização ─► audio/engine ──► saída
+                                         └──► audio/looper ─┘        │
+                                                                     ├─► audio/analyser ─► canvas da UI
+                                                                     └─► audio/recorder ─► IndexedDB
 ```
 
-- `src/vision` e `src/audio` são TypeScript puro, sem React. Comunicam por eventos tipados.
-- `src/state/store.ts` (Zustand) guarda o estado de baixa frequência (instrumento, escala, efeitos, vista…). Os valores de alta frequência (dobras, pontas dos dedos, nível da boca, espectro) vivem num store transitório (`src/state/live.ts`) lido pelos canvas no seu próprio `requestAnimationFrame`.
-- `src/ui` só desenha. Os overlays e visualizadores desenham diretamente em `<canvas>`, sem re-render do React.
+## Camadas
 
-Detalhes de cada módulo estão nos comentários de topo de cada ficheiro.
+- **`src/vision`** e **`src/audio`**: TypeScript puro, sem React. Comunicam por eventos tipados (`lib/emitter.ts`). O `GestureEngine` emite `noteOn(finger, velocity, shift)`, `noteOff(finger)`, `continuous(finger, level, pitch)` e `glide(finger, pitch)`.
+- **`src/app/session.ts`**: o orquestrador. Liga a câmara, carrega os modelos (timeout de 20 s; sem resultados em 6 s passa ao modo movimento), corre o ciclo de deteção num `requestAnimationFrame` próprio, traduz eventos de gestos em notas (escala, tónica, oitava, polegares), aplica a quantização, grava no looper e gere a calibração e o modo teclado.
+- **`src/state`**:
+  - `store.ts` (Zustand + `persist`): preferências (guardadas em `localStorage`) e estado de baixa frequência (vista, estado da câmara, gravação, looper).
+  - `live.ts`: store transitório com os valores a 60 fps (dobras e pontas dos dedos, pontos das mãos e dos lábios, nível da boca, notas a soar, pads, disparos para as partículas). Nunca passa por estado React.
+  - `presets.ts`, `recordingsDb.ts` (IndexedDB), `stageCanvases.ts` (canvas do palco para o compositor de vídeo).
+- **`src/ui`**: componentes React que só desenham. Todos os canvas usam um único rAF partilhado (`ui/frame.ts`: `useCanvas`, `useFrame`); as luzes do teclado e dos pads mudam o DOM diretamente nesse ciclo.
+
+## Áudio
+
+```
+vozes ─► bus ─┬─► seco ─────────┬─► post ─► tom (filtro + drive) ─┬─► master ─► compressor ─► output ─┬─► speakers (mudo) ─► saída
+              └─► efeitos boca ─┘                                  ├─► reverb ─┘                         ├─► analisador
+                                                                   └─► delay ──┘                         └─► gravação
+metrónomo ─────────────────────────────────────────────────────────────────────────────────────────────► speakers
+```
+
+- Cada voz regista todos os nós que cria e desliga-os quando termina; o intervalo do arpejo 8-bit limpa-se no mesmo momento. As 10 vozes do theremin são criadas quando se escolhe o theremin e destruídas quando se muda.
+- O relógio (`Clock`) segue o padrão "A Tale of Two Clocks": acorda a cada 25 ms e agenda no relógio do `AudioContext` os passos (semicolcheias) dos próximos 100 ms. Metrónomo, quantização e looper partilham esta grelha.
+- O looper guarda eventos em passos, não áudio, e decide pela posição no relógio (não pelo estado), porque os passos são agendados antes de soarem.
+
+## Visão
+
+- Os pontos do MediaPipe chegam na imagem original e são espelhados (`x → 1 − x`) à entrada, para as fórmulas do protótipo (lado da mão pelo pulso, colunas do modo movimento) ficarem iguais. O `<video>` é espelhado com CSS e o overlay desenha-se sem espelho.
+- `HandLandmarker` e `FaceLandmarker` partilham um `FilesetResolver`, usam o delegate GPU e caem para CPU se falhar. A face corre em fotogramas alternados.
+- Os modelos e o WASM vêm de `public/mediapipe/` (sem CDNs) e são pré-carregados pelo service worker.
+
+## PWA
+
+`vite.config.ts` tem um pequeno plugin que gera `dist/sw.js` a partir de `scripts/sw.template.js`, com a lista de ficheiros do build, os modelos e o WASM. Páginas: rede primeiro, cache sem rede; resto: cache primeiro.

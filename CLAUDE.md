@@ -5,16 +5,27 @@ Instrumento musical controlado pela webcam: dobrar um dedo toca uma nota, abrir 
 ## Comandos
 
 - `npm run dev` — servidor de desenvolvimento (corre `fetch-models` antes)
-- `npm run build` — `tsc -b` + build Vite para `dist/`
+- `npm run build` — `tsc -b` + build Vite para `dist/` (gera também `dist/sw.js`)
 - `npm run lint` — ESLint, zero avisos
 - `npm test` — Vitest (lógica pura em `src/**/*.test.ts`)
-- `npm run test:e2e` — Playwright com câmara falsa
-- `npm run fetch-models` — copia o WASM e descarrega os modelos para `public/mediapipe/`
+- `npm run test:e2e` — Playwright com câmara falsa (Chromium completo com GPU; faz build + preview)
+- `npm run fetch-models` — copia o WASM e descarrega os modelos para `public/mediapipe/` (gitignored)
+- `node scripts/make-demo-gif.mjs` — regenera `docs/demo.gif` (precisa de `npm run dev`)
+- `node scripts/make-icons.mjs` — regenera os PNG da PWA a partir de `public/icon.svg`
+
+## Arquitetura (resumo)
+
+- `src/app/session.ts` orquestra tudo (sem React): câmara → `HandTracker`/`FaceTracker` → `GestureEngine` → `AudioEngine`, com o seu próprio rAF. Também tem o modo teclado, o relógio, a quantização, o looper e a calibração.
+- `src/state/store.ts` (Zustand, `persist`) guarda preferências e estado de baixa frequência. `src/state/live.ts` guarda valores a 60 fps lidos pelos canvas.
+- `src/ui/frame.ts` tem um único rAF partilhado por todos os canvas (`useCanvas`, `useFrame`).
+- Pontos do MediaPipe convertidos para espelho (`x → 1 − x`) à entrada; o overlay não é espelhado.
+- Diagnóstico: com `?debug` (ou em dev) existe `window.__vsc` com `session`, `audio`, `live`, `store` e `syntheticHand`; `session.feedHands()` injeta mãos no pipeline real (usado no e2e e no GIF).
 
 ## Regras
 
 - `src/vision` e `src/audio` não importam React.
-- Valores a 60 fps nunca vão para estado React: usar `src/state/live.ts` e desenhar em canvas.
+- Valores a 60 fps nunca vão para estado React: usar `live` e desenhar em canvas.
 - Fórmulas e valores de deteção/som vêm de `reference/maos-musicais.html`; não aproximar.
-- Decisões ambíguas ficam em `docs/DECISIONS.md`.
-- Um commit por fase; antes de cada commit: `npm run build && npm run lint && npm test`.
+- Decisões ambíguas ficam em `docs/DECISIONS.md` (numeradas).
+- Antes de cada commit: `npm run build && npm run lint && npm test`.
+- Sem `alert`/`confirm`: confirmações por segundo clique; diálogos com `<dialog>`.

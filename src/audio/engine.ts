@@ -128,7 +128,12 @@ export class AudioEngine {
   private ksBuffer(freq: number, damp: number, secs: number, bright: boolean): AudioBuffer {
     const key = Math.round(freq * 10) + '_' + damp + '_' + bright;
     const hit = this.ksCache.get(key);
-    if (hit) return hit;
+    if (hit) {
+      // LRU: volta a pôr no fim
+      this.ksCache.delete(key);
+      this.ksCache.set(key, hit);
+      return hit;
+    }
     const ctx = this.ctx;
     const sr = ctx.sampleRate;
     const len = Math.floor(sr * secs);
@@ -150,7 +155,8 @@ export class AudioEngine {
       buf[p] = v;
       p = n;
     }
-    if (this.ksCache.size > 400) this.ksCache.clear();
+    // Até 64 buffers (~20 MB): chega para as notas em uso sem crescer sem limite.
+    if (this.ksCache.size >= 64) this.ksCache.delete(this.ksCache.keys().next().value!);
     this.ksCache.set(key, b);
     return b;
   }

@@ -12,11 +12,12 @@ interface Props<T extends string> {
   value: T;
   onChange: (v: T) => void;
   label: string;
-  iconOnlyBelow?: boolean;
+  /** id do elemento que os separadores controlam */
+  controls?: string;
 }
 
 /** Separadores em pílula com navegação por setas (padrão ARIA tabs). */
-export function Tabs<T extends string>({ items, value, onChange, label }: Props<T>) {
+export function Tabs<T extends string>({ items, value, onChange, label, controls }: Props<T>) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const onKey = (e: KeyboardEvent, i: number) => {
     const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
@@ -37,6 +38,7 @@ export function Tabs<T extends string>({ items, value, onChange, label }: Props<
           role="tab"
           type="button"
           aria-selected={value === it.id}
+          aria-controls={controls}
           tabIndex={value === it.id ? 0 : -1}
           className={s.tab}
           onClick={() => onChange(it.id)}
