@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ScaleName } from '../audio/theory';
+import type { RecordingMeta } from './recordingsDb';
 import type { Calibration, Engine, LoopBars, MouthFxId, Quantize, ThemeName, View } from './types';
 
 /** Preferências que se guardam em localStorage e entram nos presets. */
@@ -54,6 +55,7 @@ export interface Runtime {
   calibrating: string | null;
   lastRecordingId: string | null;
   videoSize: { w: number; h: number } | null;
+  recordings: RecordingMeta[];
 }
 
 export type Store = Prefs &
@@ -117,6 +119,7 @@ export const useStore = create<Store>()(
       calibrating: null,
       lastRecordingId: null,
       videoSize: null,
+      recordings: [],
       set: (p) => set(p),
     }),
     {

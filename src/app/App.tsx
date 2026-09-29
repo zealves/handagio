@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useStore } from '../state/store';
+import { downloadRecording, shareRecording } from './recording';
 import { session } from './session';
 import { EffectsPanel } from '../ui/panels/EffectsPanel';
 import { InstrumentSelect } from '../ui/panels/InstrumentSelect';
@@ -17,6 +18,7 @@ import { TopBar } from './TopBar';
 export function App() {
   const view = useStore((st) => st.view);
   const theme = useStore((st) => st.theme);
+  const lastRecording = useStore((st) => st.lastRecordingId);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -33,7 +35,11 @@ export function App() {
 
   return (
     <div className={s.app} data-view={view}>
-      <TopBar onShare={() => {}} onDownload={() => {}} canDownload={false} />
+      <TopBar
+        onShare={() => void shareRecording()}
+        onDownload={() => void downloadRecording()}
+        canDownload={!!lastRecording}
+      />
       <main className={s.grid}>
         <aside className={`${s.col} ${s.left}`} aria-label="Som e instrumentos">
           <div className={s.only} data-views="som">

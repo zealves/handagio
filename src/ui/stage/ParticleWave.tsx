@@ -1,8 +1,9 @@
 // Onda de partículas na parte inferior do palco: uma fita que ondula com a forma de onda do
 // analisador e dispara partículas a partir de cada nota tocada. Desligada com reduced-motion.
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { audio } from '../../audio/engine';
 import { live } from '../../state/live';
+import { stageCanvases } from '../../state/stageCanvases';
 import { useCanvas } from '../frame';
 import { NEON, prefersReducedMotion } from '../theme';
 
@@ -113,5 +114,12 @@ export function ParticleWave() {
     g.globalAlpha = 1;
     g.globalCompositeOperation = 'source-over';
   });
+  useEffect(() => {
+    const cv = ref.current;
+    stageCanvases.particles = cv;
+    return () => {
+      if (stageCanvases.particles === cv) stageCanvases.particles = null;
+    };
+  }, [ref]);
   return <canvas ref={ref} aria-hidden style={{ pointerEvents: 'none' }} />;
 }
