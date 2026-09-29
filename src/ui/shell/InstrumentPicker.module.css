@@ -71,9 +71,47 @@
 .row[aria-pressed='true'] .icon {
   color: var(--cyan);
 }
+/* Tamanho fixo, igual ao ícone: o anel de carregamento fica sobreposto, sem mexer no layout. */
+.iconWrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+}
+.ring {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: var(--cyan);
+  animation: instrumentRingSpin 0.8s linear infinite;
+  pointer-events: none;
+}
+@keyframes instrumentRingSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ring {
+    animation: none;
+    opacity: 0.6;
+  }
+}
 .name {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
   font-size: 13.5px;
   font-weight: 600;
+}
+.sampled {
+  flex: none;
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--muted);
 }
 .desc {
   font-size: 11.5px;

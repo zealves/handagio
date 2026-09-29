@@ -116,8 +116,8 @@ class Session {
     }
   }
 
-  /** Carrega as amostras de um instrumento em segundo plano (precisa do AudioContext). */
-  private loadSamples(id: string): void {
+  /** Carrega (ou volta a tentar carregar) as amostras de um instrumento em segundo plano. */
+  loadSamples(id: string): void {
     if (audio.ready && isSampled(id)) void samples.load(audio.ctx, id);
   }
 

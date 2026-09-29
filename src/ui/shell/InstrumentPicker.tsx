@@ -1,6 +1,7 @@
 // Seletor de instrumentos preparado para muitos sons: pesquisa, recentes, chips de família e
 // filas compactas agrupadas por família.
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { session } from '../../app/session';
 import type { InstrumentInfo } from '../../audio/instruments';
 import { FAMILIES } from '../../audio/patches/types';
 import { useStore } from '../../state/store';
@@ -11,30 +12,47 @@ import s from './InstrumentPicker.module.css';
 
 const FILTERS = ['Todos', ...FAMILIES];
 
+type SampleStatus = 'loading' | 'ready' | 'error' | undefined;
+
+const LOAD_ERROR_DESC = 'Não foi possível carregar — toca para tentar de novo';
+
 function Row({
   info,
   active,
+  status,
   onPick,
   testId,
 }: {
   info: InstrumentInfo;
   active: boolean;
+  status: SampleStatus;
   onPick: (id: string) => void;
   testId: string;
 }) {
+  const loading = status === 'loading';
+  const desc = status === 'error' ? LOAD_ERROR_DESC : info.desc;
   return (
     <button
       type="button"
       className={s.row}
       aria-pressed={active}
+      aria-busy={loading || undefined}
       onClick={() => onPick(info.id)}
-      title={info.desc}
+      title={desc}
       data-row=""
       data-testid={testId}
     >
-      <span className={s.icon}>{instrumentIcon(info.id)}</span>
-      <span className={s.name}>{info.name}</span>
-      <span className={s.desc}>{info.desc}</span>
+      <span className={s.icon}>
+        <span className={s.iconWrap}>
+          {instrumentIcon(info.id)}
+          {loading && <span className={s.ring} aria-hidden />}
+        </span>
+      </span>
+      <span className={s.name}>
+        {info.name}
+        {info.sampled && <span className={s.sampled}>gravado</span>}
+      </span>
+      <span className={s.desc}>{desc}</span>
     </button>
   );
 }
@@ -43,6 +61,7 @@ export function InstrumentPicker() {
   const instrument = useStore((st) => st.instrument);
   const filter = useStore((st) => st.familyFilter);
   const recents = useStore((st) => st.recentInstruments);
+  const sampleStatus = useStore((st) => st.sampleStatus);
   const set = useStore((st) => st.set);
   const [q, setQ] = useState('');
   const input = useRef<HTMLInputElement>(null);
@@ -53,7 +72,11 @@ export function InstrumentPicker() {
     if (window.matchMedia('(pointer: fine)').matches) input.current?.focus();
   }, []);
 
-  const pick = (id: string) => set({ instrument: id });
+  const pick = (id: string) => {
+    set({ instrument: id });
+    // Ao clicar num instrumento cuja amostra falhou, tenta descarregá-la outra vez.
+    if (sampleStatus[id] === 'error') session.loadSamples(id);
+  };
   const found = searchInstruments(q, filterByFamily(filter));
   const groups = groupByFamily(found);
   const recent = !q.trim() && filter === 'Todos' ? recentInfos(recents) : [];
@@ -105,6 +128,7 @@ export function InstrumentPicker() {
                 key={i.id}
                 info={i}
                 active={instrument === i.id}
+                status={sampleStatus[i.id]}
                 onPick={pick}
                 testId={`recent-${i.id}`}
               />
@@ -121,6 +145,7 @@ export function InstrumentPicker() {
                 key={i.id}
                 info={i}
                 active={instrument === i.id}
+                status={sampleStatus[i.id]}
                 onPick={pick}
                 testId={`tile-${i.id}`}
               />

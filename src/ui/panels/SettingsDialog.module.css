@@ -92,3 +92,10 @@
   margin: 0;
   color: var(--muted);
 }
+.hint a {
+  color: var(--cyan);
+}
+.hint a:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}

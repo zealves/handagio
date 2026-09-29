@@ -300,6 +300,19 @@ export function SettingsDialog() {
             <dd>Fechar a gaveta ou voltar a mostrar a interface</dd>
           </dl>
         </section>
+
+        <section className={s.section}>
+          <h3>Créditos dos sons</h3>
+          <p className={s.hint}>
+            Os instrumentos gravados vêm da biblioteca tonejs-instruments (CC-BY 3.0), com amostras
+            de VSCO 2, Karoryfer e Universidade de Iowa. Os restantes sons são sintetizados.
+          </p>
+          <p className={s.hint}>
+            <a href="samples/CREDITS.md" target="_blank" rel="noopener">
+              Ver créditos completos
+            </a>
+          </p>
+        </section>
       </div>
     </dialog>
   );

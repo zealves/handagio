@@ -29,11 +29,14 @@ export function ControlBar() {
       metronome: x.metronome,
       recording: x.recording,
       loop: x.looper.state,
+      sampleStatus: x.sampleStatus[x.instrument],
       set: x.set,
     })),
   );
   const open = (d: DrawerId) => st.set({ drawer: d });
   const info = instrumentInfo(st.instrument);
+  const loading = st.sampleStatus === 'loading';
+  const label = `Instrumento: ${info.name}${loading ? ' (a carregar)' : ''}`;
   return (
     <nav className={s.bar} aria-label="Controlos" data-testid="control-bar">
       <button
@@ -42,10 +45,14 @@ export function ControlBar() {
         aria-haspopup="dialog"
         onClick={() => open('instrumentos')}
         data-testid="chip-instrument"
-        aria-label={`Instrumento: ${info.name}`}
+        aria-label={label}
         title="Instrumentos (, e . para mudar)"
       >
-        <span className={s.ico}>{instrumentIcon(info.id)}</span>
+        <span className={s.ico}>
+          {instrumentIcon(info.id)}
+          {loading && <span className={s.ring} aria-hidden />}
+          {st.sampleStatus === 'error' && <span className={s.errDot} aria-hidden />}
+        </span>
         <span className={s.label}>{info.name}</span>
       </button>
       <button
