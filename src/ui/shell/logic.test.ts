@@ -138,6 +138,22 @@ describe('migratePrefs', () => {
     edited[4] = 47;
     expect(migratePrefs({ customNotes: edited }, 4).customNotes).toEqual(edited);
   });
+  it('v4: presets do utilizador sem tonicAt ficam com a tónica no indicador direito', () => {
+    const up = migratePrefs(
+      {
+        userPresets: {
+          antigo: { instrument: 'harp', scale: 'Maior' },
+          novo: { instrument: 'pad', tonicAt: 'left-pinky' },
+        },
+      },
+      4,
+    ).userPresets;
+    expect(up).toEqual({
+      antigo: { instrument: 'harp', scale: 'Maior', tonicAt: 'right-index' },
+      novo: { instrument: 'pad', tonicAt: 'left-pinky' },
+    });
+    expect(migratePrefs({ bpm: 90 }, 4)).toEqual({ bpm: 90 });
+  });
   it('v5 fica igual', () => {
     expect(migratePrefs({ customNotes: [...LEGACY_CUSTOM_NOTES] }, 5).customNotes).toEqual([
       ...LEGACY_CUSTOM_NOTES,

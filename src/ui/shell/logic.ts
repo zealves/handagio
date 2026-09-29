@@ -96,6 +96,17 @@ export function migratePrefs(old: unknown, version: number): Record<string, unkn
       c.every((m, i) => m === LEGACY_CUSTOM_NOTES[i])
     )
       o.customNotes = [...DEFAULT_CUSTOM_NOTES];
+    // Presets do utilizador anteriores à v4 não guardavam `tonicAt`: tinham a tónica no
+    // indicador direito, que deixou de ser o defeito.
+    const up = o.userPresets;
+    if (up && typeof up === 'object' && !Array.isArray(up)) {
+      o.userPresets = Object.fromEntries(
+        Object.entries(up as Record<string, unknown>).map(([k, p]) => [
+          k,
+          p && typeof p === 'object' && !('tonicAt' in p) ? { ...p, tonicAt: 'right-index' } : p,
+        ]),
+      );
+    }
   }
   return o;
 }

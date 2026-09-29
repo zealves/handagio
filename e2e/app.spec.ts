@@ -809,6 +809,8 @@ test.describe('notas dos dedos', () => {
       const open = [v.syntheticHand(false, 0.75)];
       const bent = [v.syntheticHand([false, false, false, false, true], 0.75)];
       const wait = () => new Promise((r) => setTimeout(r, 33));
+      // sem mãos durante uns fotogramas: a mão que aparece a seguir é nova (sem continuidade)
+      for (let k = 0; k < 10; k++) v.session.feedHands([]);
       for (const hands of [open, open, open, open, bent, bent, bent, bent, open, open]) {
         v.session.feedHands(hands, label);
         await wait();

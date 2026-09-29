@@ -17,6 +17,16 @@ export interface Handedness {
 export const HANDEDNESS_MIN_SCORE = 0.8;
 /** Distância máxima do pulso entre fotogramas para a mesma mão manter o lado. */
 export const CONTINUITY_DIST = 0.15;
+/**
+ * Fotogramas seguidos em que um rótulo confiável contradiz a continuidade antes de a mão mudar
+ * de lado. Um rótulo errado isolado cortaria a nota e dispararia o dedo espelhado.
+ */
+export const LABEL_SWITCH_FRAMES = 3;
+/**
+ * Fotogramas de deteção sem a mão de um lado durante os quais o seu último pulso ainda serve
+ * para a continuidade (~200 ms a 30 fps de deteção).
+ */
+export const PREV_KEEP_FRAMES = 6;
 /** Fotogramas com duas mãos usados para aprender a orientação dos rótulos. */
 export const ORIENTATION_VOTES = 10;
 /**
@@ -32,14 +42,20 @@ export interface HandAssignState {
   labelsInverted: boolean | null;
   /** Últimos votos (true = rótulos trocados), no máximo `ORIENTATION_VOTES`. */
   votes: boolean[];
-  /** Pulso de cada lado no fotograma anterior: [esquerda, direita]. */
+  /** Último pulso visto de cada lado: [esquerda, direita]. */
   prev: [Pt | null, Pt | null];
+  /** Fotogramas seguidos sem mão de cada lado (o pulso esquece-se depois de `PREV_KEEP_FRAMES`). */
+  missed: [number, number];
+  /** Fotogramas seguidos em que o rótulo contradiz o lado dado pela continuidade. */
+  disagree: number;
 }
 
 export const createHandAssignState = (): HandAssignState => ({
   labelsInverted: null,
   votes: [],
   prev: [null, null],
+  missed: [0, 0],
+  disagree: 0,
 });
 
 /** Converte as categorias do resultado do MediaPipe (a mais provável de cada mão). */
@@ -74,8 +90,10 @@ function learn(state: HandAssignState, left: Handedness | null, right: Handednes
  * Atribui as mãos aos lados do utilizador.
  * - Duas mãos: pela posição x do pulso no ecrã (o mais fiável); servem também para aprender se
  *   os rótulos do MediaPipe vêm trocados.
- * - Uma mão: (a) pela lateralidade, se o rótulo for confiável; (b) senão, pelo lado que tinha
- *   no fotograma anterior, se o pulso quase não se mexeu; (c) senão, pelo lado do ecrã.
+ * - Uma mão que já estava a ser seguida (pulso a menos de `CONTINUITY_DIST` do último pulso de
+ *   um lado, visto há no máximo `PREV_KEEP_FRAMES`): mantém o lado; um rótulo confiável que
+ *   aponte para o outro só a muda ao fim de `LABEL_SWITCH_FRAMES` fotogramas seguidos.
+ * - Uma mão nova: (a) pela lateralidade, se o rótulo for confiável; (c) senão, pelo lado do ecrã.
  * `state` guarda o que passa de um fotograma para o outro.
  */
 export function assignHands(
@@ -91,19 +109,38 @@ export function assignHands(
     learn(state, handedness[a] ?? null, handedness[b] ?? null);
   } else if (list.length === 1) {
     const hand = list[0];
+    const w = hand[0];
     const h = handedness[0];
+    const labelSide = confident(h)
+      ? sideOfLabel(h, state.labelsInverted ?? DEFAULT_LABELS_INVERTED)
+      : null;
+    const d = state.prev.map((p) => (p ? Math.hypot(p.x - w.x, p.y - w.y) : Infinity));
+    const near: 0 | 1 = d[0] <= d[1] ? 0 : 1;
     let side: 0 | 1;
-    if (confident(h)) {
-      side = sideOfLabel(h, state.labelsInverted ?? DEFAULT_LABELS_INVERTED);
+    if (d[near] < CONTINUITY_DIST) {
+      side = near;
+      if (labelSide !== null && labelSide !== near) {
+        if (++state.disagree >= LABEL_SWITCH_FRAMES) {
+          side = labelSide;
+          state.disagree = 0;
+        }
+      } else state.disagree = 0;
     } else {
-      const w = hand[0];
-      const d = state.prev.map((p) => (p ? Math.hypot(p.x - w.x, p.y - w.y) : Infinity));
-      const near = d[0] <= d[1] ? 0 : 1;
-      side = d[near] < CONTINUITY_DIST ? near : w.x < 0.5 ? 0 : 1;
+      side = labelSide ?? (w.x < 0.5 ? 0 : 1);
+      state.disagree = 0;
     }
     out[side] = hand;
+    // O último pulso do outro lado, se for desta mesma mão (acabou de mudar de lado), esquece-se.
+    if (d[1 - side] < CONTINUITY_DIST) state.prev[1 - side] = null;
   }
-  state.prev = [out[0]?.[0] ?? null, out[1]?.[0] ?? null];
+  if (list.length !== 1) state.disagree = 0;
+  for (const k of [0, 1] as const) {
+    const hand = out[k];
+    if (hand) {
+      state.prev[k] = hand[0];
+      state.missed[k] = 0;
+    } else if (++state.missed[k] > PREV_KEEP_FRAMES) state.prev[k] = null;
+  }
   return out;
 }
 
