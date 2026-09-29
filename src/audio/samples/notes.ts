@@ -21,8 +21,9 @@ export function nearestSample(midi: number, notes: number[]): number {
 
 /**
  * Velocidade de reprodução para afinar a amostra na nota pedida. O limite (±48 meios-tons) só
- * protege contra valores absurdos: tudo o que é tocável (oitavas 1..6, registo, altura da mão,
- * acordes, pitch ±12) fica dentro dele e, por isso, sempre afinado.
+ * protege contra valores absurdos: todas as notas audíveis que se podem tocar (oitavas 1..6,
+ * registo, altura da mão, acordes, pitch ±12) ficam dentro dele e, por isso, afinadas. Só as
+ * combinações mais graves de todas (abaixo de ~25 Hz, inaudíveis) chegam ao limite.
  */
 export const MIN_RATE = 1 / 16;
 export const MAX_RATE = 16;
