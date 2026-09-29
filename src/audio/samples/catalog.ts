@@ -32,7 +32,8 @@ export const SAMPLED: SampledDef[] = [
     register: 0,
     rel: 0.4,
     fallback: 'piano',
-    level: 12.5,
+    // 1 dB abaixo da paridade: duas tríades com força máxima chegavam a ~1,0 à saída
+    level: 11.5,
     desc: 'Piano de cauda gravado.',
   },
   {
@@ -219,7 +220,8 @@ export const SAMPLED: SampledDef[] = [
     register: 1,
     rel: 0.3,
     fallback: 'marimba',
-    level: -2,
+    // o que se ouve é o ataque, que ficava ~10 dB abaixo da marimba; +4 é o teto aceite
+    level: 4,
     desc: 'Lâminas de madeira, secas e brilhantes.',
   },
 ];
