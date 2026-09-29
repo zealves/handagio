@@ -1,0 +1,12 @@
+# A câmara só funciona em HTTPS.
+RewriteEngine On
+RewriteCond %{HTTPS} off
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+AddType application/wasm .wasm
+AddType application/manifest+json .webmanifest
+
+# O service worker e o index.html nunca devem ficar em cache no browser.
+<FilesMatch "^(sw\.js|index\.html)$">
+  Header set Cache-Control "no-cache"
+</FilesMatch>
