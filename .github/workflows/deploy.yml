@@ -1,4 +1,4 @@
-name: Deploy para Namecheap
+name: Deploy to Namecheap
 
 on:
   push:
@@ -8,27 +8,27 @@ on:
 
 jobs:
   web-deploy:
-    name: Build e envio por FTP
+    name: Build and deploy via FTP
     runs-on: ubuntu-latest
 
     steps:
-      - name: Obter código
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Node
+      - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
 
-      - name: Instalar dependências
+      - name: Install dependencies
         run: npm ci
 
-      # O prebuild descarrega os modelos do MediaPipe para public/mediapipe/.
+      # prebuild downloads the MediaPipe models into public/mediapipe/.
       - name: Build
         run: npm run build
 
-      - name: Enviar dist/ por FTP
+      - name: Upload dist/ via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
@@ -36,4 +36,5 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftps
           local-dir: ./dist/
+          # Addon domain folder; public_html/ belongs to zalves.com.
           server-dir: handagio.com/
