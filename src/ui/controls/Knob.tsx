@@ -18,6 +18,7 @@ interface Props {
   defaultValue: number;
   onChange: (v: number) => void;
   format?: (v: number) => string;
+  size?: number;
   testId?: string;
 }
 
@@ -44,6 +45,7 @@ export function Knob({
   defaultValue,
   onChange,
   format,
+  size = 64,
   testId,
 }: Props) {
   const id = useId();
@@ -122,10 +124,11 @@ export function Knob({
   const text = format ? format(value) : value.toFixed(2);
   const gid = `${id}-g`;
   return (
-    <div className={s.knob}>
+    <div className={s.knob} style={size < 64 ? { gap: 2 } : undefined}>
       <div
         ref={ref}
         className={s.dial}
+        style={{ width: size, height: size }}
         role="slider"
         tabIndex={0}
         aria-label={label}
@@ -142,7 +145,7 @@ export function Knob({
         title={`${label}: ${text} (duplo clique para repor)`}
         data-testid={testId}
       >
-        <svg width="64" height="64" viewBox="0 0 64 64" aria-hidden>
+        <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden>
           <defs>
             <linearGradient id={gid} x1="0" y1="1" x2="1" y2="0">
               <stop offset="0" stopColor="var(--cyan)" />
