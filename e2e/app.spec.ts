@@ -3,17 +3,30 @@ import { expect, test, type Page } from '@playwright/test';
 // Mensagens que não são erros: o WASM do MediaPipe escreve INFO em console.error.
 const IGNORED = [/INFO: Created TensorFlow Lite XNNPACK delegate/];
 
-function watchConsole(page: Page) {
+function watchConsole(page: Page, opts: { allowFailedSamples?: boolean } = {}) {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
   page.on('console', (m) => {
-    if (m.type() === 'error' && !IGNORED.some((r) => r.test(m.text()))) errors.push(m.text());
+    if (m.type() !== 'error' || IGNORED.some((r) => r.test(m.text()))) return;
+    // o Chromium regista sempre os pedidos abortados; só se aceitam os das amostras
+    if (
+      opts.allowFailedSamples &&
+      m.text().startsWith('Failed to load resource') &&
+      m.location().url.includes('/samples/')
+    )
+      return;
+    errors.push(m.text());
   });
   return errors;
 }
 
 type Vsc = {
-  session: { feedHands(h: unknown[]): void };
+  session: { feedHands(h: unknown[]): void; ensureAudio(): void };
+  audio: {
+    noteOn(key: string, id: string, midi: number, vel: number, pan: number): void;
+    noteOff(key: string): void;
+    analyser: { frequency(): Uint8Array; level(): number };
+  };
   syntheticHand(closed: boolean[] | boolean, x?: number, y?: number): unknown;
   store: {
     getState(): {
@@ -21,6 +34,7 @@ type Vsc = {
       lastNote: string;
       engine: string;
       uiHidden: boolean;
+      sampleStatus: Record<string, string>;
       set(p: Record<string, unknown>): void;
     };
   };
@@ -42,6 +56,86 @@ function playSynthetic(page: Page) {
     }
     return v.store.getState().lastNote;
   });
+}
+
+/** Estado das amostras de um instrumento (undefined enquanto nunca foi pedido). */
+function sampleStatus(page: Page, id: string) {
+  return page.evaluate(
+    (id) => (window as unknown as { __vsc: Vsc }).__vsc.store.getState().sampleStatus[id],
+    id,
+  );
+}
+
+/** Toca uma nota durante `holdMs` e devolve o RMS máximo à saída nos primeiros 300 ms. */
+function playRms(page: Page, id: string, midi = 69, holdMs = 200) {
+  return page.evaluate(
+    async ({ id, midi, holdMs }) => {
+      const { audio } = (window as unknown as { __vsc: Vsc }).__vsc;
+      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+      const t0 = performance.now();
+      audio.noteOn('e2e', id, midi, 0.8, 0);
+      let rms = 0;
+      let off = false;
+      while (performance.now() - t0 < 300) {
+        rms = Math.max(rms, audio.analyser.level());
+        if (!off && performance.now() - t0 >= holdMs) {
+          audio.noteOff('e2e');
+          off = true;
+        }
+        await sleep(5);
+      }
+      if (!off) audio.noteOff('e2e');
+      return rms;
+    },
+    { id, midi, holdMs },
+  );
+}
+
+/** Espera o silêncio, toca `midi` (toque de 200 ms) e lê o espectro aos 300 ms (bins 0–255). */
+function spectrumAt300(page: Page, id: string, midi: number) {
+  return page.evaluate(
+    async ({ id, midi }) => {
+      const { audio } = (window as unknown as { __vsc: Vsc }).__vsc;
+      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+      for (let k = 0; k < 80 && audio.analyser.level() > 5e-4; k++) await sleep(50);
+      await sleep(300);
+      // o suavizado do AnalyserNode mistura cada leitura com a anterior: lê-se durante a nota
+      // toda, como os visualizadores, para o espectro não trazer o instrumento anterior
+      const t0 = performance.now();
+      audio.noteOn('e2e', id, midi, 0.8, 0);
+      let off = false;
+      while (performance.now() - t0 < 300) {
+        audio.analyser.frequency();
+        if (!off && performance.now() - t0 >= 200) {
+          audio.noteOff('e2e');
+          off = true;
+        }
+        await sleep(8);
+      }
+      return Array.from(audio.analyser.frequency().slice(0, 256));
+    },
+    { id, midi },
+  );
+}
+
+function cosine(a: number[], b: number[]) {
+  let d = 0;
+  let na = 0;
+  let nb = 0;
+  for (let i = 0; i < a.length; i++) {
+    d += a[i] * b[i];
+    na += a[i] * a[i];
+    nb += b[i] * b[i];
+  }
+  return d / Math.sqrt(na * nb);
+}
+
+/** Liga o áudio (como faria o primeiro gesto) e abre a gaveta pelo menu ⋯ → Instrumentos. */
+async function openInstruments(page: Page) {
+  await page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.session.ensureAudio());
+  await page.getByTestId('more').click();
+  await page.getByTestId('menu-instrumentos').click();
+  await expect(page.getByTestId('drawer')).toBeVisible();
 }
 
 test('liga a câmara, toca todos os instrumentos e grava', async ({ page }) => {
@@ -375,12 +469,101 @@ for (const vp of VIEWPORTS) {
   });
 }
 
+test.describe('instrumentos gravados', () => {
+  // o page.route não vê pedidos feitos pelo service worker
+  test.use({ serviceWorkers: 'block' });
+
+  test('instrumento gravado carrega e toca', async ({ page }) => {
+    const errors = watchConsole(page);
+    await page.goto('/?debug');
+    await openInstruments(page);
+    const sample = page.waitForResponse(
+      (r) => /\/samples\/violin\/[^/]+\.mp3$/.test(r.url()) && r.status() === 200,
+    );
+    await page.getByTestId('tile-violin').click();
+    await sample;
+    await expect.poll(() => sampleStatus(page, 'violin'), { timeout: 15_000 }).toBe('ready');
+    await expect(page.getByTestId('tile-violin')).toContainText('gravado');
+    await expect(page.getByTestId('chip-instrument')).toHaveAttribute(
+      'aria-label',
+      'Instrumento: Violino',
+    );
+    expect(await playRms(page, 'violin')).toBeGreaterThan(0.01);
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+
+  test('violino e flauta não soam iguais', async ({ page }) => {
+    const errors = watchConsole(page);
+    await page.goto('/?debug');
+    await openInstruments(page);
+    await page.getByTestId('tile-violin').click();
+    await page.getByTestId('tile-flute').click();
+    for (const id of ['violin', 'flute'])
+      await expect.poll(() => sampleStatus(page, id), { timeout: 15_000 }).toBe('ready');
+    await page.keyboard.press('Escape');
+    // compara o timbre: sem reverberação nem eco, que espalham o espectro de qualquer som
+    await page.evaluate(() =>
+      (window as unknown as { __vsc: Vsc }).__vsc.store.getState().set({ reverb: 0, echo: 0 }),
+    );
+    // o mesmo tom (Lá4) e a mesma força nos dois
+    const violin = await spectrumAt300(page, 'violin', 69);
+    const flute = await spectrumAt300(page, 'flute', 69);
+    expect(Math.max(...violin)).toBeGreaterThan(0);
+    expect(Math.max(...flute)).toBeGreaterThan(0);
+    expect(cosine(violin, flute)).toBeLessThan(0.9);
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+
+  test('tocar enquanto carrega usa a reserva', async ({ page }) => {
+    const errors = watchConsole(page);
+    await page.route('**/samples/cello/**', async (r) => {
+      await new Promise((res) => setTimeout(res, 3000));
+      await r.continue().catch(() => {});
+    });
+    await page.goto('/?debug');
+    await openInstruments(page);
+    await page.getByTestId('tile-cello').click();
+    await expect(page.getByTestId('tile-cello')).toHaveAttribute('aria-busy', 'true');
+    await expect(page.getByTestId('chip-instrument')).toHaveAttribute(
+      'aria-label',
+      'Instrumento: Violoncelo (a carregar)',
+    );
+    // ainda sem amostras: soa o patch de reserva
+    expect(await sampleStatus(page, 'cello')).toBe('loading');
+    expect(await playRms(page, 'cello', 57)).toBeGreaterThan(0.01);
+    // e quando chegam, passa às amostras sem erros
+    await expect.poll(() => sampleStatus(page, 'cello'), { timeout: 15_000 }).toBe('ready');
+    await expect(page.getByTestId('tile-cello')).not.toHaveAttribute('aria-busy', 'true');
+    expect(await playRms(page, 'cello', 57)).toBeGreaterThan(0.01);
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+
+  test('sem rede na primeira escolha', async ({ page }) => {
+    const errors = watchConsole(page, { allowFailedSamples: true });
+    await page.route('**/samples/tuba/**', (r) => r.abort());
+    await page.goto('/?debug');
+    await openInstruments(page);
+    await page.getByTestId('tile-tuba').click();
+    await expect.poll(() => sampleStatus(page, 'tuba'), { timeout: 15_000 }).toBe('error');
+    await expect(page.getByTestId('tile-tuba')).toContainText(
+      'Não foi possível carregar — toca para tentar de novo',
+    );
+    await expect(page.getByTestId('chip-instrument')).toHaveAttribute(
+      'aria-label',
+      'Instrumento: Tuba (erro ao carregar)',
+    );
+    // o som continua a sair da reserva
+    expect(await playRms(page, 'tuba', 45)).toBeGreaterThan(0.01);
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+});
+
 test.describe('sem internet', () => {
   test.use({ serviceWorkers: 'allow' });
 
   test('funciona offline depois do primeiro carregamento', async ({ page, context }) => {
     const errors = watchConsole(page);
-    await page.goto('/');
+    await page.goto('/?debug');
     await page.evaluate(async () => {
       await navigator.serviceWorker.ready;
     });
@@ -393,6 +576,39 @@ test.describe('sem internet', () => {
     await expect(page.getByRole('status').filter({ hasText: /Pronto|Mostra/ })).toBeVisible({
       timeout: 30_000,
     });
+    // o instrumento por defeito (piano) vem do pré-cache: toca com amostras sem rede
+    await expect.poll(() => sampleStatus(page, 'piano'), { timeout: 15_000 }).toBe('ready');
+    expect(await playRms(page, 'piano')).toBeGreaterThan(0.01);
+
+    // depois de usado com rede, um instrumento gravado também funciona sem internet
+    await context.setOffline(false);
+    await openInstruments(page);
+    await page.getByTestId('tile-violin').click();
+    await expect.poll(() => sampleStatus(page, 'violin'), { timeout: 15_000 }).toBe('ready');
+    // o service worker guarda as respostas em segundo plano: espera que estejam todas na cache
+    await expect
+      .poll(() =>
+        page.evaluate(async () => {
+          const urls = performance
+            .getEntriesByType('resource')
+            .map((e) => e.name)
+            .filter((u) => u.includes('/samples/violin/'));
+          const hits = await Promise.all(urls.map((u) => caches.match(u)));
+          return urls.length > 0 && hits.every(Boolean);
+        }),
+      )
+      .toBe(true);
+    await context.setOffline(true);
+    await page.reload();
+    await page.getByTestId('start').click();
+    await expect(page.getByRole('status').filter({ hasText: /Pronto|Mostra/ })).toBeVisible({
+      timeout: 30_000,
+    });
+    await openInstruments(page);
+    await page.getByTestId('tile-piano').click();
+    await page.getByTestId('tile-violin').click();
+    await expect.poll(() => sampleStatus(page, 'violin'), { timeout: 15_000 }).toBe('ready');
+    expect(await playRms(page, 'violin')).toBeGreaterThan(0.01);
     expect(errors, errors.join('\n')).toEqual([]);
   });
 });
