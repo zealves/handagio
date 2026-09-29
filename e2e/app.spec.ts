@@ -21,7 +21,13 @@ function watchConsole(page: Page, opts: { allowFailedSamples?: boolean } = {}) {
 }
 
 type Vsc = {
-  session: { feedHands(h: unknown[]): void; ensureAudio(): void };
+  session: {
+    feedHands(
+      h: unknown[],
+      handedness?: ({ label: 'Left' | 'Right'; score: number } | null)[],
+    ): void;
+    ensureAudio(): void;
+  };
   audio: {
     noteOn(key: string, id: string, midi: number, vel: number, pan: number): void;
     noteOff(key: string): void;
@@ -89,6 +95,17 @@ function playFinger(page: Page, hand: number, finger: number) {
     { hand, finger },
   );
 }
+
+/** Fixa a configuração das notas que um teste usa, para não depender dos valores por defeito. */
+function pinNotes(page: Page, p: Record<string, unknown>) {
+  return page.evaluate(
+    (p) => (window as unknown as { __vsc: Vsc }).__vsc.store.getState().set(p),
+    p,
+  );
+}
+
+/** Notas personalizadas por defeito antes da v5 (Dó Pentatónica, com polegares). */
+const LEGACY_CUSTOM_NOTES = [57, 55, 52, 50, 48, 60, 62, 64, 67, 69];
 
 /** Liga o áudio e abre a gaveta da escala. */
 async function openScale(page: Page) {
@@ -679,6 +696,7 @@ test.describe('notas dos dedos', () => {
   test('Personalizado: escolher a nota de um dedo e tocá-la', async ({ page }) => {
     const errors = watchConsole(page);
     await page.goto('/?debug');
+    await pinNotes(page, { customNotes: LEGACY_CUSTOM_NOTES });
     await openScale(page);
     await page.getByTestId('note-mode-custom').click();
     await expect(page.getByTestId('note-mode-custom')).toHaveAttribute('aria-checked', 'true');
@@ -714,6 +732,11 @@ test.describe('notas dos dedos', () => {
   test('Copiar da escala: as notas ficam iguais às da escala', async ({ page }) => {
     const errors = watchConsole(page);
     await page.goto('/?debug');
+    await pinNotes(page, {
+      scale: 'Pentatónica',
+      tonicAt: 'right-index',
+      customNotes: LEGACY_CUSTOM_NOTES,
+    });
     await openScale(page);
     await page.getByTestId('scale-Maior').click();
     await page.getByTestId('tonic-at-left-pinky').click();
@@ -738,10 +761,9 @@ test.describe('notas dos dedos', () => {
   test('tónica no mindinho esquerdo: toca a tónica na oitava base', async ({ page }) => {
     const errors = watchConsole(page);
     await page.goto('/?debug');
-    await page.evaluate(() =>
-      (window as unknown as { __vsc: Vsc }).__vsc.store.getState().set({ heightPitch: false }),
-    );
+    await pinNotes(page, { heightPitch: false, scale: 'Pentatónica', tonicAt: 'right-index' });
     await openScale(page);
+    await expect(page.getByTestId('finger-note-6')).toHaveText('Dó4');
     await page.getByTestId('tonic-at-left-pinky').click();
     await expect(page.getByTestId('finger-note-4')).toHaveText('Dó4');
     await page.keyboard.press('Escape');
@@ -749,6 +771,51 @@ test.describe('notas dos dedos', () => {
     expect(await playFinger(page, 0, 4)).toBe('Dó4');
     // o indicador direito passa a tocar mais acima (grau 4 da Pentatónica = Lá4)
     expect(await playFinger(page, 1, 1)).toBe('Lá4');
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+
+  test('por defeito: Dó Maior do mindinho esquerdo ao direito, também no Personalizado', async ({
+    page,
+  }) => {
+    const errors = watchConsole(page);
+    await page.goto('/?debug');
+    const dom = ['Dó4', 'Ré4', 'Mi4', 'Fá4', 'Sol4', 'Lá4', 'Si4', 'Dó5'];
+    await openScale(page);
+    await expect(page.getByTestId('scale-Maior')).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByTestId('tonic-at-left-pinky')).toHaveAttribute('aria-checked', 'true');
+    expect(await fingerNotes(page)).toEqual(dom);
+    await page.getByTestId('note-mode-custom').click();
+    // sem polegares: os 8 dedos à vista, com o Fá e a tónica
+    await expect.poll(() => fingerNotes(page)).toEqual(dom);
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+
+  test('por defeito: o mindinho esquerdo toca Dó4, mesmo sozinho na metade direita', async ({
+    page,
+  }) => {
+    const errors = watchConsole(page);
+    // cada teste abre num contexto novo: localStorage limpo, só com os valores por defeito
+    await page.goto('/?debug');
+    await page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.session.ensureAudio());
+    // a altura da mão não é uma nota: desliga-se para a nota ser a do dedo
+    await pinNotes(page, { heightPitch: false });
+    expect(await playFinger(page, 0, 4)).toBe('Dó4');
+    // uma só mão esquerda na metade direita do ecrã, com o rótulo cru do MediaPipe ("Right"
+    // numa imagem sem espelho = mão esquerda do utilizador)
+    const note = await page.evaluate(async () => {
+      const v = (window as unknown as { __vsc: Vsc }).__vsc;
+      v.store.getState().set({ lastNote: '—' });
+      const label = [{ label: 'Right' as const, score: 0.95 }];
+      const open = [v.syntheticHand(false, 0.75)];
+      const bent = [v.syntheticHand([false, false, false, false, true], 0.75)];
+      const wait = () => new Promise((r) => setTimeout(r, 33));
+      for (const hands of [open, open, open, open, bent, bent, bent, bent, open, open]) {
+        v.session.feedHands(hands, label);
+        await wait();
+      }
+      return v.store.getState().lastNote;
+    });
+    expect(note).toBe('Dó4');
     expect(errors, errors.join('\n')).toEqual([]);
   });
 });
