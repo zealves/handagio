@@ -12,6 +12,18 @@ const MEDIAPIPE = [
   'mediapipe/wasm/vision_wasm_internal.wasm',
 ];
 
+/** Instrumento por defeito: as amostras entram no pré-cache para o primeiro arranque sem rede. */
+const DEFAULT_SAMPLED = 'piano';
+
+/** Manifest das amostras e as notas do instrumento por defeito, lidas do manifest no build. */
+function precachedSamples(): string[] {
+  const manifest = JSON.parse(readFileSync('public/samples/manifest.json', 'utf8')) as {
+    instruments: Record<string, { notes: Record<string, number> }>;
+  };
+  const notes = Object.keys(manifest.instruments[DEFAULT_SAMPLED].notes);
+  return ['samples/manifest.json', ...notes.map((n) => `samples/${DEFAULT_SAMPLED}/${n}.mp3`)];
+}
+
 /** Gera dist/sw.js com a lista de ficheiros do build, para a app funcionar sem internet. */
 function serviceWorker(): Plugin {
   return {
@@ -20,7 +32,8 @@ function serviceWorker(): Plugin {
     generateBundle(_, bundle) {
       const files = Object.keys(bundle).filter((f) => !f.endsWith('.map') && f !== 'index.html');
       const statics = ['manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
-      const precache = ['./', 'index.html', ...statics, ...MEDIAPIPE, ...files];
+      const sampleFiles = precachedSamples();
+      const precache = ['./', 'index.html', ...statics, ...MEDIAPIPE, ...sampleFiles, ...files];
       const sizes = MEDIAPIPE.map((f) => {
         try {
           return statSync(`public/${f}`).size;
@@ -28,10 +41,10 @@ function serviceWorker(): Plugin {
           return 0;
         }
       });
-      const version = createHash('sha1')
-        .update(precache.join('|') + sizes.join(','))
-        .digest('hex')
-        .slice(0, 12);
+      const hash = createHash('sha1').update(precache.join('|') + sizes.join(','));
+      // as amostras pré-carregadas mudam sem mudar de nome: o conteúdo entra na versão
+      for (const f of sampleFiles) hash.update(readFileSync(`public/${f}`));
+      const version = hash.digest('hex').slice(0, 12);
       const tpl = readFileSync('scripts/sw.template.js', 'utf8');
       this.emitFile({
         type: 'asset',
