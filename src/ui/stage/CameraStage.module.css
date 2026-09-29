@@ -32,6 +32,7 @@
   background: var(--line-strong);
 }
 .stage {
+  --ar: 1.7778;
   position: relative;
   aspect-ratio: 16 / 9;
   background: var(--stage-bg);
@@ -72,6 +73,10 @@
 }
 .bottom {
   border-top: 1px solid var(--line);
+}
+:global([data-view='musica']) .stage {
+  width: min(100%, calc(42vh * var(--ar)));
+  margin-inline: auto;
 }
 :global([data-view='camara']) .stage {
   aspect-ratio: auto;

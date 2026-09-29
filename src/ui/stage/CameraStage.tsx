@@ -3,6 +3,8 @@ import { session } from '../../app/session';
 import { useStore } from '../../state/store';
 import { IconLogo } from '../icons/UiIcons';
 import { HandOverlay } from './HandOverlay';
+import { HudOverlay } from './HudOverlay';
+import { ParticleWave } from './ParticleWave';
 import { StartScreen } from './StartScreen';
 import s from './CameraStage.module.css';
 
@@ -30,7 +32,11 @@ export function CameraStage({ onStart, bottom }: Props) {
       </div>
       <div
         className={s.stage}
-        style={size ? { aspectRatio: `${size.w} / ${size.h}` } : undefined}
+        style={
+          size
+            ? { aspectRatio: `${size.w} / ${size.h}`, ['--ar' as string]: size.w / size.h }
+            : undefined
+        }
         data-testid="stage"
       >
         <video
@@ -42,7 +48,9 @@ export function CameraStage({ onStart, bottom }: Props) {
           data-testid="video"
         />
         <div className={s.dim} aria-hidden />
+        <ParticleWave />
         <HandOverlay />
+        <HudOverlay />
         {!started && <StartScreen onStart={onStart} />}
         {status && (
           <div className={s.status} role="status">

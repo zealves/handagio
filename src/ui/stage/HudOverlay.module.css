@@ -1,0 +1,79 @@
+.hud {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-content: start;
+  gap: 8px;
+}
+.col {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  align-content: start;
+}
+.right {
+  justify-items: end;
+}
+.chip {
+  display: inline-flex;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 8px;
+  background: rgba(10, 16, 36, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(140, 170, 255, 0.22);
+  color: #c9d3f5;
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.chip b {
+  color: #35e0ff;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+}
+.rec {
+  composes: chip;
+  color: #ffd9de;
+  border-color: rgba(255, 59, 78, 0.55);
+}
+.rec i {
+  width: 10px;
+  height: 10px;
+  margin: auto 0;
+  border-radius: 50%;
+  background: #ff3b4e;
+  box-shadow: 0 0 10px #ff3b4e;
+  animation: blink 1s steps(2, start) infinite;
+}
+.mode {
+  composes: chip;
+  font-size: 11px;
+  opacity: 0.8;
+}
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rec i {
+    animation: none;
+  }
+}
+@media (max-width: 600px) {
+  .hud {
+    padding: 8px;
+  }
+  .chip {
+    font-size: 11px;
+    padding: 3px 8px;
+  }
+}

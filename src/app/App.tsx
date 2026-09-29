@@ -7,6 +7,7 @@ import { RecordPanel } from '../ui/panels/RecordPanel';
 import { SoundMakerPanel } from '../ui/panels/SoundMakerPanel';
 import { StatusPanel } from '../ui/panels/StatusPanel';
 import { VisualizerPanel } from '../ui/panels/VisualizerPanel';
+import { BottomStrip } from '../ui/bottom/BottomStrip';
 import { CameraStage } from '../ui/stage/CameraStage';
 import s from './App.module.css';
 import { TopBar } from './TopBar';
@@ -38,7 +39,10 @@ export function App() {
           <StatusPanel />
         </aside>
         <section className={s.center} aria-label="Palco da câmara">
-          <CameraStage onStart={() => void session.start()} />
+          <CameraStage
+            onStart={() => void session.start()}
+            bottom={view === 'camara' ? null : <BottomStrip />}
+          />
         </section>
         <aside className={`${s.col} ${s.right}`} aria-label="Visualizadores e efeitos">
           <VisualizerPanel />

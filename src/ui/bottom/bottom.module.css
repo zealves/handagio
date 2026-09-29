@@ -1,0 +1,194 @@
+.strip {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) auto minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px;
+  align-items: stretch;
+}
+.scroll {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  min-width: 0;
+}
+
+/* piano */
+.piano {
+  position: relative;
+  display: flex;
+  height: 96px;
+  min-width: 100%;
+  user-select: none;
+  touch-action: none;
+}
+.white,
+.black {
+  position: relative;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  transition: background var(--t-fast);
+}
+.white {
+  flex: 1 0 16px;
+  margin-right: 2px;
+  border-radius: 0 0 6px 6px;
+  background: linear-gradient(180deg, rgba(53, 224, 255, 0.1), rgba(53, 224, 255, 0.2));
+  box-shadow:
+    inset 0 0 0 1px rgba(53, 224, 255, 0.45),
+    inset 0 -6px 12px rgba(53, 224, 255, 0.12);
+}
+.black {
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  height: 58%;
+  border-radius: 0 0 5px 5px;
+  background: #0b1228;
+  box-shadow:
+    inset 0 0 0 1px rgba(53, 224, 255, 0.55),
+    0 2px 6px rgba(0, 0, 0, 0.4);
+}
+.white[data-on],
+.black[data-on] {
+  background: var(--c);
+  box-shadow:
+    0 0 14px var(--c),
+    inset 0 0 0 1px #fff8;
+}
+.keyName {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 5px;
+  font-size: 9px;
+  line-height: 1;
+  text-align: center;
+  color: #9fb3e6;
+  pointer-events: none;
+  white-space: nowrap;
+}
+[data-theme='light'] .keyName {
+  color: #33477a;
+}
+.white[data-on] .keyName,
+.black[data-on] .keyName {
+  color: #051022;
+  font-weight: 700;
+}
+.black .keyName {
+  display: none;
+}
+.black[data-on] .keyName {
+  display: block;
+  font-size: 8px;
+}
+.white:focus-visible,
+.black:focus-visible {
+  outline: 2px solid var(--magenta);
+  outline-offset: -2px;
+}
+
+/* pads */
+.pads {
+  display: grid;
+  grid-template-columns: repeat(4, 58px);
+  grid-auto-rows: 44px;
+  gap: 6px;
+  align-content: center;
+  padding: 0 12px;
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+}
+.pad {
+  border-radius: 8px;
+  border: 1px solid rgba(255, 79, 216, 0.35);
+  background: rgba(255, 79, 216, 0.1);
+  color: #d9c7ee;
+  font-size: 9.5px;
+  line-height: 1.1;
+  padding: 2px;
+  overflow: hidden;
+  transition:
+    background var(--t-fast),
+    box-shadow var(--t-fast);
+  touch-action: none;
+}
+[data-theme='light'] .pad {
+  color: #4a2b63;
+}
+.pad:nth-child(-n + 4) {
+  border-color: rgba(53, 224, 255, 0.4);
+  background: rgba(53, 224, 255, 0.1);
+}
+.pad[data-on] {
+  background: var(--c);
+  color: #051022;
+  font-weight: 700;
+  box-shadow: 0 0 16px var(--c);
+}
+
+/* forma de onda */
+.wave {
+  position: relative;
+  min-width: 140px;
+  border-radius: 10px;
+}
+.wave canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 96px;
+}
+.wave::before,
+.wave::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  width: 8px;
+  border: 1px solid var(--line-strong);
+  pointer-events: none;
+}
+.wave::before {
+  left: 0;
+  border-right: 0;
+}
+.wave::after {
+  right: 0;
+  border-left: 0;
+}
+
+:global([data-view='musica']) .piano {
+  height: 150px;
+}
+:global([data-view='musica']) .pads {
+  grid-template-columns: repeat(4, 72px);
+  grid-auto-rows: 70px;
+}
+@media (max-width: 1099px) {
+  .strip {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .wave {
+    grid-column: 1 / -1;
+    height: 70px;
+  }
+  .wave canvas {
+    min-height: 70px;
+  }
+}
+@media (max-width: 700px) {
+  .strip {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 10px 8px;
+  }
+  .piano {
+    min-width: 640px;
+  }
+  .pads {
+    border: 0;
+    padding: 0;
+    grid-template-columns: repeat(8, 64px);
+    grid-auto-rows: 50px;
+  }
+}
