@@ -3,6 +3,8 @@ export type Engine = 'none' | 'hands' | 'motion' | 'keyboard';
 export type Quantize = 'off' | '1/8' | '1/16';
 export type ThemeName = 'dark' | 'light';
 export type LoopBars = 1 | 2 | 4;
+export type StageBg = 'camara' | 'maos' | 'ondas';
+export type DrawerId = 'instrumentos' | 'escala' | 'efeitos' | 'tempo' | 'gravacoes' | 'rato';
 export type MouthFxId =
   'wah' | 'filter' | 'dist' | 'echo' | 'vibrato' | 'robot' | 'tremolo' | 'swell' | 'off';
 
