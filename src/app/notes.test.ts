@@ -10,7 +10,17 @@ import {
   type NoteSettings,
 } from './notes';
 
-const base: NoteSettings = { ...DEFAULT_SOUND, thumbs: false };
+// Configuração fixa, independente dos valores por defeito.
+const base: NoteSettings = {
+  ...DEFAULT_SOUND,
+  instrument: 'piano',
+  root: 0,
+  scale: 'Pentatónica',
+  octave: 4,
+  tonicAt: 'right-index',
+  noteMode: 'scale',
+  thumbs: false,
+};
 
 describe('notas dos dedos', () => {
   it('notas personalizadas por defeito: Dó Maior, oitava 4, tónica no mindinho esquerdo', () => {
@@ -28,6 +38,13 @@ describe('notas dos dedos', () => {
     };
     for (const i of [1, 2, 3, 4, 6, 7, 8, 9])
       expect(DEFAULT_CUSTOM_NOTES[i]).toBe(fingerMidiOf(i, 0, scale));
+  });
+
+  it('por defeito: Dó Maior com a tónica no mindinho esquerdo (Dó4 … Dó5)', () => {
+    const d: NoteSettings = { ...DEFAULT_SOUND, thumbs: false };
+    expect([4, 3, 2, 1, 6, 7, 8, 9].map((i) => fingerMidiOf(i, 0, d))).toEqual([
+      60, 62, 64, 65, 67, 69, 71, 72,
+    ]);
   });
 
   it('modo Escala segue a tónica e o deslocamento', () => {

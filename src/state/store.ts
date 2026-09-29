@@ -89,7 +89,7 @@ export type Store = Prefs &
 export const DEFAULT_SOUND: SoundSettings = {
   instrument: 'piano',
   root: 0,
-  scale: 'Pentatónica',
+  scale: 'Maior',
   octave: 4,
   reverb: 0.3,
   echo: 0.15,
@@ -100,7 +100,7 @@ export const DEFAULT_SOUND: SoundSettings = {
   bpm: 120,
   quantize: 'off',
   chord: 'off',
-  tonicAt: 'right-index',
+  tonicAt: 'left-pinky',
   noteMode: 'scale',
   customNotes: [...DEFAULT_CUSTOM_NOTES],
 };

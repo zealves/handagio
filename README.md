@@ -21,11 +21,13 @@ Sem câmara, toca com o teclado: **A S D F** (mão esquerda) e **J K L Ç** (mã
 Na gaveta **Escala e acordes** escolhes como cada dedo sabe que nota tocar. A fila "notas de cada dedo", no fundo da gaveta, mostra sempre o que cada dedo toca, da esquerda para a direita.
 
 - **Escala** (por defeito): os dedos tocam as notas de uma escala, uma a seguir à outra, a subir do mindinho esquerdo para o mindinho direito.
-  - A **escala** é a lista de notas que se podem tocar. Na Pentatónica (5 notas por oitava) qualquer combinação soa bem.
-  - A **tónica** é a nota de partida da escala (a "casa"). **Tónica no** escolhe que dedo a toca: o **indicador direito** (as notas descem para a esquerda e sobem para a direita) ou o **mindinho esquerdo** (as notas só sobem, do mindinho esquerdo ao direito).
-  - Exemplo, Dó Pentatónica com a tónica no indicador direito: `Ré3 Mi3 Sol3 Lá3 | Dó4 Ré4 Mi4 Sol4` (mão esquerda | mão direita). Com a tónica no mindinho esquerdo: `Dó4 Ré4 Mi4 Sol4 | Lá4 Dó5 Ré5 Mi5`.
+  - A **escala** é a lista de notas que se podem tocar. Por defeito é **Dó Maior** (dó-ré-mi-fá-sol-lá-si). Na Pentatónica (5 notas por oitava, sem Fá nem Si em Dó) qualquer combinação soa bem.
+  - A **tónica** é a nota de partida da escala (a "casa"). **Tónica no** escolhe que dedo a toca: o **mindinho esquerdo** (por defeito: as notas só sobem, do mindinho esquerdo ao direito) ou o **indicador direito** (as notas descem para a esquerda e sobem para a direita).
+  - Por defeito (Dó Maior, tónica no mindinho esquerdo), os 8 dedos tocam `Dó4 Ré4 Mi4 Fá4 | Sol4 Lá4 Si4 Dó5` (mão esquerda | mão direita), do mindinho esquerdo ao mindinho direito.
+  - Exemplo, Dó Pentatónica com a tónica no indicador direito: `Ré3 Mi3 Sol3 Lá3 | Dó4 Ré4 Mi4 Sol4`. Com a tónica no mindinho esquerdo: `Dó4 Ré4 Mi4 Sol4 | Lá4 Dó5 Ré5 Mi5`.
+  - A mão esquerda e a direita reconhecem-se pela forma da mão, não pelo lado do ecrã: com uma só mão à vista, o mindinho esquerdo continua a tocar a nota do mindinho esquerdo.
   - A **oitava base** (nas definições) sobe ou desce tudo, e a altura da mão desloca as notas pela escala enquanto tocas.
-- **Personalizado**: escolhes a nota exata de cada dedo. Toca num dedo da fila, escolhe a nota (Dó a Si) e a oitava, e ouves logo como soa; **Copiar da escala** começa pelas notas que o modo Escala está a tocar. Aqui a altura da mão e o deslizar não mudam o tom, e os acordes são sempre maiores (Tríade: a nota e as que ficam 4 e 7 meios-tons acima).
+- **Personalizado**: escolhes a nota exata de cada dedo. Toca num dedo da fila, escolhe a nota (Dó a Si) e a oitava, e ouves logo como soa; Por defeito, as notas são as mesmas do modo Escala por defeito (`Dó4 … Dó5`); **Copiar da escala** começa pelas notas que o modo Escala está a tocar. Aqui a altura da mão e o deslizar não mudam o tom, e os acordes são sempre maiores (Tríade: a nota e as que ficam 4 e 7 meios-tons acima).
 - **Polegares**: com **Usar também os polegares**, tocam 10 dedos em vez de 8. O polegar mexe-se sem querer quando dobras os outros dedos, por isso só toca se ficar bem dobrado durante um instante; se tocar sem querer ou custar a tocar, ajusta **Sensibilidade dos polegares** nas definições (secção Mãos).
 
 ### Interface

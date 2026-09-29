@@ -40,10 +40,13 @@ describe('presets', () => {
     // a sensibilidade dos polegares é da pessoa, não do som
     expect('thumbSensitivity' in s).toBe(false);
   });
+  it('a Batida 808 mantém a Pentatónica, que vinha do antigo defeito', () => {
+    expect(FACTORY_PRESETS['Batida 808'].scale).toBe('Pentatónica');
+  });
   it('presets de fábrica usam os modos por defeito', () => {
     for (const p of Object.values(FACTORY_PRESETS)) {
       expect(p.noteMode).toBe('scale');
-      expect(p.tonicAt).toBe('right-index');
+      expect(p.tonicAt).toBe(DEFAULT_SOUND.tonicAt);
       expect(p.customNotes).toEqual(DEFAULT_SOUND.customNotes);
     }
   });

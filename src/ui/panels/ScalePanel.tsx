@@ -39,8 +39,8 @@ const NOTE_MODES: { id: NoteMode; label: string }[] = [
   { id: 'custom', label: 'Personalizado' },
 ];
 const TONIC_AT: { id: TonicAt; label: string }[] = [
-  { id: 'right-index', label: 'Indicador direito' },
   { id: 'left-pinky', label: 'Mindinho esquerdo' },
+  { id: 'right-index', label: 'Indicador direito' },
 ];
 
 export function ScalePanel() {
@@ -238,7 +238,8 @@ export function ScalePanel() {
             ))}
           </div>
           <p className={s.hint}>
-            A escala escolhe que notas os dedos tocam. Na Pentatónica, qualquer combinação soa bem.
+            A escala escolhe que notas os dedos tocam. A Maior é o dó-ré-mi-fá-sol-lá-si; a
+            Pentatónica tem 5 notas (sem Fá nem Si, em Dó) e qualquer combinação soa bem.
           </p>
         </>
       )}

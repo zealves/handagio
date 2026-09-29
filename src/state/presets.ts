@@ -21,6 +21,7 @@ export const FACTORY_PRESETS: Record<string, SoundSettings> = {
   'Batida 808': {
     ...DEFAULT_SOUND,
     instrument: 'tr808',
+    scale: 'Pentatónica',
     reverb: 0.12,
     echo: 0.05,
     pitch: 0,
