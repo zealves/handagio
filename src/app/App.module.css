@@ -1,4 +1,5 @@
 .app {
+  height: 100vh;
   height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -30,11 +31,14 @@
 .barSlot {
   position: absolute;
   left: 50%;
+  bottom: 12px;
   bottom: calc((100cqh - var(--sh)) / 2 + 12px);
   transform: translateX(-50%);
   max-width: calc(var(--sw) - 24px);
   z-index: 4;
-  transition: opacity var(--t-med);
+  transition:
+    opacity var(--t-med),
+    visibility 0s;
 }
 .strip {
   flex: none;
@@ -52,9 +56,14 @@
 .app[data-ui='peek'] .strip {
   display: none;
 }
+/* visibility tira a barra escondida da ordem do Tab; só muda no fim do fade */
 .app[data-ui='hidden'] .barSlot {
   opacity: 0;
   pointer-events: none;
+  visibility: hidden;
+  transition:
+    opacity var(--t-med),
+    visibility 0s var(--t-med);
 }
 
 @media (max-width: 1099px) {
@@ -67,6 +76,7 @@
   .app {
     padding: 8px 0 12px;
     height: auto;
+    min-height: 100vh;
     min-height: 100dvh;
     overflow: visible;
   }
@@ -98,9 +108,16 @@
     left: auto;
     bottom: auto;
     top: 50%;
+    right: 8px;
     right: calc((100cqw - var(--sw)) / 2 + 8px);
     transform: translateY(-50%);
     max-width: none;
     max-height: calc(var(--sh) - 16px);
+  }
+}
+/* sem unidades de contentor (Safari < 16): palco à largura e barra a 12px do fundo */
+@supports not (width: 1cqw) {
+  .barSlot {
+    max-width: calc(100% - 24px);
   }
 }

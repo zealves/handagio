@@ -12,6 +12,8 @@ export function installShortcuts(): () => void {
     const st = getState();
     if (st.settingsOpen) return;
     const k = e.key.toLowerCase();
+    // com uma gaveta aberta, I e E não mexem na interface por trás dela
+    if ((k === 'i' || k === 'e') && st.drawer) return;
     if (k === 'i') st.set({ uiHidden: !st.uiHidden });
     else if (k === 'e') toggleFullscreen();
     else if (k === ',' || k === '.')

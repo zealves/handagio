@@ -10,6 +10,15 @@
   border: 1px solid var(--line-strong);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
   max-width: 100%;
+  /* câmara em retrato no desktop: a barra fica mais estreita do que os chips e desliza */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.bar::-webkit-scrollbar {
+  display: none;
+}
+.bar > * {
+  flex: none;
 }
 .chip {
   position: relative;
@@ -106,16 +115,20 @@
 .recMore svg {
   transform: rotate(-90deg);
 }
-.more {
-  position: relative;
-}
+/* O menu vive no <body> (portal) e é fixo ao ecrã. Desktop: por cima do ⋯, com as
+   variáveis que o MoreMenu calcula; nunca passa da altura da janela e desliza se preciso. */
 .menu {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 10px);
+  position: fixed;
+  right: var(--menu-right, 8px);
+  bottom: var(--menu-bottom, 8px);
   z-index: 10;
   display: grid;
+  align-content: start;
   min-width: 220px;
+  max-height: min(var(--menu-max, 100vh), calc(100vh - 16px));
+  max-height: min(var(--menu-max, 100dvh), calc(100dvh - 16px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 6px;
   border-radius: var(--radius-sm);
   background: var(--glass-strong);
@@ -165,6 +178,9 @@
   .long {
     display: none;
   }
+  .recMore {
+    width: 40px;
+  }
 }
 /* telemóvel: só ícones; Efeitos, Tempo e Fundo vão para o ⋯ */
 @media (max-width: 599px) {
@@ -179,6 +195,15 @@
   .label {
     display: none;
   }
+  /* o ⋯ é o menu principal: folha no fundo do ecrã, à largura toda */
+  .menu {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    min-width: 0;
+    max-height: calc(100vh - 16px);
+    max-height: calc(100dvh - 16px);
+  }
 }
 /* paisagem baixa: barra vertical */
 @media (min-width: 600px) and (max-height: 499px) and (orientation: landscape) {
@@ -192,9 +217,12 @@
   .mid {
     display: none;
   }
+  /* à esquerda da barra, do topo do ecrã para baixo */
   .menu {
+    top: 8px;
     bottom: auto;
-    top: 0;
-    right: calc(100% + 10px);
+    right: var(--menu-left-of, 8px);
+    max-height: calc(100vh - 16px);
+    max-height: calc(100dvh - 16px);
   }
 }

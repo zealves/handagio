@@ -48,6 +48,8 @@ function serviceWorker(): Plugin {
 export default defineConfig({
   base: './',
   plugins: [react(), serviceWorker()],
+  // CSS também para Safari 15: mantém os fallbacks de vh/cqw antes de dvh e unidades de contentor.
+  build: { cssTarget: ['chrome111', 'edge111', 'firefox114', 'safari15'] },
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
