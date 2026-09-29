@@ -60,13 +60,15 @@ export function ScalePanel() {
   );
   const id = useId();
   const [editing, setEditing] = useState<number | null>(null);
-  const [confirmCopy, setConfirmCopy] = useState(false);
+  // "Copiar da escala": à espera do segundo clique, ou as notas já são iguais às da escala
+  const [copyState, setCopyState] = useState<'confirm' | 'same' | null>(null);
+  const confirmCopy = copyState === 'confirm';
   const notesRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!confirmCopy) return;
-    const t = setTimeout(() => setConfirmCopy(false), CONFIRM_MS);
+    if (!copyState) return;
+    const t = setTimeout(() => setCopyState(null), CONFIRM_MS);
     return () => clearTimeout(t);
-  }, [confirmCopy]);
+  }, [copyState]);
 
   const drum = instrumentInfo(st.instrument).kind === 'drum';
   const custom = st.noteMode === 'custom';
@@ -91,12 +93,15 @@ export function ScalePanel() {
   };
   const copyFromScale = () => {
     const next = notesFromScale(st);
-    if (next.every((m, i) => m === st.customNotes[i])) return;
-    if (!confirmCopy) {
-      setConfirmCopy(true);
+    if (next.every((m, i) => m === st.customNotes[i])) {
+      setCopyState('same');
       return;
     }
-    setConfirmCopy(false);
+    if (!confirmCopy) {
+      setCopyState('confirm');
+      return;
+    }
+    setCopyState(null);
     st.set({ customNotes: next });
   };
 
@@ -116,7 +121,12 @@ export function ScalePanel() {
               type="button"
               role="radio"
               aria-checked={st.noteMode === m.id}
-              onClick={() => st.set({ noteMode: m.id })}
+              onClick={() => {
+                // fechar o editor ao mudar de modo (senão roubava o foco ao voltar)
+                setEditing(null);
+                setCopyState(null);
+                st.set({ noteMode: m.id });
+              }}
               data-testid={`note-mode-${m.id}`}
             >
               {m.label}
@@ -194,8 +204,11 @@ export function ScalePanel() {
       </div>
       {custom && st.chord !== 'off' && (
         <p className={s.hint}>
-          Sem escala, os acordes são sempre maiores: a nota do dedo e as que ficam 4 e 7 meios-tons
-          acima (mais 10 na Sétima).
+          {st.chord === 'power'
+            ? 'A Quinta junta à nota do dedo a quinta (7 meios-tons acima) e a oitava (12 acima).'
+            : st.chord === 'seventh'
+              ? 'Sem escala, a Sétima é sempre um acorde maior com sétima: a nota do dedo e as que ficam 4, 7 e 10 meios-tons acima.'
+              : 'Sem escala, a Tríade é sempre um acorde maior: a nota do dedo e as que ficam 4 e 7 meios-tons acima.'}
         </p>
       )}
 
@@ -308,7 +321,9 @@ export function ScalePanel() {
             <span className={s.hint} style={{ margin: 0 }} aria-live="polite">
               {confirmCopy
                 ? 'Carrega outra vez para confirmar.'
-                : 'Põe em cada dedo a nota que tocaria no modo Escala.'}
+                : copyState === 'same'
+                  ? 'Já são iguais às da escala.'
+                  : 'Põe em cada dedo a nota que tocaria no modo Escala.'}
             </span>
           </div>
         </>

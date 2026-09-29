@@ -224,7 +224,7 @@ class Session {
     }
   }
 
-  /** Toca uma nota melódica numa voz identificada por `key` (e grava-a no looper). */
+  /** Toca uma nota melódica numa voz identificada por `key` (e grava-a no looper, se `record`). */
   playNote(
     key: number | string,
     midi: number,
@@ -233,6 +233,7 @@ class Session {
     color: string,
     held: boolean,
     when?: number,
+    record = true,
   ): void {
     const s = getState();
     audio.noteOn(key, s.instrument, midi, vel, pan, when);
@@ -241,6 +242,7 @@ class Session {
       live.notes.set(midi, { level: 1, color, held: held && audio.hasVoice(key) });
       setState({ lastNote: noteName(midi) });
     });
+    if (!record) return;
     this.looper.record(this.clock.positionAt(when ?? audio.now), {
       kind: 'note',
       midi,
@@ -263,16 +265,24 @@ class Session {
     this.timers.add(id);
   }
 
-  playDrum(slot: number, vel: number, finger?: number, when?: number, kitId?: string): void {
+  playDrum(
+    slot: number,
+    vel: number,
+    finger?: number,
+    when?: number,
+    kitId?: string,
+    record = true,
+  ): void {
     const kit = DRUMS[kitId ?? getState().instrument];
     if (!kit) return;
     audio.drum(kit.id, slot, vel, 0, when);
-    this.looper.record(this.clock.positionAt(when ?? audio.now), {
-      kind: 'drum',
-      slot,
-      vel,
-      instrument: kit.id,
-    });
+    if (record)
+      this.looper.record(this.clock.positionAt(when ?? audio.now), {
+        kind: 'drum',
+        slot,
+        vel,
+        instrument: kit.id,
+      });
     this.at(when, () => this.showDrum(kit.id, slot, vel, finger));
   }
 
@@ -286,12 +296,13 @@ class Session {
   }
 
   // ---------- interface (teclado de piano e pads com rato/toque) ----------
-  pianoDown(midi: number, vel = 0.8): void {
+  /** Tecla do teclado de piano; `record = false` (pré-escuta) não chega ao looper. */
+  pianoDown(midi: number, vel = 0.8, record = true): void {
     this.ensureAudio();
     this.startLoop();
     const info = instrumentInfo(getState().instrument);
     if (info.kind === 'drum') {
-      this.playDrum(((midi % 8) + 8) % 8, vel);
+      this.playDrum(((midi % 8) + 8) % 8, vel, undefined, undefined, undefined, record);
       return;
     }
     if (info.kind === 'continuous') {
@@ -301,22 +312,26 @@ class Session {
       return;
     }
     const pan = clamp((midi - 60) / 30, -0.8, 0.8);
-    this.playNote(`k${midi}`, midi, vel, pan, FINGER_COLORS[((midi % 10) + 10) % 10], true);
+    const color = FINGER_COLORS[((midi % 10) + 10) % 10];
+    this.playNote(`k${midi}`, midi, vel, pan, color, true, undefined, record);
   }
 
-  pianoUp(midi: number): void {
+  pianoUp(midi: number, record = true): void {
     audio.noteOff(`k${midi}`);
-    this.looper.release(this.clock.positionAt(audio.now), `k${midi}`);
+    if (record) this.looper.release(this.clock.positionAt(audio.now), `k${midi}`);
     const n = live.notes.get(midi);
     if (n) n.held = false;
   }
 
-  /** Pré-escuta de uma nota (editor do modo Personalizado): um toque curto pelo teclado de piano. */
+  /**
+   * Pré-escuta de uma nota (editor do modo Personalizado): um toque curto pelo teclado de piano,
+   * que nunca é gravado no looper.
+   */
   previewNote(midi: number): void {
-    this.pianoDown(midi);
+    this.pianoDown(midi, 0.8, false);
     const id = setTimeout(() => {
       this.timers.delete(id);
-      this.pianoUp(midi);
+      this.pianoUp(midi, false);
     }, PREVIEW_MS);
     this.timers.add(id);
   }
@@ -745,7 +760,12 @@ class Session {
     } finally {
       this.cal = null;
     }
-    const { calibration, fingers } = collector.result();
+    const { calibration } = collector.result();
+    // os polegares desligados também são calibrados, mas a mensagem só conta os dedos que tocam
+    const thumbs = getState().thumbs;
+    const fingers = calibration.closed.filter(
+      (c, i) => c - calibration.open[i] > 0.2 && isActive(i, thumbs),
+    ).length;
     if (fingers >= 4) {
       setState({
         calibration,

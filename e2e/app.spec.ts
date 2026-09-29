@@ -728,6 +728,10 @@ test.describe('notas dos dedos', () => {
     await page.getByTestId('copy-from-scale').click();
     await expect.poll(() => fingerNotes(page)).toEqual(scaleNotes);
     await expect(page.getByTestId('copy-from-scale')).toHaveText('Copiar da escala');
+    // já iguais: não pede confirmação e diz porquê
+    await page.getByTestId('copy-from-scale').click();
+    await expect(page.getByText('Já são iguais às da escala.')).toBeVisible();
+    await expect(page.getByTestId('copy-from-scale')).toHaveText('Copiar da escala');
     expect(errors, errors.join('\n')).toEqual([]);
   });
 

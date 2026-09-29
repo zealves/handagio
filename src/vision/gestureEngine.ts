@@ -38,6 +38,8 @@ export interface FingerLive {
   dwell: number;
   /** Polegares: velocidade no primeiro fotograma acima do limiar (a do disparo). */
   dwellVel: number;
+  /** Polegares: segundos acima do limiar (soma dos `dt` depois do primeiro fotograma acima). */
+  dwellT: number;
   /** Ponta do dedo normalizada (0..1), já em espelho. */
   tip: { x: number; y: number } | null;
 }
@@ -51,10 +53,16 @@ export const HYSTERESIS = 0.18;
  */
 export const THUMB_ON_EXTRA = 0.1;
 /**
- * Polegares: fotogramas de deteção seguidos acima do limiar antes de disparar (~60 ms a 50 fps,
- * ~100 ms a 30 fps). Um salto de um só fotograma não toca.
+ * Polegares: confirmação do disparo. O polegar tem de ficar acima do limiar em fotogramas de
+ * deteção seguidos: dispara ao `THUMB_DWELL_MIN`.º fotograma se já esteve acima pelo menos
+ * `THUMB_DWELL_S` segundos (contados a partir do primeiro fotograma acima), ou ao `THUMB_DWELL`.º
+ * em qualquer caso. Um salto de um só fotograma nunca toca, e a espera depois do primeiro
+ * fotograma acima fica em 1 ou 2 fotogramas: ~33 ms a 60 fps, ~67 ms a 30 fps e a 15 fps (só
+ * com a contagem de fotogramas seriam 133 ms a 15 fps).
  */
 export const THUMB_DWELL = 3;
+export const THUMB_DWELL_MIN = 2;
+export const THUMB_DWELL_S = 0.05;
 /** Sensibilidade dos polegares neutra (a que não desloca o limiar calibrado). */
 export const THUMB_SENS_NEUTRAL = 0.5;
 /** Calibrado, o limiar do polegar nunca passa de 85% do caminho entre esticado e dobrado. */
@@ -116,6 +124,7 @@ export const newFinger = (): FingerLive => ({
   down: false,
   dwell: 0,
   dwellVel: 0,
+  dwellT: 0,
   tip: null,
 });
 
@@ -139,6 +148,7 @@ export class GestureEngine extends Emitter<GestureEvents> {
           if (o.continuous) this.emit('continuous', { finger: i, level: 0, pitch: 0 });
           f.curl *= 0.8;
           f.dwell = 0;
+          f.dwellT = 0;
           f.tip = null;
         }
         continue;
@@ -151,6 +161,7 @@ export class GestureEngine extends Emitter<GestureEvents> {
         if (!isActive(i, o.thumbs)) {
           f.curl = 0;
           f.dwell = 0;
+          f.dwellT = 0;
           f.tip = null;
           if (f.down) {
             f.down = false;
@@ -173,15 +184,21 @@ export class GestureEngine extends Emitter<GestureEvents> {
           const pitch = o.heightPitch ? (0.55 - tip.y) * 15 : 0;
           this.emit('continuous', { finger: i, level: lvl, pitch });
         } else if (!f.down && j === 0) {
-          // polegar: tem de ficar acima do limiar THUMB_DWELL fotogramas seguidos
-          if (f.curl <= on) f.dwell = 0;
-          else if (f.dwell > 0) f.dwell++;
-          else if (f.vel > VEL_TRIGGER) {
+          // polegar: tem de ficar acima do limiar alguns fotogramas seguidos (ver THUMB_DWELL)
+          if (f.curl <= on) {
+            f.dwell = 0;
+            f.dwellT = 0;
+          } else if (f.dwell > 0) {
+            f.dwell++;
+            f.dwellT += dt;
+          } else if (f.vel > VEL_TRIGGER) {
             f.dwell = 1;
+            f.dwellT = 0;
             f.dwellVel = f.vel;
           }
-          if (f.dwell >= THUMB_DWELL) {
+          if (f.dwell >= THUMB_DWELL || (f.dwell >= THUMB_DWELL_MIN && f.dwellT >= THUMB_DWELL_S)) {
             f.dwell = 0;
+            f.dwellT = 0;
             f.down = true;
             this.emit('noteOn', {
               finger: i,
@@ -209,6 +226,7 @@ export class GestureEngine extends Emitter<GestureEvents> {
       if (f.down) this.emit('noteOff', { finger: i });
       f.down = false;
       f.dwell = 0;
+      f.dwellT = 0;
     });
   }
 

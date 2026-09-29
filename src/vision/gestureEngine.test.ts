@@ -3,6 +3,7 @@ import {
   GestureEngine,
   onThreshold,
   THUMB_DWELL,
+  THUMB_DWELL_MIN,
   THUMB_ON_EXTRA,
   thresholds,
   thumbThresholds,
@@ -167,6 +168,35 @@ describe('gestureEngine', () => {
       expect(ev).toEqual([]);
       g.process(thumbAt(1), 1 / 50, topts);
       expect(ev).toEqual(['on0']);
+    });
+
+    /** Fotograma (1 = o primeiro acima do limiar) em que o polegar dispara, a `fps`. */
+    const fireFrame = (fps: number): number => {
+      const g = new GestureEngine();
+      const ev = record(g);
+      for (let k = 0; k < 3; k++) g.process(thumbAt(0), 1 / fps, topts);
+      for (let k = 1; k <= 10; k++) {
+        g.process(thumbAt(1), 1 / fps, topts);
+        if (ev.length) return k;
+      }
+      return -1;
+    };
+
+    it('a 60 fps dispara ao 3.º fotograma (~33 ms depois do primeiro)', () => {
+      expect(fireFrame(60)).toBe(THUMB_DWELL);
+    });
+
+    it('a 15 fps dispara ao 2.º fotograma (~67 ms), não ao 3.º (133 ms)', () => {
+      expect(fireFrame(15)).toBe(THUMB_DWELL_MIN);
+    });
+
+    it('a 15 fps, um só fotograma acima continua a não disparar', () => {
+      const g = new GestureEngine();
+      const ev = record(g);
+      for (let k = 0; k < 3; k++) g.process(thumbAt(0), 1 / 15, topts);
+      g.process(thumbAt(1), 1 / 15, topts);
+      for (let k = 0; k < 5; k++) g.process(thumbAt(0), 1 / 15, topts);
+      expect(ev).toEqual([]);
     });
 
     it('intensidade do disparo é a do primeiro fotograma acima do limiar', () => {

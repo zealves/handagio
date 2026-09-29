@@ -118,6 +118,13 @@ describe('migratePrefs', () => {
       ...DEFAULT_CUSTOM_NOTES.slice(3),
     ]);
   });
+  it('v3: sensibilidade dos polegares limitada a 0..1', () => {
+    expect(migratePrefs({ thumbSensitivity: 3 }, 3).thumbSensitivity).toBe(1);
+    expect(migratePrefs({ thumbSensitivity: -0.4 }, 3).thumbSensitivity).toBe(0);
+    expect(migratePrefs({ thumbSensitivity: 0.7 }, 3).thumbSensitivity).toBe(0.7);
+    expect(migratePrefs({ thumbSensitivity: NaN }, 3).thumbSensitivity).toBe(0.5);
+    expect(migratePrefs({ thumbSensitivity: '0.9' }, 3).thumbSensitivity).toBe(0.5);
+  });
   it('v4 fica igual', () => {
     expect(migratePrefs({ bpm: 90 }, 4)).toEqual({ bpm: 90 });
   });

@@ -83,7 +83,9 @@ export function migratePrefs(old: unknown, version: number): Record<string, unkn
     if (o.tonicAt !== 'left-pinky') o.tonicAt = 'right-index';
     if (o.noteMode !== 'custom') o.noteMode = 'scale';
     o.customNotes = normalizeCustomNotes(o.customNotes);
-    if (typeof o.thumbSensitivity !== 'number') o.thumbSensitivity = 0.5;
+    const ts = o.thumbSensitivity;
+    o.thumbSensitivity =
+      typeof ts === 'number' && Number.isFinite(ts) ? Math.min(1, Math.max(0, ts)) : 0.5;
   }
   return o;
 }
