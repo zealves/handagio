@@ -184,3 +184,9 @@ Juntam-se às atuais (presets, câmara, mãos/calibração, volume, tema):
 - `README.md` e `docs/ARCHITECTURE.md` atualizados; `CLAUDE.md` também, se o resumo da arquitetura mudar.
 - `docs/demo.gif` regenerado.
 - Fim: merge para `main`, `chore: release v2.0.0` (versão no `package.json`) e tag anotada `v2.0.0`.
+
+## Simplificação final
+
+- O fundo do palco foi removido (botão 👁, menu ⋯ e Definições): esta secção substitui as secções do fundo do palco acima.
+- As mãos aparecem sempre: a câmara só alimenta a deteção e não aparece no palco nem na gravação.
+- As ondas estão sempre na faixa por baixo do palco, em todos os layouts, e desenham-se sem sombras nem alocações por fotograma.

@@ -18,9 +18,8 @@ Sem câmara, toca com o teclado: **A S D F** (mão esquerda) e **J K L Ç** (mã
 
 ### Interface
 
-O palco da câmara ocupa o espaço livre; por cima fica uma barra de controlo fina com o instrumento, a escala, reverb e eco (só em ecrãs largos), o tempo, o fundo do palco, gravar, o looper e um menu **⋯** com o resto. O que não cabe na barra fica em gavetas (Instrumentos, Escala e acordes, Efeitos, Tempo e looper, Gravações, Tocar com o rato), abertas uma de cada vez.
+O palco da câmara ocupa o espaço livre; por cima fica uma barra de controlo fina com o instrumento, a escala, reverb e eco (só em ecrãs largos), o tempo, gravar, o looper e um menu **⋯** com o resto. O que não cabe na barra fica em gavetas (Instrumentos, Escala e acordes, Efeitos, Tempo e looper, Gravações, Tocar com o rato), abertas uma de cada vez. O palco mostra só as tuas mãos e as partículas (tu não apareces, nem na gravação: a câmara serve só para a deteção) e, por baixo, uma faixa com as ondas do som.
 
-- **👁 Fundo do palco**: alterna entre **Só mãos** (por defeito — vês as mãos e as partículas, mas não a ti próprio, nem na gravação) e **Ondas** (as ondas do som em grande). A **Câmara** fica escondida como opção no menu ⋯ e nas Definições ("Mostrar a imagem da câmara"), para quem preferir ver-se.
 - **⛶ Ecrã inteiro** (tecla `E`) e **esconder a interface** (tecla `I`, ou no menu ⋯): fica só o palco. Mexer o rato ou tocar no ecrã volta a mostrar a barra por 3 segundos.
 - **`,` e `.`** passam ao instrumento anterior ou seguinte sem abrir a gaveta.
 

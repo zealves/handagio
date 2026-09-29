@@ -8,7 +8,7 @@ Interface redesenhada para pôr o foco em tocar. A lógica de som e de visão n�
 
 - Palco em primeiro plano, com uma barra de controlo e gavetas no lugar das três colunas e dos separadores.
 - Ecrã inteiro (`E`) e esconder interface (`I`), com a barra a espreitar ao mexer o rato.
-- Fundo do palco: Só mãos (a pessoa não aparece, nem na gravação; é o valor por defeito), Ondas ou Câmara (opção escondida no menu ⋯ e nas Definições).
+- O palco mostra sempre só as mãos (a pessoa não aparece, nem na gravação); ondas sempre por baixo do palco, mais leves.
 - Um só visualizador (ondas sobrepostas); os canvases fora do ecrã deixam de desenhar.
 - Seletor de instrumentos com pesquisa, recentes e grupos por família; `,` e `.` mudam de instrumento.
 - Efeitos em cartões (reverb, eco/delay, pitch, filtro, drive, boca), com reverb e eco à mão na barra.
