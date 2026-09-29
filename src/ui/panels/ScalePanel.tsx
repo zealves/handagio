@@ -1,7 +1,7 @@
 // Escala e acordes, sempre à vista: tónica, escala por grupos, acordes, polegares e as notas
 // que cada dedo toca (escritas, da esquerda para a direita).
 import { useShallow } from 'zustand/react/shallow';
-import { instrumentInfo } from '../../audio/instruments';
+import { instrumentInfo, tuningOf } from '../../audio/instruments';
 import {
   CHORD_MODES,
   chordMidis,
@@ -33,7 +33,7 @@ export function ScalePanel() {
   );
   const drum = instrumentInfo(st.instrument).kind === 'drum';
   const order = activeScreenOrder(st.thumbs);
-  const notesOf = (i: number) => chordMidis(fingerDegree(i, st.thumbs), st, st.chord);
+  const notesOf = (i: number) => chordMidis(fingerDegree(i, st.thumbs), tuningOf(st), st.chord);
   const label = (ms: number[]) => (ms.length > 1 ? chordName(ms) : noteName(ms[0]));
 
   return (

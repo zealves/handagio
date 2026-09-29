@@ -246,5 +246,18 @@ export const INSTRUMENT_ICONS: Record<string, ReactNode> = {
   ),
 };
 
+// Ids novos (amostras) que reaproveitam o ícone de um instrumento semelhante.
+const ICON_ALIASES: Record<string, string> = {
+  contrabass: 'cello',
+  guitar: 'pluck',
+  eguitar: 'pluck',
+  clarinet: 'flute',
+  bassoon: 'sax',
+  horn: 'brass',
+  trombone: 'brass',
+  tuba: 'brass',
+  xylophone: 'marimba',
+};
+
 export const instrumentIcon = (id: string): ReactNode =>
-  INSTRUMENT_ICONS[id] ?? INSTRUMENT_ICONS.piano;
+  INSTRUMENT_ICONS[id] ?? INSTRUMENT_ICONS[ICON_ALIASES[id]] ?? INSTRUMENT_ICONS.piano;

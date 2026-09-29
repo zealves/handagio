@@ -1,7 +1,7 @@
 // Orquestrador (sem React): câmara → visão → gestos → áudio. Corre o seu próprio ciclo rAF,
 // separado do render da interface.
 import { audio } from '../audio/engine';
-import { DRUMS, instrumentInfo } from '../audio/instruments';
+import { DRUMS, instrumentInfo, tuningOf } from '../audio/instruments';
 import { Looper, type LoopEvent } from '../audio/looper';
 import { Clock, quantizeTime, STEPS_PER_BAR, STEPS_PER_BEAT, TapTempo } from '../audio/metronome';
 import { chordMidis, clamp, degreeToMidi, noteName, chordName, scaleLength } from '../audio/theory';
@@ -98,7 +98,7 @@ class Session {
   /** Nota MIDI de um dedo com o deslocamento em graus. */
   fingerMidi(i: number, shift: number): number {
     const s = getState();
-    return degreeToMidi(fingerDegree(i, s.thumbs) + shift, s);
+    return degreeToMidi(fingerDegree(i, s.thumbs) + shift, tuningOf(s));
   }
 
   // ---------- áudio ----------
@@ -142,7 +142,7 @@ class Session {
       return;
     }
     if (info.kind === 'continuous') return;
-    const midis = chordMidis(fingerDegree(i, s.thumbs) + shift, s, s.chord);
+    const midis = chordMidis(fingerDegree(i, s.thumbs) + shift, tuningOf(s), s.chord);
     const midi = midis[0];
     fx.midi = midi;
     fx.label = midis.length > 1 ? chordName(midis) : noteName(midi);
