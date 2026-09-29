@@ -9,28 +9,6 @@
     0 0 0 1px rgba(53, 224, 255, 0.08),
     0 20px 60px rgba(0, 0, 0, 0.35);
 }
-.titlebar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--line);
-  font-family: var(--font-title);
-  font-size: 12px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-.dots {
-  margin-left: auto;
-  display: flex;
-  gap: 6px;
-}
-.dots i {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--line-strong);
-}
 .stage {
   --ar: 1.7778;
   position: relative;
@@ -74,21 +52,21 @@
 .bottom {
   border-top: 1px solid var(--line);
 }
-:global([data-view='musica']) .stage {
-  width: min(100%, calc(42vh * var(--ar)));
-  margin-inline: auto;
-}
-:global([data-view='camara']) .stage {
-  width: min(100%, calc(max(320px, 100vh - 150px) * var(--ar)));
-  margin-inline: auto;
-}
 @media (max-width: 600px) {
   .window {
     border-radius: 0;
     border-left: 0;
     border-right: 0;
   }
-  .titlebar {
-    display: none;
-  }
+}
+
+/* Fundo "Ondas": o visualizador ocupa o palco e as mãos ficam mais discretas. */
+.bgWaves {
+  opacity: 0.9;
+}
+.stage[data-bg='ondas'] [data-layer='hands'] {
+  opacity: 0.6;
+}
+.stage:not([data-bg='camara']) .dim {
+  background: radial-gradient(ellipse at center, rgba(20, 30, 70, 0.35), rgba(6, 10, 22, 0.85));
 }

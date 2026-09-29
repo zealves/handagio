@@ -54,7 +54,7 @@ Simplificar a interface para pôr o foco em tocar, sem perder nenhuma função. 
 | Valor | Palco | Gravação de vídeo |
 |---|---|---|
 | `camara` | vídeo em espelho, mãos neon e partículas (como hoje) | vídeo, mãos, partículas e HUD |
-| `maos` | fundo escuro, mãos neon e partículas; `<video>` com `display:none` | fundo escuro, mãos, partículas e HUD (a pessoa não aparece) |
+| `maos` | fundo escuro, mãos neon e partículas; `<video>` com `opacity: 0` (não `display:none`: no iOS o vídeo escondido deixa de entregar fotogramas) | fundo escuro, mãos, partículas e HUD (a pessoa não aparece) |
 | `ondas` | `WaveViz` em grande ao centro, mãos a 60% de opacidade, partículas | fundo escuro, ondas, mãos, partículas e HUD |
 
 A câmara e a deteção continuam ativas nos três modos. O vídeo gravado segue sempre o que se vê: é a regra de privacidade.

@@ -16,7 +16,6 @@ export function SettingsDialog() {
       open: x.settingsOpen,
       cameraId: x.cameraId,
       lowRes: x.lowRes,
-      showVideo: x.showVideo,
       volume: x.volume,
       theme: x.theme,
       calibration: x.calibration,
@@ -160,11 +159,6 @@ export function SettingsDialog() {
             label="Baixar a resolução (computadores mais lentos)"
             checked={st.lowRes}
             onChange={(v) => st.set({ lowRes: v })}
-          />
-          <Toggle
-            label="Mostrar a imagem da câmara"
-            checked={st.showVideo}
-            onChange={(v) => st.set({ showVideo: v })}
           />
         </section>
 

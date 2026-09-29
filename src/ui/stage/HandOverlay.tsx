@@ -27,5 +27,5 @@ export function HandOverlay() {
       if (stageCanvases.overlay === cv) stageCanvases.overlay = null;
     };
   }, []);
-  return <canvas ref={ref} aria-hidden data-testid="overlay" />;
+  return <canvas ref={ref} aria-hidden data-testid="overlay" data-layer="hands" />;
 }

@@ -12,6 +12,7 @@ import {
 } from '../state/recordingsDb';
 import { stageCanvases } from '../state/stageCanvases';
 import { getState, setState } from '../state/store';
+import { compositeSources } from '../ui/shell/logic';
 import { session } from './session';
 
 let recorder: Recorder | null = null;
@@ -47,10 +48,12 @@ export async function startRecording(): Promise<void> {
     recorder.start(
       withVideo
         ? {
-            video: v,
+            get video() {
+              return compositeSources(getState().stageBg, v, stageCanvases).video;
+            },
             width: live.videoW,
             height: live.videoH,
-            layers: () => [stageCanvases.particles, stageCanvases.overlay],
+            layers: () => compositeSources(getState().stageBg, v, stageCanvases).layers,
             hud: () => {
               const st = getState();
               return [`Nota: ${st.lastNote}`, `Voz: ${instrumentInfo(st.instrument).name}`];

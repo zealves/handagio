@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ChordMode, ScaleName } from '../audio/theory';
+import { migratePrefs } from '../ui/shell/logic';
 import type { RecordingMeta } from './recordingsDb';
 import type {
   Calibration,
@@ -36,7 +37,6 @@ export interface Prefs extends SoundSettings {
   thumbs: boolean;
   heightPitch: boolean;
   glide: boolean;
-  showVideo: boolean;
   stageBg: StageBg;
   showWaves: boolean;
   recentInstruments: string[];
@@ -101,7 +101,6 @@ export const DEFAULT_PREFS: Prefs = {
   thumbs: false,
   heightPitch: true,
   glide: true,
-  showVideo: true,
   stageBg: 'camara',
   showWaves: true,
   recentInstruments: [],
@@ -146,7 +145,8 @@ export const useStore = create<Store>()(
     }),
     {
       name: 'vision-sound-cam:prefs',
-      version: 1,
+      version: 2,
+      migrate: (old, version) => migratePrefs(old, version) as unknown as Store,
       partialize: (s) => Object.fromEntries(PREF_KEYS.map((k) => [k, s[k]])) as Partial<Store>,
     },
   ),
