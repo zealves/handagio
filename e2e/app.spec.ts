@@ -21,22 +21,10 @@ type Vsc = {
       lastNote: string;
       engine: string;
       uiHidden: boolean;
-      stageBg: string;
       set(p: Record<string, unknown>): void;
     };
   };
 };
-
-async function startCamera(page: Page) {
-  await page.getByTestId('start').click();
-  await expect
-    .poll(
-      () =>
-        page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.store.getState().engine),
-      { timeout: 30_000 },
-    )
-    .toBe('hands');
-}
 
 /** Dobra o médio esquerdo com mãos sintéticas e devolve a última nota. */
 function playSynthetic(page: Page) {
@@ -76,6 +64,8 @@ test('liga a câmara, toca todos os instrumentos e grava', async ({ page }) => {
       { timeout: 30_000 },
     )
     .toBe('hands');
+  // o palco mostra só as mãos: o vídeo continua a reproduzir para a deteção, mas invisível
+  await expect(page.getByTestId('video')).toHaveCSS('opacity', '0');
 
   // gaveta dos instrumentos: todas as filas
   await page.getByTestId('chip-instrument').click();
@@ -160,6 +150,20 @@ test('liga a câmara, toca todos os instrumentos e grava', async ({ page }) => {
   );
   const note = await playSynthetic(page);
   expect(note).toMatch(/^(Dó|Ré|Mi|Fá|Sol|Lá|Si)♯?\d$/);
+  // a faixa de ondas por baixo do palco desenha: há píxeis opacos na coluna do meio
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const cv = document.querySelector<HTMLCanvasElement>('[data-testid="waves"]');
+        const g = cv?.getContext('2d');
+        if (!cv || !g || !cv.width || !cv.height) return 0;
+        const col = g.getImageData(Math.floor(cv.width / 2), 0, 1, cv.height).data;
+        let n = 0;
+        for (let i = 3; i < col.length; i += 4) if (col[i] > 0) n++;
+        return n;
+      }),
+    )
+    .toBeGreaterThan(0);
 
   // gravar 2 s pela barra; a gravação aparece na gaveta
   await page.getByTestId('record').click();
@@ -170,28 +174,6 @@ test('liga a câmara, toca todos os instrumentos e grava', async ({ page }) => {
   await expect(page.getByTestId('recording-item')).toHaveCount(1, { timeout: 10_000 });
   await page.keyboard.press('Escape');
 
-  expect(errors, errors.join('\n')).toEqual([]);
-});
-
-test('fundo do palco: começa em só mãos, a câmara fica no menu', async ({ page }) => {
-  const errors = watchConsole(page);
-  await page.goto('/?debug');
-  await startCamera(page);
-  await expect(page.getByTestId('stage-bg')).toContainText('Só mãos');
-  await expect(page.getByTestId('video')).toHaveCSS('opacity', '0');
-  // a pessoa não se vê, mas a deteção continua
-  expect(await playSynthetic(page)).toMatch(/\d$/);
-  await page.getByTestId('stage-bg').click();
-  await expect(page.getByTestId('stage-bg')).toContainText('Ondas');
-  await expect(page.getByTestId('stage-waves')).toBeVisible();
-  await page.getByTestId('stage-bg').click();
-  await expect(page.getByTestId('stage-bg')).toContainText('Só mãos');
-  await expect(page.getByTestId('video')).toHaveCSS('opacity', '0');
-  // a câmara só se escolhe no menu ⋯
-  await page.getByTestId('more').click();
-  await page.getByTestId('menu-bg-camara').click();
-  await expect(page.getByTestId('stage-bg')).toContainText('Câmara');
-  await expect(page.getByTestId('video')).toHaveCSS('opacity', '1');
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
@@ -289,7 +271,7 @@ test('câmara em retrato no desktop: a barra não passa do palco', async ({ page
 });
 
 for (const showVideo of [false, true]) {
-  test(`preferências da v1 (showVideo: ${showVideo}) abrem em só mãos`, async ({ page }) => {
+  test(`preferências da v1 (showVideo: ${showVideo}) abrem só com as mãos`, async ({ page }) => {
     await page.addInitScript((showVideo) => {
       if (sessionStorage.getItem('seeded')) return;
       sessionStorage.setItem('seeded', '1');
@@ -300,7 +282,7 @@ for (const showVideo of [false, true]) {
     }, showVideo);
     const errors = watchConsole(page);
     await page.goto('/?debug');
-    await expect(page.getByTestId('stage-bg')).toContainText('Só mãos');
+    await expect(page.getByTestId('video')).toHaveCSS('opacity', '0');
     await expect(page.getByTestId('chip-instrument')).toContainText('Marimba');
     expect(errors, errors.join('\n')).toEqual([]);
   });
@@ -334,7 +316,7 @@ for (const vp of VIEWPORTS) {
     await page.keyboard.press('ArrowUp');
     await expect(page.getByTestId('menu-hide')).toBeFocused();
     // todos os itens se alcançam (o menu desliza se não couber)
-    for (const id of ['menu-efeitos', 'menu-rato', 'menu-bg-camara', 'menu-hide']) {
+    for (const id of ['menu-efeitos', 'menu-rato', 'menu-hide']) {
       const item = page.getByTestId(id);
       await item.scrollIntoViewIfNeeded();
       await expect(item).toBeInViewport({ ratio: 1 });
@@ -352,14 +334,7 @@ for (const vp of VIEWPORTS) {
     await page.keyboard.press('Escape');
     await expect(drawer).toBeHidden();
     await expect(page.getByTestId('more')).toBeFocused();
-    // o menu também escolhe o fundo e esconde a interface
-    await page.getByTestId('more').click();
-    await page.getByTestId('menu-bg-camara').click();
-    await expect
-      .poll(() =>
-        page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.store.getState().stageBg),
-      )
-      .toBe('camara');
+    // o menu também esconde a interface
     await page.getByTestId('more').click();
     await page.getByTestId('menu-hide').click();
     await expect
@@ -389,8 +364,13 @@ for (const vp of VIEWPORTS) {
       const rec = (await page.getByTestId('chip-recordings').boundingBox())!;
       expect(Math.min(rec.width, rec.height)).toBeGreaterThanOrEqual(40);
     }
-    // com o fundo por defeito (só mãos), a faixa de ondas aparece por baixo do palco no desktop
-    if (vp.width === 1440) await expect(page.getByTestId('waves')).toBeVisible();
+    // a faixa de ondas está sempre por baixo do palco, dentro do ecrã
+    const waves = page.getByTestId('waves');
+    await expect(waves).toBeVisible();
+    await expect(waves).toBeInViewport({ ratio: 1 });
+    const stageBox = (await page.getByTestId('stage').boundingBox())!;
+    const wavesBox = (await waves.boundingBox())!;
+    expect(wavesBox.y).toBeGreaterThanOrEqual(stageBox.y + stageBox.height - 0.5);
     expect(errors, errors.join('\n')).toEqual([]);
   });
 }
