@@ -496,10 +496,12 @@ test.describe('instrumentos gravados', () => {
     const errors = watchConsole(page);
     await page.goto('/?debug');
     await openInstruments(page);
-    await page.getByTestId('tile-violin').click();
-    await page.getByTestId('tile-flute').click();
-    for (const id of ['violin', 'flute'])
+    // cada escolha só carrega ~300 ms depois (percorrer a lista não descarrega tudo): espera
+    // que o violino fique pronto antes de escolher a flauta
+    for (const id of ['violin', 'flute']) {
+      await page.getByTestId(`tile-${id}`).click();
       await expect.poll(() => sampleStatus(page, id), { timeout: 15_000 }).toBe('ready');
+    }
     await page.keyboard.press('Escape');
     // compara o timbre: sem reverberação nem eco, que espalham o espectro de qualquer som
     await page.evaluate(() =>
@@ -511,6 +513,24 @@ test.describe('instrumentos gravados', () => {
     expect(Math.max(...violin)).toBeGreaterThan(0);
     expect(Math.max(...flute)).toBeGreaterThan(0);
     expect(cosine(violin, flute)).toBeLessThan(0.9);
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+
+  test('percorrer instrumentos só carrega aquele onde se para', async ({ page }) => {
+    const errors = watchConsole(page);
+    const requested: string[] = [];
+    page.on('request', (r) => {
+      const m = /\/samples\/([^/]+)\/[^/]+\.mp3$/.exec(r.url());
+      if (m) requested.push(m[1]);
+    });
+    await page.goto('/?debug');
+    await openInstruments(page);
+    await page.getByTestId('tile-violin').click();
+    await page.getByTestId('tile-cello').click();
+    await page.getByTestId('tile-flute').click();
+    await expect.poll(() => sampleStatus(page, 'flute'), { timeout: 15_000 }).toBe('ready');
+    expect(new Set(requested.filter((id) => id !== 'piano'))).toEqual(new Set(['flute']));
+    expect(await sampleStatus(page, 'violin')).toBeUndefined();
     expect(errors, errors.join('\n')).toEqual([]);
   });
 
