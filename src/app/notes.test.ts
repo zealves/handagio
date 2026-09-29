@@ -13,10 +13,21 @@ import {
 const base: NoteSettings = { ...DEFAULT_SOUND, thumbs: false };
 
 describe('notas dos dedos', () => {
-  it('notas personalizadas por defeito: Dó Pentatónica, oitava 4, com polegares', () => {
-    // E: polegar..mindinho (Lá3 Sol3 Mi3 Ré3 Dó3) | D: polegar..mindinho (Dó4 Ré4 Mi4 Sol4 Lá4)
-    expect([...DEFAULT_CUSTOM_NOTES]).toEqual([57, 55, 52, 50, 48, 60, 62, 64, 67, 69]);
+  it('notas personalizadas por defeito: Dó Maior, oitava 4, tónica no mindinho esquerdo', () => {
+    // E: polegar..mindinho (Si3 Fá4 Mi4 Ré4 Dó4) | D: polegar..mindinho (Ré5 Sol4 Lá4 Si4 Dó5)
+    expect([...DEFAULT_CUSTOM_NOTES]).toEqual([59, 65, 64, 62, 60, 74, 67, 69, 71, 72]);
     expect(DEFAULT_SOUND.customNotes).toEqual([...DEFAULT_CUSTOM_NOTES]);
+    // os 8 dedos sem polegar tocam o mesmo que o modo Escala em Dó Maior com a tónica no mindinho
+    const scale: NoteSettings = {
+      ...base,
+      instrument: 'piano',
+      root: 0,
+      scale: 'Maior',
+      octave: 4,
+      tonicAt: 'left-pinky',
+    };
+    for (const i of [1, 2, 3, 4, 6, 7, 8, 9])
+      expect(DEFAULT_CUSTOM_NOTES[i]).toBe(fingerMidiOf(i, 0, scale));
   });
 
   it('modo Escala segue a tónica e o deslocamento', () => {

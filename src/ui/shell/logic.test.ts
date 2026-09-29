@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_CUSTOM_NOTES } from '../../app/notes';
+import { DEFAULT_CUSTOM_NOTES, LEGACY_CUSTOM_NOTES } from '../../app/notes';
 import { INSTRUMENTS } from '../../audio/instruments';
 import {
   compositeSources,
@@ -127,6 +127,21 @@ describe('migratePrefs', () => {
   });
   it('v4 fica igual', () => {
     expect(migratePrefs({ bpm: 90 }, 4)).toEqual({ bpm: 90 });
+  });
+  it('v4: as notas personalizadas por defeito antigas passam às novas', () => {
+    const legacy = [...LEGACY_CUSTOM_NOTES];
+    expect(migratePrefs({ customNotes: legacy }, 4).customNotes).toEqual([...DEFAULT_CUSTOM_NOTES]);
+    // v3 sem notas também fica com as novas
+    expect(migratePrefs({}, 3).customNotes).toEqual([...DEFAULT_CUSTOM_NOTES]);
+    // notas editadas (mesmo que só numa) ficam
+    const edited = [...LEGACY_CUSTOM_NOTES];
+    edited[4] = 47;
+    expect(migratePrefs({ customNotes: edited }, 4).customNotes).toEqual(edited);
+  });
+  it('v5 fica igual', () => {
+    expect(migratePrefs({ customNotes: [...LEGACY_CUSTOM_NOTES] }, 5).customNotes).toEqual([
+      ...LEGACY_CUSTOM_NOTES,
+    ]);
   });
 });
 

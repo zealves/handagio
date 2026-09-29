@@ -8,7 +8,7 @@ import {
   type ChordMode,
   type ScaleName,
 } from '../audio/theory';
-import { fingerDegree, fingerDegreeFor, isActive, type TonicAt } from '../vision/fingerMap';
+import { fingerDegreeFor, isActive, type TonicAt } from '../vision/fingerMap';
 
 export type NoteMode = 'scale' | 'custom';
 
@@ -29,12 +29,24 @@ export const CUSTOM_MIN = 24;
 export const CUSTOM_MAX = 107;
 
 /**
- * Notas personalizadas por defeito: as do modo Escala com Dó Pentatónica, oitava 4, tónica no
- * indicador direito e com polegares (Dó3 Ré3 Mi3 Sol3 Lá3 | Dó4 Ré4 Mi4 Sol4 Lá4).
+ * Notas personalizadas por defeito: as do modo Escala por defeito (Dó Maior, oitava 4, tónica no
+ * mindinho esquerdo), calculadas sem polegares, que é o que se vê por defeito:
+ * Dó4 Ré4 Mi4 Fá4 | Sol4 Lá4 Si4 Dó5. Os polegares prolongam a escala sem repetir notas: o
+ * esquerdo fica um grau abaixo da tónica (Si3) e o direito um grau acima do mindinho direito (Ré5).
  */
 export const DEFAULT_CUSTOM_NOTES: readonly number[] = Array.from({ length: 10 }, (_, i) =>
-  degreeToMidi(fingerDegree(i, true), { root: 0, scale: 'Pentatónica', octave: 4 }),
+  degreeToMidi(i === 0 ? -1 : i === 5 ? 8 : fingerDegreeFor(i, false, 'left-pinky'), {
+    root: 0,
+    scale: 'Maior',
+    octave: 4,
+  }),
 );
+
+/**
+ * Valor por defeito anterior (Dó Pentatónica, tónica no indicador direito, com polegares). Quem
+ * ainda o tem guardado nunca editou as notas; a migração v5 troca-o pelo novo.
+ */
+export const LEGACY_CUSTOM_NOTES: readonly number[] = [57, 55, 52, 50, 48, 60, 62, 64, 67, 69];
 
 /** Garante 10 notas inteiras dentro do intervalo; o que faltar vem dos valores por defeito. */
 export function normalizeCustomNotes(v: unknown): number[] {

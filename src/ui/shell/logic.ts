@@ -1,6 +1,6 @@
 // Lógica pura do shell da interface (sem React nem DOM): pesquisa, recentes, rotação de
 // instrumentos, migração das preferências e fontes da composição de vídeo.
-import { normalizeCustomNotes } from '../../app/notes';
+import { DEFAULT_CUSTOM_NOTES, LEGACY_CUSTOM_NOTES, normalizeCustomNotes } from '../../app/notes';
 import { INSTRUMENT_BY_ID, INSTRUMENTS, type InstrumentInfo } from '../../audio/instruments';
 import { FAMILIES, type Family } from '../../audio/patches/types';
 import type { DrawerId } from '../../state/types';
@@ -86,6 +86,16 @@ export function migratePrefs(old: unknown, version: number): Record<string, unkn
     const ts = o.thumbSensitivity;
     o.thumbSensitivity =
       typeof ts === 'number' && Number.isFinite(ts) ? Math.min(1, Math.max(0, ts)) : 0.5;
+  }
+  if (version < 5) {
+    // Notas personalizadas iguais ao antigo valor por defeito: nunca foram editadas.
+    const c = o.customNotes;
+    if (
+      Array.isArray(c) &&
+      c.length === LEGACY_CUSTOM_NOTES.length &&
+      c.every((m, i) => m === LEGACY_CUSTOM_NOTES[i])
+    )
+      o.customNotes = [...DEFAULT_CUSTOM_NOTES];
   }
   return o;
 }

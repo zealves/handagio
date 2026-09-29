@@ -154,7 +154,7 @@ export const useStore = create<Store>()(
     }),
     {
       name: 'vision-sound-cam:prefs',
-      version: 4,
+      version: 5,
       migrate: (old, version) => migratePrefs(old, version) as unknown as Store,
       partialize: (s) => Object.fromEntries(PREF_KEYS.map((k) => [k, s[k]])) as Partial<Store>,
     },
