@@ -51,6 +51,7 @@ export function ControlBar() {
         aria-haspopup="dialog"
         onClick={() => open('instrumentos')}
         data-testid="chip-instrument"
+        aria-label={`Instrumento: ${info.name}`}
         title="Instrumentos (, e . para mudar)"
       >
         <span className={s.ico}>{instrumentIcon(info.id)}</span>

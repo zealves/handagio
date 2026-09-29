@@ -177,9 +177,7 @@
     display: none;
   }
   .label {
-    max-width: 9ch;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    display: none;
   }
 }
 /* paisagem baixa: barra vertical */

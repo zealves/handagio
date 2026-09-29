@@ -51,6 +51,19 @@
   border-radius: 12px;
   pointer-events: none;
 }
+/* a barra de controlo fica sobre o fundo do palco: o estado sobe acima dela */
+@media (min-width: 600px) {
+  .status {
+    bottom: 80px;
+  }
+}
+/* paisagem baixa: a barra está à direita, o estado volta ao fundo sem lhe passar por baixo */
+@media (max-height: 499px) and (orientation: landscape) {
+  .status {
+    bottom: 14px;
+    max-width: calc(100% - 128px);
+  }
+}
 @media (max-width: 600px) {
   .window {
     width: 100%;
