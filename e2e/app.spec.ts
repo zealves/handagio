@@ -94,12 +94,21 @@ test('liga a câmara, toca todos os instrumentos e grava', async ({ page }) => {
   const search = page.getByTestId('instrument-search');
   await search.fill('mari');
   await expect(drawer.locator('[data-testid^="tile-"]')).toHaveCount(1);
-  await search.fill('asdf ie.,');
+  // teclas reais (fill não dispara keydown): as guardas de isTypingTarget têm de as ignorar
+  const snapshot = () =>
+    page.evaluate(() => {
+      const st = (window as unknown as { __vsc: Vsc }).__vsc.store.getState();
+      return { uiHidden: st.uiHidden, instrument: st.instrument, lastNote: st.lastNote };
+    });
+  const typedFrom = await snapshot();
+  expect(typedFrom.uiHidden).toBe(false);
+  await search.fill('');
+  await search.focus();
+  await search.pressSequentially('asdf ie.,', { delay: 30 });
+  await expect(search).toHaveValue('asdf ie.,');
   await expect(page.getByText('Nenhum instrumento encontrado.')).toBeVisible();
-  const hidden = await page.evaluate(
-    () => (window as unknown as { __vsc: Vsc }).__vsc.store.getState().uiHidden,
-  );
-  expect(hidden).toBe(false);
+  // nenhum atalho (I, , e .) nem nota do modo teclado reagiu
+  expect(await snapshot()).toEqual(typedFrom);
   await expect(page.getByTestId('hud-note')).toHaveText('—');
   await search.fill('');
   await drawer.getByTestId('tile-piano').click();
@@ -187,15 +196,18 @@ test('fundo do palco: começa em só mãos, a câmara fica no menu', async ({ pa
 });
 
 test('esconder interface com I e voltar com Esc', async ({ page }) => {
+  const errors = watchConsole(page);
   await page.goto('/?debug');
   await page.locator('body').click({ position: { x: 5, y: 5 } });
   await page.keyboard.press('i');
   await expect(page.getByTestId('bar-slot')).toHaveCSS('opacity', '0');
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('bar-slot')).toHaveCSS('opacity', '1');
+  expect(errors, errors.join('\n')).toEqual([]);
 });
 
 test('uma gaveta de cada vez', async ({ page }) => {
+  const errors = watchConsole(page);
   await page.goto('/?debug');
   await page.getByTestId('chip-scale').click();
   // só a gaveta está aberta (o ecrã inicial também tem role=dialog, por isso conta-se dialog[open])
@@ -205,6 +217,7 @@ test('uma gaveta de cada vez', async ({ page }) => {
   await page.mouse.click(10, 300);
   await expect(page.getByTestId('drawer')).toBeHidden();
   await expect(page.getByTestId('scale-panel')).toHaveCount(0);
+  expect(errors, errors.join('\n')).toEqual([]);
 });
 
 test('sem Fullscreen API (iPhone), o botão esconde a interface', async ({ page }) => {
@@ -246,6 +259,7 @@ for (const vp of [
   test(`layout ${vp.width}×${vp.height}: sem scroll horizontal, palco e barra à vista`, async ({
     page,
   }) => {
+    const errors = watchConsole(page);
     await page.setViewportSize(vp);
     await page.goto('/?debug');
     const overflow = await page.evaluate(
@@ -258,6 +272,7 @@ for (const vp of [
     await expect(page.getByTestId('more')).toBeInViewport();
     // com o fundo por defeito (só mãos), a faixa de ondas aparece por baixo do palco no desktop
     if (vp.width === 1440) await expect(page.getByTestId('waves')).toBeVisible();
+    expect(errors, errors.join('\n')).toEqual([]);
   });
 }
 
