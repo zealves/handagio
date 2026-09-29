@@ -1,7 +1,8 @@
 // Orquestrador (sem React): câmara → visão → gestos → áudio. Corre o seu próprio ciclo rAF,
 // separado do render da interface.
 import { audio } from '../audio/engine';
-import { DRUMS, instrumentInfo, tuningOf } from '../audio/instruments';
+import { DRUMS, instrumentInfo, isSampled, tuningOf } from '../audio/instruments';
+import { samples } from '../audio/samples/loader';
 import { Looper, type LoopEvent } from '../audio/looper';
 import { Clock, quantizeTime, STEPS_PER_BAR, STEPS_PER_BEAT, TapTempo } from '../audio/metronome';
 import { chordMidis, clamp, degreeToMidi, noteName, chordName, scaleLength } from '../audio/theory';
@@ -111,7 +112,13 @@ class Session {
       this.syncParams(getState());
       this.clock.setBpm(getState().bpm);
       this.clock.start();
+      this.loadSamples(getState().instrument);
     }
+  }
+
+  /** Carrega as amostras de um instrumento em segundo plano (precisa do AudioContext). */
+  private loadSamples(id: string): void {
+    if (audio.ready && isSampled(id)) void samples.load(audio.ctx, id);
   }
 
   private syncParams(s: Store): void {
@@ -448,7 +455,11 @@ class Session {
 
   // ---------- reações ao store ----------
   installStoreSync(): () => void {
-    return useStore.subscribe((s, prev) => {
+    const offSamples = samples.on('status', ({ id, status }) => {
+      if (status === 'idle') return;
+      setState({ sampleStatus: { ...getState().sampleStatus, [id]: status } });
+    });
+    const offStore = useStore.subscribe((s, prev) => {
       if (
         s.volume !== prev.volume ||
         s.muted !== prev.muted ||
@@ -462,6 +473,7 @@ class Session {
       if (s.instrument !== prev.instrument) {
         this.releaseAll();
         if (instrumentInfo(prev.instrument).kind === 'continuous') audio.destroyTheremin();
+        this.loadSamples(s.instrument);
       }
       if (s.thumbs !== prev.thumbs) {
         this.releaseAll();
@@ -482,6 +494,10 @@ class Session {
       if ((s.cameraId !== prev.cameraId || s.lowRes !== prev.lowRes) && this.stream)
         void this.restartCamera();
     });
+    return () => {
+      offSamples();
+      offStore();
+    };
   }
 
   releaseAll(): void {

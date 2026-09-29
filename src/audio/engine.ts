@@ -12,6 +12,9 @@ import { createReverb } from './effects/reverb';
 import { createTone } from './effects/tone';
 import { SharedAnalyser } from './analyser';
 import { PATCHES } from './patches';
+import { SAMPLED_BY_ID } from './samples/catalog';
+import { samples } from './samples/loader';
+import { chooseVoice, playSample, sampleSources, type SampleVoice } from './samples/sampler';
 import { midiToFreq } from './theory';
 import { playVoice, type Voice, type VoiceDeps } from './voice';
 import type { MouthFxId } from '../state/types';
@@ -27,6 +30,11 @@ export interface EngineParams {
 }
 
 export type VoiceKey = number | string;
+
+interface VoiceEntry {
+  voice: Voice;
+  freq: number;
+}
 
 interface ThereminVoice {
   o: OscillatorNode;
@@ -58,7 +66,9 @@ export class AudioEngine {
   private reverb!: ReturnType<typeof createReverb>;
   private delay!: ReturnType<typeof createDelay>;
   private tone!: ReturnType<typeof createTone>;
-  private voices = new Map<VoiceKey, { voice: Voice; freq: number }>();
+  private voices = new Map<VoiceKey, VoiceEntry>();
+  /** Última voz com amostras de cada chave, mesmo já largada (a cauda ainda soa). */
+  private sampleTails = new Map<VoiceKey, SampleVoice>();
   private theremin: ThereminVoice[] | null = null;
   private ksCache = new Map<string, AudioBuffer>();
   private params: EngineParams = {
@@ -230,22 +240,34 @@ export class AudioEngine {
     when?: number,
   ): void {
     if (!this.ready) return;
-    const patch = PATCHES[patchId];
-    if (!patch || patch.continuous) return;
-    this.noteOff(key);
+    const def = SAMPLED_BY_ID[patchId];
+    const sampled = def && chooseVoice(samples.status(def.id), def) === 'sample';
+    const bank = sampled ? samples.get(def.id) : null;
+    // enquanto as amostras não chegam (ou se falharam) soa o patch de reserva; o primeiro
+    // uso começa a carregá-las em segundo plano (depois de um erro, só se volta a tentar ao
+    // escolher o instrumento outra vez)
+    if (def && samples.status(def.id) === 'idle') void samples.load(this.ctx, def.id);
+    const patch = bank ? null : PATCHES[def ? def.fallback : patchId];
+    if (!bank && (!patch || patch.continuous)) return;
     const freq = midiToFreq(midi);
-    const voice = playVoice(
-      this.deps,
-      patch,
-      this.bus,
-      freq * pitchFactor(this.params.pitch),
-      vel,
-      pan,
-      when,
-    );
-    const entry = { voice, freq };
+    const f = freq * pitchFactor(this.params.pitch);
+    // a mesma chave (o mesmo dedo) volta a tocar: a amostra anterior, ainda a soar ou já
+    // largada, é abafada quando a nova começa, para os toques rápidos não acumularem vozes
+    this.noteOff(key);
+    this.sampleTails.get(key)?.choke(Math.max(when ?? 0, this.ctx.currentTime));
+    this.sampleTails.delete(key);
+    let voice: Voice;
+    if (bank) {
+      const sv = playSample(this.ctx, bank, def, this.bus, f, vel, pan, when);
+      this.sampleTails.set(key, sv);
+      voice = sv;
+    } else {
+      voice = playVoice(this.deps, patch!, this.bus, f, vel, pan, when);
+    }
+    const entry: VoiceEntry = { voice, freq };
     voice.onDone = () => {
       if (this.voices.get(key) === entry) this.voices.delete(key);
+      if (this.sampleTails.get(key) === voice) this.sampleTails.delete(key);
     };
     this.voices.set(key, entry);
   }
@@ -278,6 +300,11 @@ export class AudioEngine {
 
   get activeVoices(): number {
     return this.voices.size;
+  }
+
+  /** Fontes de amostras ainda a soar, incluindo caudas já largadas (diagnóstico). */
+  get sampleSources(): number {
+    return sampleSources();
   }
 
   // ---------- percussão ----------

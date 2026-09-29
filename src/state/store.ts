@@ -67,6 +67,8 @@ export interface Runtime {
   lastRecordingId: string | null;
   videoSize: { w: number; h: number } | null;
   recordings: RecordingMeta[];
+  /** Estado do carregamento das amostras por instrumento (sem `idle`). */
+  sampleStatus: Record<string, 'loading' | 'ready' | 'error'>;
 }
 
 export type Store = Prefs &
@@ -133,6 +135,7 @@ export const useStore = create<Store>()(
       lastRecordingId: null,
       videoSize: null,
       recordings: [],
+      sampleStatus: {},
       set: (p) => set(p),
     }),
     {
