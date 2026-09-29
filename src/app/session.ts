@@ -16,6 +16,7 @@ import { assignHands, HandTracker } from '../vision/handTracker';
 import { MotionDetector } from '../vision/motionFallback';
 import type { Pt } from '../vision/types';
 import { FINGER_COLORS } from '../ui/theme';
+import { isTypingTarget } from '../lib/keys';
 
 const NO_RESULT_MS = 6000;
 const LOAD_TIMEOUT_MS = 20000;
@@ -385,20 +386,9 @@ class Session {
 
   // ---------- modo teclado ----------
   installKeyboard(): () => void {
-    const typing = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement | null;
-      if (!t) return false;
-      const tag = t.tagName;
-      return (
-        tag === 'INPUT' ||
-        tag === 'SELECT' ||
-        tag === 'TEXTAREA' ||
-        t.isContentEditable ||
-        t.getAttribute('role') === 'slider'
-      );
-    };
     const down = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || typing(e)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target as HTMLElement | null))
+        return;
       if (e.code === 'Space') {
         e.preventDefault();
         this.ensureAudio();
