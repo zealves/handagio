@@ -40,6 +40,8 @@ export interface SoundSettings {
 
 export interface Prefs extends SoundSettings {
   sensitivity: number; // 0..1
+  /** Desloca o limiar dos polegares como `sensitivity` desloca o dos outros dedos. */
+  thumbSensitivity: number; // 0..1
   thumbs: boolean;
   heightPitch: boolean;
   glide: boolean;
@@ -106,6 +108,7 @@ export const DEFAULT_SOUND: SoundSettings = {
 export const DEFAULT_PREFS: Prefs = {
   ...DEFAULT_SOUND,
   sensitivity: 0.55,
+  thumbSensitivity: 0.5,
   thumbs: false,
   heightPitch: true,
   glide: true,

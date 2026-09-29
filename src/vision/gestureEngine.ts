@@ -19,6 +19,8 @@ export interface GestureEvents extends Record<string, unknown> {
 
 export interface GestureOptions {
   sensitivity: number; // 0..1
+  /** Sensibilidade só dos polegares (0..1); por defeito 0.5. */
+  thumbSensitivity?: number;
   thumbs: boolean;
   heightPitch: boolean;
   glide: boolean;
@@ -32,12 +34,31 @@ export interface FingerLive {
   prevCurl: number;
   vel: number;
   down: boolean;
+  /** Polegares: fotogramas seguidos acima do limiar à espera de confirmação (0 = nenhum). */
+  dwell: number;
+  /** Polegares: velocidade no primeiro fotograma acima do limiar (a do disparo). */
+  dwellVel: number;
   /** Ponta do dedo normalizada (0..1), já em espelho. */
   tip: { x: number; y: number } | null;
 }
 
 export const VEL_TRIGGER = 0.3;
 export const HYSTERESIS = 0.18;
+
+/**
+ * Polegares: o polegar mexe-se muito quando se dobram os outros dedos e a sua dobra é mais
+ * ruidosa, por isso o limiar de disparo (e o de libertação) sobe esta margem.
+ */
+export const THUMB_ON_EXTRA = 0.1;
+/**
+ * Polegares: fotogramas de deteção seguidos acima do limiar antes de disparar (~60 ms a 50 fps,
+ * ~100 ms a 30 fps). Um salto de um só fotograma não toca.
+ */
+export const THUMB_DWELL = 3;
+/** Sensibilidade dos polegares neutra (a que não desloca o limiar calibrado). */
+export const THUMB_SENS_NEUTRAL = 0.5;
+/** Calibrado, o limiar do polegar nunca passa de 85% do caminho entre esticado e dobrado. */
+const THUMB_CAL_MAX = 0.85;
 
 /** limiar = 0.75 − sens × 0.45 */
 export const onThreshold = (sens: number): number => 0.75 - sens * 0.45;
@@ -59,6 +80,31 @@ export function thresholds(
   return { on: base, off: base - HYSTERESIS };
 }
 
+/**
+ * Limiares de um polegar: os mesmos, com a sensibilidade própria dos polegares, e mais
+ * `THUMB_ON_EXTRA`. Com calibração, o limiar vem dos valores do próprio polegar e não passa de
+ * `THUMB_CAL_MAX` do caminho, para um polegar dobrado continuar a disparar.
+ */
+export function thumbThresholds(
+  i: number,
+  thumbSens: number,
+  cal?: Calibration | null,
+): { on: number; off: number } {
+  if (cal && cal.closed[i] - cal.open[i] > 0.2) {
+    const span = cal.closed[i] - cal.open[i];
+    // a mesma fórmula da calibração, com o ponto neutro dos polegares (0.5)
+    const base = thresholds(i, thumbSens + (0.55 - THUMB_SENS_NEUTRAL), cal);
+    const on = clamp(
+      Math.min(base.on + THUMB_ON_EXTRA, cal.open[i] + span * THUMB_CAL_MAX),
+      0.15,
+      0.95,
+    );
+    return { on, off: Math.max(cal.open[i] + span * 0.15, on - HYSTERESIS) };
+  }
+  const on = onThreshold(thumbSens) + THUMB_ON_EXTRA;
+  return { on, off: on - HYSTERESIS };
+}
+
 /** Intensidade da nota a partir da velocidade no disparo. */
 export const velocityFrom = (vel: number): number =>
   clamp(0.2 + clamp((vel - VEL_TRIGGER) / 5, 0, 1) * 0.8, 0, 1);
@@ -68,6 +114,8 @@ export const newFinger = (): FingerLive => ({
   prevCurl: 0,
   vel: 0,
   down: false,
+  dwell: 0,
+  dwellVel: 0,
   tip: null,
 });
 
@@ -90,6 +138,7 @@ export class GestureEngine extends Emitter<GestureEvents> {
           }
           if (o.continuous) this.emit('continuous', { finger: i, level: 0, pitch: 0 });
           f.curl *= 0.8;
+          f.dwell = 0;
           f.tip = null;
         }
         continue;
@@ -101,6 +150,7 @@ export class GestureEngine extends Emitter<GestureEvents> {
         const f = this.fingers[i];
         if (!isActive(i, o.thumbs)) {
           f.curl = 0;
+          f.dwell = 0;
           f.tip = null;
           if (f.down) {
             f.down = false;
@@ -113,12 +163,32 @@ export class GestureEngine extends Emitter<GestureEvents> {
         f.vel = f.vel * 0.5 + ((f.curl - f.prevCurl) / dt) * 0.5;
         const tip = lm[TIP_IDS[j]];
         f.tip = { x: tip.x, y: tip.y };
-        const { on, off } = thresholds(i, o.sensitivity, o.calibration);
+        const { on, off } =
+          j === 0
+            ? thumbThresholds(i, o.thumbSensitivity ?? THUMB_SENS_NEUTRAL, o.calibration)
+            : thresholds(i, o.sensitivity, o.calibration);
 
         if (o.continuous) {
           const lvl = clamp((f.curl - off * 0.6) / (1 - off * 0.6), 0, 1);
           const pitch = o.heightPitch ? (0.55 - tip.y) * 15 : 0;
           this.emit('continuous', { finger: i, level: lvl, pitch });
+        } else if (!f.down && j === 0) {
+          // polegar: tem de ficar acima do limiar THUMB_DWELL fotogramas seguidos
+          if (f.curl <= on) f.dwell = 0;
+          else if (f.dwell > 0) f.dwell++;
+          else if (f.vel > VEL_TRIGGER) {
+            f.dwell = 1;
+            f.dwellVel = f.vel;
+          }
+          if (f.dwell >= THUMB_DWELL) {
+            f.dwell = 0;
+            f.down = true;
+            this.emit('noteOn', {
+              finger: i,
+              velocity: velocityFrom(f.dwellVel),
+              shift: heightShift,
+            });
+          }
         } else if (!f.down && f.curl > on && f.vel > VEL_TRIGGER) {
           f.down = true;
           this.emit('noteOn', { finger: i, velocity: velocityFrom(f.vel), shift: heightShift });
@@ -138,6 +208,7 @@ export class GestureEngine extends Emitter<GestureEvents> {
     this.fingers.forEach((f, i) => {
       if (f.down) this.emit('noteOff', { finger: i });
       f.down = false;
+      f.dwell = 0;
     });
   }
 

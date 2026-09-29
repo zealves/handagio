@@ -86,6 +86,7 @@ describe('migratePrefs', () => {
     tonicAt: 'right-index',
     noteMode: 'scale',
     customNotes: [...DEFAULT_CUSTOM_NOTES],
+    thumbSensitivity: 0.5,
   };
   it('v1 perde showVideo e mantém o resto', () => {
     expect(migratePrefs({ showVideo: false, bpm: 90 }, 1)).toEqual({ ...V4, bpm: 90 });
@@ -99,7 +100,7 @@ describe('migratePrefs', () => {
   it('estado nulo não rebenta', () => {
     expect(migratePrefs(null, 1)).toEqual(V4);
   });
-  it('v3 ganha os modos de notas', () => {
+  it('v3 ganha os modos de notas e a sensibilidade dos polegares', () => {
     expect(migratePrefs({ bpm: 90 }, 3)).toEqual({ ...V4, bpm: 90 });
   });
   it('v3 mantém valores válidos e corrige os inválidos', () => {

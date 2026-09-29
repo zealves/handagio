@@ -12,6 +12,7 @@ import { CameraError, listCameras, openCamera, stopStream } from '../vision/came
 import { isActive, KEYMAP, slotOf } from '../vision/fingerMap';
 import { GestureEngine, type GestureOptions } from '../vision/gestureEngine';
 import { CalibrationCollector, type CalPhase } from '../vision/calibration';
+import { curls } from '../vision/fingerCurl';
 import { FaceTracker, mouthOpenness } from '../vision/faceTracker';
 import { assignHands, HandTracker } from '../vision/handTracker';
 import { MotionDetector } from '../vision/motionFallback';
@@ -96,6 +97,7 @@ class Session {
     const custom = s.noteMode === 'custom';
     return {
       sensitivity: s.sensitivity,
+      thumbSensitivity: s.thumbSensitivity,
       thumbs: s.thumbs,
       heightPitch: s.heightPitch && !custom,
       glide: s.glide && !custom,
@@ -678,12 +680,6 @@ class Session {
       }
     }
 
-    if (this.cal)
-      this.cal.collector.add(
-        this.cal.phase,
-        live.fingers.map((f) => (f.tip ? f.curl : null)),
-      );
-
     // boca
     if (live.spaceHeld) live.mouthTarget = 1;
     else if (now - live.lipsT > 600) live.mouthTarget = 0;
@@ -710,7 +706,14 @@ class Session {
     this.lastProcT = now;
     live.hands = hands;
     live.handsT = now;
-    this.gesture.process(assignHands(hands), pdt, this.gestureOptions());
+    const assigned = assignHands(hands);
+    // A calibração recolhe as dobras de todos os dedos, polegares incluídos, mesmo com os
+    // polegares desligados (o gestureEngine não calcula a dobra dos dedos inativos).
+    if (this.cal) {
+      const c = assigned.flatMap((lm) => (lm ? curls(lm) : [null, null, null, null, null]));
+      this.cal.collector.add(this.cal.phase, c);
+    }
+    this.gesture.process(assigned, pdt, this.gestureOptions());
   }
 
   /** Diagnóstico e testes: injeta pontos de mãos (já em espelho) no pipeline real. */

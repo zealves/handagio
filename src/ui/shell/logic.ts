@@ -69,8 +69,8 @@ export const DRAWER_TITLES: Record<DrawerId, string> = {
 /**
  * Migração do `persist`: a v1 tinha `showVideo` e a v2 `stageBg` e `showWaves`. Desde a v3 o
  * palco mostra sempre só as mãos e as ondas estão sempre por baixo: as chaves antigas saem.
- * A v4 acrescenta os modos de notas (`tonicAt`, `noteMode`, `customNotes`), com os valores por
- * defeito quando faltam.
+ * A v4 acrescenta os modos de notas (`tonicAt`, `noteMode`, `customNotes`) e a sensibilidade
+ * dos polegares, com os valores por defeito quando faltam.
  */
 export function migratePrefs(old: unknown, version: number): Record<string, unknown> {
   const o: Record<string, unknown> = { ...((old as Record<string, unknown> | null) ?? {}) };
@@ -83,6 +83,7 @@ export function migratePrefs(old: unknown, version: number): Record<string, unkn
     if (o.tonicAt !== 'left-pinky') o.tonicAt = 'right-index';
     if (o.noteMode !== 'custom') o.noteMode = 'scale';
     o.customNotes = normalizeCustomNotes(o.customNotes);
+    if (typeof o.thumbSensitivity !== 'number') o.thumbSensitivity = 0.5;
   }
   return o;
 }

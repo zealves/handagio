@@ -26,6 +26,8 @@ export function SettingsDialog() {
       heightPitch: x.heightPitch,
       glide: x.glide,
       sensitivity: x.sensitivity,
+      thumbSensitivity: x.thumbSensitivity,
+      thumbs: x.thumbs,
       custom: x.noteMode === 'custom',
       set: x.set,
     })),
@@ -198,6 +200,22 @@ export function SettingsDialog() {
                 ? 'Limiares calibrados para ti. Estica e dobra os dedos durante 3 s cada para recalibrar.'
                 : 'Estica os dedos durante 3 s e depois dobra-os durante 3 s; os limiares ajustam-se à tua mão.'}
           </p>
+          {st.thumbs && (
+            <>
+              <Slider
+                label="Sensibilidade dos polegares"
+                min={0}
+                max={100}
+                value={Math.round(st.thumbSensitivity * 100)}
+                onChange={(v) => st.set({ thumbSensitivity: v / 100 })}
+                format={(v) => `${v}%`}
+                testId="thumb-sensitivity"
+              />
+              <p className={s.hint}>
+                Se os polegares tocam sem querer, baixa. Se custam a tocar, sobe.
+              </p>
+            </>
+          )}
         </section>
 
         <section className={s.section}>
