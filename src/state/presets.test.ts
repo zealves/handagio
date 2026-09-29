@@ -27,4 +27,30 @@ describe('presets', () => {
   it('completa presets antigos', () => {
     expect(completePreset({ instrument: 'pad' })).toEqual({ ...DEFAULT_SOUND, instrument: 'pad' });
   });
+  it('as notas dos dedos entram nos presets', () => {
+    const notes = [60, 61, 62, 63, 64, 65, 66, 67, 68, 69];
+    const s = pickSound({
+      ...DEFAULT_PREFS,
+      tonicAt: 'left-pinky',
+      noteMode: 'custom',
+      customNotes: notes,
+    });
+    expect(s).toMatchObject({ tonicAt: 'left-pinky', noteMode: 'custom', customNotes: notes });
+    expect(completePreset(s)).toMatchObject({ noteMode: 'custom', customNotes: notes });
+    // a sensibilidade dos polegares é da pessoa, não do som
+    expect('thumbSensitivity' in s).toBe(false);
+  });
+  it('presets de fábrica usam os modos por defeito', () => {
+    for (const p of Object.values(FACTORY_PRESETS)) {
+      expect(p.noteMode).toBe('scale');
+      expect(p.tonicAt).toBe('right-index');
+      expect(p.customNotes).toEqual(DEFAULT_SOUND.customNotes);
+    }
+  });
+  it('preset com notas estragadas fica com 10 notas válidas', () => {
+    expect(completePreset({ customNotes: [61] }).customNotes).toEqual([
+      61,
+      ...DEFAULT_SOUND.customNotes.slice(1),
+    ]);
+  });
 });

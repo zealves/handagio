@@ -35,6 +35,7 @@ type Vsc = {
       engine: string;
       uiHidden: boolean;
       sampleStatus: Record<string, string>;
+      customNotes: number[];
       set(p: Record<string, unknown>): void;
     };
   };
@@ -57,6 +58,47 @@ function playSynthetic(page: Page) {
     return v.store.getState().lastNote;
   });
 }
+
+/**
+ * Dobra um dedo com mãos sintéticas (mão 0 = esquerda, 1 = direita; dedo 0 = polegar …
+ * 4 = mindinho), depois de limpar a última nota, e devolve a nota que tocou.
+ */
+function playFinger(page: Page, hand: number, finger: number) {
+  return page.evaluate(
+    async ({ hand, finger }) => {
+      const v = (window as unknown as { __vsc: Vsc }).__vsc;
+      v.store.getState().set({ lastNote: '—' });
+      const bentOf = (h: number) => {
+        const c = [false, false, false, false, false];
+        if (h === hand) c[finger] = true;
+        return c;
+      };
+      const open = [v.syntheticHand(false, 0.3), v.syntheticHand(false, 0.7)];
+      const bent = [v.syntheticHand(bentOf(0), 0.3), v.syntheticHand(bentOf(1), 0.7)];
+      const wait = () => new Promise((r) => setTimeout(r, 33));
+      for (const hands of [open, open, open, open, bent, bent, bent, bent]) {
+        v.session.feedHands(hands);
+        await wait();
+      }
+      for (let k = 0; k < 4; k++) {
+        v.session.feedHands(open);
+        await wait();
+      }
+      return v.store.getState().lastNote;
+    },
+    { hand, finger },
+  );
+}
+
+/** Liga o áudio e abre a gaveta da escala. */
+async function openScale(page: Page) {
+  await page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.session.ensureAudio());
+  await page.getByTestId('chip-scale').click();
+  await expect(page.getByTestId('scale-panel')).toBeVisible();
+}
+
+/** Texto das notas de cada dedo no painel, pela ordem do ecrã. */
+const fingerNotes = (page: Page) => page.locator('[data-testid^="finger-note-"]').allTextContents();
 
 /** Estado das amostras de um instrumento (undefined enquanto nunca foi pedido). */
 function sampleStatus(page: Page, id: string) {
@@ -629,6 +671,80 @@ test.describe('sem internet', () => {
     await page.getByTestId('tile-violin').click();
     await expect.poll(() => sampleStatus(page, 'violin'), { timeout: 15_000 }).toBe('ready');
     expect(await playRms(page, 'violin')).toBeGreaterThan(0.01);
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+});
+
+test.describe('notas dos dedos', () => {
+  test('Personalizado: escolher a nota de um dedo e tocá-la', async ({ page }) => {
+    const errors = watchConsole(page);
+    await page.goto('/?debug');
+    await openScale(page);
+    await page.getByTestId('note-mode-custom').click();
+    await expect(page.getByTestId('note-mode-custom')).toHaveAttribute('aria-checked', 'true');
+    // em Personalizado não há tónica nem escala
+    await expect(page.getByTestId('tonic-at')).toHaveCount(0);
+    await expect(page.getByTestId('scale-Maior')).toHaveCount(0);
+    // o índice 7 é o médio direito (0..4 mão esquerda, 5..9 direita, polegar → mindinho)
+    const finger = page.getByTestId('finger-note-7');
+    await expect(finger).toHaveAttribute('aria-label', 'Mão direita, médio: Mi4. Mudar');
+    await finger.click();
+    await expect(page.getByTestId('note-editor')).toBeVisible();
+    await expect(page.getByTestId('pick-note-4')).toBeFocused();
+    await page.getByTestId('pick-note-7').click();
+    await expect(finger).toHaveText('Sol4');
+    await expect(finger).toHaveAttribute('aria-label', 'Mão direita, médio: Sol4. Mudar');
+    // setas + Enter também escolhem; Esc fecha só o editor e devolve o foco ao dedo
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('Enter');
+    await expect(finger).toHaveText('Sol♯4');
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('Enter');
+    await expect(finger).toHaveText('Sol4');
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('note-editor')).toHaveCount(0);
+    await expect(finger).toBeFocused();
+    await expect(page.getByTestId('drawer')).toBeVisible();
+
+    expect(await playFinger(page, 1, 2)).toMatch(/^Sol/);
+    expect(await playFinger(page, 1, 2)).toBe('Sol4');
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+
+  test('Copiar da escala: as notas ficam iguais às da escala', async ({ page }) => {
+    const errors = watchConsole(page);
+    await page.goto('/?debug');
+    await openScale(page);
+    await page.getByTestId('scale-Maior').click();
+    await page.getByTestId('tonic-at-left-pinky').click();
+    const scaleNotes = await fingerNotes(page);
+    expect(scaleNotes).toHaveLength(8);
+    await page.getByTestId('note-mode-custom').click();
+    expect(await fingerNotes(page)).not.toEqual(scaleNotes);
+    // substitui as notas: pede um segundo clique
+    await page.getByTestId('copy-from-scale').click();
+    await expect(page.getByTestId('copy-from-scale')).toHaveText('Substituir as notas?');
+    expect(await fingerNotes(page)).not.toEqual(scaleNotes);
+    await page.getByTestId('copy-from-scale').click();
+    await expect.poll(() => fingerNotes(page)).toEqual(scaleNotes);
+    await expect(page.getByTestId('copy-from-scale')).toHaveText('Copiar da escala');
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+
+  test('tónica no mindinho esquerdo: toca a tónica na oitava base', async ({ page }) => {
+    const errors = watchConsole(page);
+    await page.goto('/?debug');
+    await page.evaluate(() =>
+      (window as unknown as { __vsc: Vsc }).__vsc.store.getState().set({ heightPitch: false }),
+    );
+    await openScale(page);
+    await page.getByTestId('tonic-at-left-pinky').click();
+    await expect(page.getByTestId('finger-note-4')).toHaveText('Dó4');
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('drawer')).toBeHidden();
+    expect(await playFinger(page, 0, 4)).toBe('Dó4');
+    // o indicador direito passa a tocar mais acima (grau 4 da Pentatónica = Lá4)
+    expect(await playFinger(page, 1, 1)).toBe('Lá4');
     expect(errors, errors.join('\n')).toEqual([]);
   });
 });

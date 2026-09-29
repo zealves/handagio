@@ -61,3 +61,18 @@ describe('nomes dos acordes', () => {
     expect(chordName([60, 67, 72])).toBe('Dó 5');
   });
 });
+
+import { customChord } from './theory';
+describe('acordes do modo Personalizado', () => {
+  it('intervalos fixos sobre a nota exata', () => {
+    expect(customChord(62, 'off')).toEqual([62]);
+    expect(customChord(62, 'triad')).toEqual([62, 66, 69]);
+    expect(customChord(62, 'seventh')).toEqual([62, 66, 69, 72]);
+    expect(customChord(62, 'power')).toEqual([62, 69, 74]);
+  });
+  it('nomes: maior, sétima dominante e quinta', () => {
+    expect(chordName(customChord(67, 'triad'))).toBe('Sol');
+    expect(chordName(customChord(67, 'seventh'))).toBe('Sol 7');
+    expect(chordName(customChord(67, 'power'))).toBe('Sol 5');
+  });
+});
