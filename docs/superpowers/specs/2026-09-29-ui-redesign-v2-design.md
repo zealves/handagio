@@ -47,7 +47,7 @@ Simplificar a interface para pôr o foco em tocar, sem perder nenhuma função. 
   7. **⟳ Looper**: botão com o estado atual do looper (mesma ação do botão principal do `LooperPanel`);
   8. **⋯ Mais**: menu com todas as gavetas, incluindo Tocar com o rato, e "Esconder interface".
 - **Faixa de ondas** (`WaveViz`), com ~60 px de altura, colada por baixo do palco. Aparece só com o fundo Câmara, com largura ≥ 1100 px e com `showWaves` ligado (é o valor por defeito).
-- **Estado** (texto do antigo `StatusPanel`: motor, mãos detetadas, boca) passa a uma linha discreta no HUD.
+- **Estado:** o HUD já mostra nota, tempo, voz, motor e fps. Do antigo `StatusPanel` falta só o looper, que passa a um chip no HUD quando o estado não é `idle`.
 
 ## Fundo do palco (`stageBg`)
 
@@ -61,7 +61,7 @@ A câmara e a deteção continuam ativas nos três modos. O vídeo gravado segue
 
 ## Gavetas
 
-Componente `Drawer`: no desktop e no tablet é lateral direita, sobreposta ao palco (o palco não encolhe); no telemóvel é uma folha inferior até 70% da altura. Só pode haver uma aberta de cada vez (`drawer: DrawerId | null`). Fecha com Esc, com um clique fora ou com o botão ×. Usa `role="dialog"`, `aria-modal="true"`, foco preso e o resto da página `inert`, e o foco volta ao controlo que a abriu. **O conteúdo só é montado enquanto a gaveta está aberta.**
+Componente `Drawer`, feito sobre `<dialog>` com `showModal()`, o que dá de forma nativa o foco preso, o Esc e o `inert` no resto da página: no desktop e no tablet é lateral direita, sobreposta ao palco (o palco não encolhe); no telemóvel é uma folha inferior até 70% da altura. Só pode haver uma aberta de cada vez (`drawer: DrawerId | null`). Fecha com Esc, com um clique fora ou com o botão ×. Usa `role="dialog"`, `aria-modal="true"`, foco preso e o resto da página `inert`, e o foco volta ao controlo que a abriu. **O conteúdo só é montado enquanto a gaveta está aberta.**
 
 | `DrawerId` | Título | Conteúdo |
 |---|---|---|
@@ -74,7 +74,7 @@ Componente `Drawer`: no desktop e no tablet é lateral direita, sobreposta ao pa
 
 ### Registo de efeitos
 
-`src/ui/shell/effects.ts` exporta `EFFECTS: EffectDef[]`, onde `EffectDef = { id, label, quick: boolean, render: () => ReactNode }`. `quick` indica se o efeito aparece como mini-knob na barra (Reverb e Eco). O `EffectsPanel` atual, com duas páginas, é substituído por uma lista de cartões, e os controlos usam as mesmas chaves do store.
+`src/ui/shell/effects.tsx` exporta `EFFECTS: EffectDef[]`, onde `EffectDef = { id, label, quick: boolean, render: () => ReactNode }`. `quick` indica se o efeito aparece como mini-knob na barra (Reverb e Eco). O `EffectsPanel` atual, com duas páginas, é substituído por uma lista de cartões, e os controlos usam as mesmas chaves do store.
 
 ### Seletor de instrumentos (`InstrumentPicker`)
 
@@ -82,7 +82,7 @@ Componente `Drawer`: no desktop e no tablet é lateral direita, sobreposta ao pa
 - Secção **Recentes**: até 6, a partir de `recentInstruments`. Fica escondida durante a pesquisa.
 - **Chips de família** numa linha com scroll horizontal (mantém `familyFilter`).
 - **Grupos por família** com cabeçalho e contagem. Cada **fila compacta** tem ícone, nome e uma linha de descrição truncada, com `aria-pressed` no instrumento ativo.
-- Setas ↑ e ↓ movem o foco e Enter ou clique escolhe. A gaveta fica aberta para se poder experimentar.
+- Setas ↑ e ↓ movem o foco e Enter ou clique escolhe. A gaveta fica aberta para se poder experimentar. Na barra, `,` e `.` passam ao instrumento anterior ou seguinte.
 - Estado vazio: "Nenhum instrumento encontrado."
 
 ### Definições (⚙)
@@ -91,14 +91,15 @@ Juntam-se às atuais (presets, câmara, mãos/calibração, volume, tema):
 
 - vindas do Sound Maker: oitava base, altura da mão muda o tom, deslizar o tom e sensibilidade da visão;
 - "Mostrar ondas por baixo do palco" (`showWaves`);
-- lista de atalhos: `H` esconder interface, `F` ecrã inteiro, `[` e `]` instrumento anterior e seguinte, Esc fechar, e os atalhos que já existem (Espaço, teclas das notas);
+- lista de atalhos: `I` esconder interface, `E` ecrã inteiro, `,` e `.` instrumento anterior e seguinte, Esc fechar, e os atalhos que já existem (Espaço, teclas das notas A–L e Ç);
 - sai "Mostrar a imagem da câmara", que passa a ser o `stageBg` na barra.
 
 ## Ecrã inteiro e esconder interface
 
-- `useFullscreen()`: `requestFullscreen` no elemento da app e `F` alterna. Onde a API não existe (iOS Safari), o botão ativa só "esconder interface".
-- `uiHidden` (tecla `H`, ou ⋯ → Esconder interface): esconde o cabeçalho, a barra e a faixa, e ficam o palco e o HUD.
+- `useFullscreen()`: `requestFullscreen` no elemento da app e `E` alterna. Onde a API não existe (iOS Safari), o botão ativa só "esconder interface".
+- `uiHidden` (tecla `I`, ou ⋯ → Esconder interface): esconde o cabeçalho, a barra e a faixa, e ficam o palco e o HUD.
 - `useAutoHide()`: com `uiHidden`, mover o rato ou tocar no ecrã mostra a barra durante 3 s. Com a câmara ligada e sem `uiHidden`, a barra nunca se esconde sozinha.
+- **Teclas:** `H` e `F` estão ocupadas pelas notas (A S D F G H J K L Ç) e, no teclado português, `[` e `]` só saem com AltGr, que os atalhos ignoram. Por isso ficam `I`, `E`, `,` e `.`, que estão livres e não precisam de modificador.
 - Os atalhos são ignorados em campos de texto, seletores, knobs e sliders, pela mesma regra da tecla Espaço (decisão 14).
 
 ## Resoluções
@@ -125,16 +126,16 @@ Juntam-se às atuais (presets, câmara, mãos/calibração, volume, tema):
 
 ## Alterações fora da UI
 
-- `audio/recorder.ts`: a composição do vídeo desenha o `<video>` só quando `stageBg === 'camara'`; nos outros modos pinta o fundo escuro do palco. As ondas entram por `stageCanvases.waves`, registado pelo `WaveViz` do palco.
+- `app/recording.ts`: passa `video` ao compositor só quando `stageBg === 'camara'`; nos outros modos o compositor já pinta só o fundo escuro. Com `ondas`, as camadas começam por `stageCanvases.waves`, registado pelo `WaveViz` do palco. `audio/recorder.ts` não muda.
 - `state/stageCanvases.ts`: novo campo `waves`.
 - `ui/frame.ts`: `useCanvas` deixa de desenhar quando o canvas está fora do ecrã (`IntersectionObserver`) ou tem tamanho 0.
 - `?debug`: a sobreposição mostra os FPS do rAF partilhado e o tempo médio de um fotograma.
 
 ## Componentes
 
-**Novos** em `src/ui/shell/`: `ControlBar`, `Drawer`, `DrawerHost`, `MoreMenu`, `InstrumentPicker`, `WaveViz`, `effects.ts`, `useFullscreen`, `useAutoHide`, `logic.ts`.
+**Novos** em `src/ui/shell/`: `ControlBar`, `Drawer`, `DrawerHost`, `MoreMenu`, `InstrumentPicker`, `WaveViz`, `effects.tsx`, `useFullscreen`, `useAutoHide`, `useShortcuts`, `logic.ts`. Novo `src/lib/keys.ts` com `isTypingTarget`, partilhado com `session.installKeyboard`.
 
-**Removidos:** `ui/controls/Tabs.tsx`, `ui/panels/VisualizerPanel.tsx`, `ui/panels/SoundMakerPanel.tsx`, `ui/panels/StatusPanel.tsx`, `ui/panels/InstrumentSelect.tsx`, `ui/panels/EffectsPanel.tsx` (o conteúdo passa para `effects.ts`) e `ui/bottom/BottomStrip.tsx`. Antes de apagar cada ficheiro, confirmo que nada o importa.
+**Removidos:** `ui/controls/Tabs.tsx`, `ui/panels/VisualizerPanel.tsx`, `ui/panels/SoundMakerPanel.tsx`, `ui/panels/StatusPanel.tsx`, `ui/panels/InstrumentSelect.tsx`, `ui/panels/EffectsPanel.tsx` (o conteúdo passa para `effects.tsx`), `ui/bottom/BottomStrip.tsx` e `ui/bottom/WaveformStrip.tsx` (substituído pelo `WaveViz`). Antes de apagar cada ficheiro, confirmo que nada o importa.
 
 **Alterados:** `App.tsx` e `App.module.css` (layout novo), `TopBar.tsx` (sem separadores nem partilhar/descarregar), `CameraStage.tsx` (fundo do palco, sem a moldura com "dots"), `HudOverlay.tsx` (linha de estado), `SettingsDialog.tsx` e `session.installKeyboard` (atalhos `H`, `F`, `[`, `]`, Esc).
 
@@ -142,14 +143,14 @@ Juntam-se às atuais (presets, câmara, mãos/calibração, volume, tema):
 
 - `pushRecent(list, id, max = 6)`: põe `id` no início, sem duplicados, com no máximo `max` entradas.
 - `normalize(s)` e `searchInstruments(query, list)`: filtram sem distinguir acentos nem maiúsculas.
-- `nextInstrument(id, dir, list)`: dá a volta nos dois sentidos e respeita `familyFilter` quando não é "Todos".
+- `nextInstrument(id, dir, filter)`: dá a volta nos dois sentidos e respeita `familyFilter` quando não é "Todos".
 - `migratePrefs(old, version)`: a migração descrita acima.
 - `nextStageBg(bg)`: roda Câmara → Só mãos → Ondas.
 
 ## Desempenho
 
-- **Meta:** com a UI por defeito, câmara ligada e nenhuma gaveta aberta, no máximo 4 canvases desenhados por fotograma (overlay, partículas, faixa de ondas, mini-knobs). A v1 tem cerca de 10.
-- **Medição:** FPS e tempo do fotograma com `?debug`, na v1 e na v2, na mesma máquina, com `scripts/soak-test.mjs`. Os números ficam registados em `DECISIONS.md`.
+- **Meta:** com a UI por defeito, câmara ligada e nenhuma gaveta aberta, no máximo 3 canvases desenhados por fotograma (overlay, partículas, faixa de ondas). Os knobs são SVG e não contam. A v1 desenha 10.
+- **Medição:** `scripts/perf-probe.mjs` mede durante 15 s, dentro da página, os FPS do rAF, o intervalo p95 e o número de canvases visíveis. Corre na v1 (tag `v1.0.0`) e na v2, na mesma máquina. Os números ficam registados em `DECISIONS.md`.
 
 ## Testes
 
@@ -158,7 +159,7 @@ Juntam-se às atuais (presets, câmara, mãos/calibração, volume, tema):
   - o fluxo atual adaptado: ligar a câmara, abrir Instrumentos, pesquisar, escolher cada instrumento, tocar e gravar;
   - novos casos:
     - trocar o fundo para `maos` e confirmar que o `<video>` não está visível e que a deteção continua;
-    - `H` esconde a barra;
+    - `I` esconde a barra;
     - uma só gaveta aberta de cada vez;
     - Esc fecha a gaveta e o foco volta ao chip;
     - em 1440×900, 1024×768, 390×844 e 844×390: não há scroll horizontal, o palco está visível e a barra está visível;
