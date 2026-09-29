@@ -28,6 +28,13 @@ export interface SampleVoice extends Voice {
    * Nunca prolonga uma descida que já está a acontecer mais depressa.
    */
   choke(at: number, tau: number): void;
+  /**
+   * Se a voz ainda não começou (agendada pela quantização ou pelo looper), corta-a sem som e
+   * devolve `true`; se já está a soar, não faz nada. Usado ao mudar de instrumento, oitava ou
+   * escala: uma nota agendada com a afinação antiga não deve chegar a tocar. Ao largar um dedo
+   * usa-se `release()`, que deixa ouvir o toque curto quantizado.
+   */
+  cancelIfPending(): boolean;
 }
 
 let sounding = 0;
@@ -137,6 +144,12 @@ export function playSample(
       const a = Math.max(at, ctx.currentTime);
       if (fade && fade.at <= a && fade.tau <= tau) return;
       fadeOut(a, tau);
+    },
+    cancelIfPending() {
+      if (ctx.currentTime >= t) return false;
+      released = true;
+      fadeOut(t, 0.01);
+      return true;
     },
     kill() {
       released = true;

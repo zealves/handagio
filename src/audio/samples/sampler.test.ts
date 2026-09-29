@@ -243,3 +243,36 @@ describe('playSample: choke nunca é mais lento do que a libertação do instrum
     expect(f.stops.at(-1)).toBeCloseTo(0.5 + CHOKE_OTHER * 6);
   });
 });
+
+describe('playSample: cancelIfPending (mudança de instrumento, oitava ou escala)', () => {
+  for (const kind of ['violin', 'piano', 'harp'] as const) {
+    const def = SAMPLED_BY_ID[kind];
+    it(`${kind}: agendada para o futuro, corta sem som e para no início`, () => {
+      const f = fakeCtx();
+      const v = playSample(f.ctx, entry, def, {} as AudioNode, 440, 0.8, 0, 0.5);
+      f.clock.currentTime = 0.1;
+      expect(v.cancelIfPending()).toBe(true);
+      expect(peakOf(f.gains[0])).toBeLessThanOrEqual(1e-9);
+      expect(f.stops.at(-1)).toBeCloseTo(0.5);
+      // depois de cortada, largar não a faz voltar
+      v.release();
+      expect(peakOf(f.gains[0])).toBeLessThanOrEqual(1e-9);
+    });
+    it(`${kind}: já a soar, não faz nada`, () => {
+      const f = fakeCtx();
+      const v = playSample(f.ctx, entry, def, {} as AudioNode, 440, 0.8, 0, 0.1);
+      f.clock.currentTime = 0.2;
+      const stops = f.stops.length;
+      expect(v.cancelIfPending()).toBe(false);
+      expect(f.stops.length).toBe(stops);
+      expect(peakOf(f.gains[0])).toBeCloseTo(samplePeak(entry.gain, def.level, 0.8), 6);
+    });
+    it(`${kind}: largada antes do início (toque curto quantizado) ainda soa`, () => {
+      const f = fakeCtx();
+      const v = playSample(f.ctx, entry, def, {} as AudioNode, 440, 0.8, 0, 0.5);
+      f.clock.currentTime = 0.1;
+      v.release();
+      expect(peakOf(f.gains[0])).toBeGreaterThan(0.1);
+    });
+  }
+});

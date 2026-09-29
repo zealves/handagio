@@ -316,6 +316,10 @@ export class AudioEngine {
 
   /** Corta todas as vozes (mudança de instrumento, polegares). */
   releaseAll(): void {
+    // amostras agendadas que ainda não começaram (quantização, looper) já não chegam a soar;
+    // sem isto, uma nota beliscada tocava ~3 s inteiros depois da mudança
+    this.sampleTails.forEach(({ voice }) => voice.cancelIfPending());
+    this.fadingTails.forEach((voice) => voice.cancelIfPending());
     this.voices.forEach(({ voice }) => voice.release());
     this.voices.clear();
     this.silenceContinuous();
