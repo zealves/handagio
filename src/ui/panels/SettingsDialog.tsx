@@ -26,6 +26,7 @@ export function SettingsDialog() {
       heightPitch: x.heightPitch,
       glide: x.glide,
       sensitivity: x.sensitivity,
+      custom: x.noteMode === 'custom',
       set: x.set,
     })),
   );
@@ -138,7 +139,8 @@ export function SettingsDialog() {
             </button>
           </div>
           <p className={s.hint} aria-live="polite">
-            {msg || 'Guarda o instrumento, a escala, a tónica, a oitava, os efeitos e o tempo.'}
+            {msg ||
+              'Guarda o instrumento, a escala, a tónica, a oitava, as notas dos dedos, os efeitos e o tempo.'}
           </p>
         </section>
 
@@ -225,6 +227,11 @@ export function SettingsDialog() {
             checked={st.glide}
             onChange={(v) => st.set({ glide: v })}
           />
+          {st.custom && (
+            <p className={s.hint}>
+              Com as notas personalizadas, a altura da mão e o deslizar não mudam o tom.
+            </p>
+          )}
         </section>
 
         <section className={s.section}>

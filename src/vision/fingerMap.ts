@@ -25,6 +25,19 @@ export function fingerDegree(i: number, thumbs: boolean): number {
   return i < 5 ? 4 - j - 5 : j;
 }
 
+/** Dedo onde fica a tónica (grau 0) no modo Escala. */
+export type TonicAt = 'right-index' | 'left-pinky';
+
+/**
+ * Grau da escala de cada dedo conforme o sítio da tónica. Com `'left-pinky'` os graus sobem da
+ * esquerda para a direita pela ordem do ecrã a partir de 0 (mindinho esquerdo): 0..7 sem
+ * polegares, 0..9 com. Como `fingerDegree` já é seguido nos dedos ativos, basta deslocá-lo.
+ */
+export function fingerDegreeFor(i: number, thumbs: boolean, tonicAt: TonicAt): number {
+  const d = fingerDegree(i, thumbs);
+  return tonicAt === 'left-pinky' ? d - fingerDegree(4, thumbs) : d;
+}
+
 export const fingerLabel = (i: number): string => (i < 5 ? 'E ' : 'D ') + FINGER_NAMES[i % 5];
 
 /** Dedos ativos pela ordem do ecrã. */

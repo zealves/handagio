@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_CUSTOM_NOTES } from '../../app/notes';
 import { INSTRUMENTS } from '../../audio/instruments';
 import {
   compositeSources,
@@ -80,17 +81,44 @@ describe('nextInstrument', () => {
 });
 
 describe('migratePrefs', () => {
+  // campos que a v4 acrescenta quando faltam
+  const V4 = {
+    tonicAt: 'right-index',
+    noteMode: 'scale',
+    customNotes: [...DEFAULT_CUSTOM_NOTES],
+  };
   it('v1 perde showVideo e mantém o resto', () => {
-    expect(migratePrefs({ showVideo: false, bpm: 90 }, 1)).toEqual({ bpm: 90 });
+    expect(migratePrefs({ showVideo: false, bpm: 90 }, 1)).toEqual({ ...V4, bpm: 90 });
   });
   it('v2 perde stageBg e showWaves e mantém o resto', () => {
-    expect(migratePrefs({ stageBg: 'camara', showWaves: false, bpm: 90 }, 2)).toEqual({ bpm: 90 });
+    expect(migratePrefs({ stageBg: 'camara', showWaves: false, bpm: 90 }, 2)).toEqual({
+      ...V4,
+      bpm: 90,
+    });
   });
   it('estado nulo não rebenta', () => {
-    expect(migratePrefs(null, 1)).toEqual({});
+    expect(migratePrefs(null, 1)).toEqual(V4);
   });
-  it('v3 fica igual', () => {
-    expect(migratePrefs({ bpm: 90 }, 3)).toEqual({ bpm: 90 });
+  it('v3 ganha os modos de notas', () => {
+    expect(migratePrefs({ bpm: 90 }, 3)).toEqual({ ...V4, bpm: 90 });
+  });
+  it('v3 mantém valores válidos e corrige os inválidos', () => {
+    const notes = [60, 61, 62, 63, 64, 65, 66, 67, 68, 69];
+    expect(
+      migratePrefs({ tonicAt: 'left-pinky', noteMode: 'custom', customNotes: notes }, 3),
+    ).toMatchObject({ tonicAt: 'left-pinky', noteMode: 'custom', customNotes: notes });
+    const bad = migratePrefs({ tonicAt: 'x', noteMode: 2, customNotes: [60, 'a', 500] }, 3);
+    expect(bad.tonicAt).toBe('right-index');
+    expect(bad.noteMode).toBe('scale');
+    expect(bad.customNotes).toEqual([
+      60,
+      DEFAULT_CUSTOM_NOTES[1],
+      107,
+      ...DEFAULT_CUSTOM_NOTES.slice(3),
+    ]);
+  });
+  it('v4 fica igual', () => {
+    expect(migratePrefs({ bpm: 90 }, 4)).toEqual({ bpm: 90 });
   });
 });
 

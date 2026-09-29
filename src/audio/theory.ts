@@ -100,6 +100,17 @@ export function chordMidis(degree: number, t: Tuning, mode: ChordMode): number[]
   return steps.map((k) => degreeToMidi(degree + k, t));
 }
 
+/**
+ * Acorde sobre uma nota exata (modo Personalizado, sem escala): intervalos fixos em meios-tons.
+ * Tríade maior, sétima dominante e quinta (nota + quinta + oitava, como no modo Escala).
+ */
+export function customChord(midi: number, mode: ChordMode): number[] {
+  if (mode === 'triad') return [midi, midi + 4, midi + 7];
+  if (mode === 'seventh') return [midi, midi + 4, midi + 7, midi + 10];
+  if (mode === 'power') return [midi, midi + 7, midi + 12];
+  return [midi];
+}
+
 /** Nome curto de um acorde: fundamental + qualidade (ex.: "Ré m", "Sol 7", "Si m7♭5"). */
 export function chordName(ms: number[]): string {
   const r = pitchClassName(ms[0]);

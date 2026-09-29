@@ -25,6 +25,7 @@ export function ControlBar() {
       instrument: x.instrument,
       root: x.root,
       scale: x.scale,
+      custom: x.noteMode === 'custom',
       bpm: x.bpm,
       metronome: x.metronome,
       recording: x.recording,
@@ -62,13 +63,21 @@ export function ControlBar() {
         aria-haspopup="dialog"
         onClick={() => open('escala')}
         data-testid="chip-scale"
-        aria-label={`Escala: ${NOTE_NAMES[st.root]} ${st.scale}`}
+        aria-label={
+          st.custom ? 'Escala: notas personalizadas' : `Escala: ${NOTE_NAMES[st.root]} ${st.scale}`
+        }
       >
         <IconMusic />
-        <span className={s.label}>
-          {NOTE_NAMES[st.root]}
-          <span className={s.long}> · {st.scale}</span>
-        </span>
+        {st.custom ? (
+          <span className={s.label}>
+            Notas<span className={s.long}> · personalizadas</span>
+          </span>
+        ) : (
+          <span className={s.label}>
+            {NOTE_NAMES[st.root]}
+            <span className={s.long}> · {st.scale}</span>
+          </span>
+        )}
       </button>
       <div className={`${s.quick} ${s.wide}`}>
         {EFFECTS.filter((e) => e.quick).map(({ id, Control }) => (

@@ -1,4 +1,5 @@
 // Predefinições: 4 de fábrica e as do utilizador (guardadas em localStorage com as preferências).
+import { normalizeCustomNotes } from '../app/notes';
 import { DEFAULT_SOUND, type SoundSettings } from './store';
 
 export const FACTORY_PRESETS: Record<string, SoundSettings> = {
@@ -72,4 +73,5 @@ export function pickSound(s: SoundSettings): SoundSettings {
 export const completePreset = (p: Partial<SoundSettings>): SoundSettings => ({
   ...DEFAULT_SOUND,
   ...p,
+  customNotes: normalizeCustomNotes(p.customNotes),
 });

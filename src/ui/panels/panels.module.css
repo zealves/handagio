@@ -268,3 +268,110 @@
   display: grid;
   place-items: center;
 }
+
+/* modo das notas e editor do modo Personalizado */
+.segHalf {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.segHalf button {
+  padding: 6px 4px;
+}
+.hint {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--muted);
+  margin: 5px 0 0;
+}
+.fingerNoteBtn {
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    background var(--t-fast),
+    box-shadow var(--t-fast);
+}
+.fingerNoteBtn:hover {
+  background: rgba(255, 255, 255, 0.06); /* Safari 15: sem color-mix */
+  background: color-mix(in srgb, var(--c) 14%, transparent);
+}
+.fingerNoteBtn[aria-expanded='true'] {
+  background: rgba(255, 255, 255, 0.1); /* Safari 15: sem color-mix */
+  background: color-mix(in srgb, var(--c) 24%, transparent);
+  box-shadow: 0 0 0 1px var(--c);
+}
+.copyRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.noteEditor {
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--c);
+  background: var(--glass-strong);
+  display: grid;
+  gap: 8px;
+}
+.noteEditorHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 12px;
+  color: var(--muted);
+}
+.noteEditorHead strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+.noteGrid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+}
+.noteGrid button {
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 7px 0;
+  font-size: 12px;
+  transition:
+    background var(--t-fast),
+    border-color var(--t-fast);
+}
+.noteGrid button[data-sharp] {
+  background: var(--bg-2);
+  color: var(--muted);
+}
+.noteGrid button:hover {
+  border-color: var(--c);
+}
+.noteGrid button[aria-checked='true'] {
+  border-color: var(--c);
+  background: rgba(255, 255, 255, 0.12); /* Safari 15: sem color-mix */
+  background: color-mix(in srgb, var(--c) 28%, transparent);
+  color: var(--ink);
+}
+.noteEditorFoot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.octave {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.octave .btn {
+  min-width: 32px;
+  padding: 4px 8px;
+}
+.noteEditor .hint {
+  margin: 0;
+}

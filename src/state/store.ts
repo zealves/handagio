@@ -1,7 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ChordMode, ScaleName } from '../audio/theory';
+import { DEFAULT_CUSTOM_NOTES, type NoteMode } from '../app/notes';
 import { migratePrefs } from '../ui/shell/logic';
+import type { TonicAt } from '../vision/fingerMap';
 import type { RecordingMeta } from './recordingsDb';
 import type {
   Calibration,
@@ -28,6 +30,12 @@ export interface SoundSettings {
   bpm: number;
   quantize: Quantize;
   chord: ChordMode;
+  /** Modo Escala: dedo onde fica a tónica. */
+  tonicAt: TonicAt;
+  /** Escala (graus a partir da tónica) ou Personalizado (uma nota exata por dedo). */
+  noteMode: NoteMode;
+  /** Modo Personalizado: nota MIDI de cada dedo (índices de `fingerMap`, 0..9). */
+  customNotes: number[];
 }
 
 export interface Prefs extends SoundSettings {
@@ -90,6 +98,9 @@ export const DEFAULT_SOUND: SoundSettings = {
   bpm: 120,
   quantize: 'off',
   chord: 'off',
+  tonicAt: 'right-index',
+  noteMode: 'scale',
+  customNotes: [...DEFAULT_CUSTOM_NOTES],
 };
 
 export const DEFAULT_PREFS: Prefs = {
@@ -140,7 +151,7 @@ export const useStore = create<Store>()(
     }),
     {
       name: 'vision-sound-cam:prefs',
-      version: 3,
+      version: 4,
       migrate: (old, version) => migratePrefs(old, version) as unknown as Store,
       partialize: (s) => Object.fromEntries(PREF_KEYS.map((k) => [k, s[k]])) as Partial<Store>,
     },

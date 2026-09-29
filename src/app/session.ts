@@ -1,15 +1,15 @@
 // Orquestrador (sem React): câmara → visão → gestos → áudio. Corre o seu próprio ciclo rAF,
 // separado do render da interface.
 import { audio } from '../audio/engine';
-import { DRUMS, instrumentInfo, isSampled, tuningOf } from '../audio/instruments';
+import { DRUMS, instrumentInfo, isSampled } from '../audio/instruments';
 import { samples } from '../audio/samples/loader';
 import { Looper, type LoopEvent } from '../audio/looper';
 import { Clock, quantizeTime, STEPS_PER_BAR, STEPS_PER_BEAT, TapTempo } from '../audio/metronome';
-import { chordMidis, clamp, degreeToMidi, noteName, chordName, scaleLength } from '../audio/theory';
+import { clamp, noteName, chordName, scaleLength } from '../audio/theory';
 import { live, pushBurst } from '../state/live';
 import { getState, setState, useStore, type Store } from '../state/store';
 import { CameraError, listCameras, openCamera, stopStream } from '../vision/camera';
-import { fingerDegree, isActive, KEYMAP, slotOf } from '../vision/fingerMap';
+import { isActive, KEYMAP, slotOf } from '../vision/fingerMap';
 import { GestureEngine, type GestureOptions } from '../vision/gestureEngine';
 import { CalibrationCollector, type CalPhase } from '../vision/calibration';
 import { FaceTracker, mouthOpenness } from '../vision/faceTracker';
@@ -18,12 +18,15 @@ import { MotionDetector } from '../vision/motionFallback';
 import type { Pt } from '../vision/types';
 import { FINGER_COLORS } from '../ui/theme';
 import { isTypingTarget } from '../lib/keys';
+import { fingerChordOf, fingerMidiOf } from './notes';
 
 const NO_RESULT_MS = 6000;
 const LOAD_TIMEOUT_MS = 20000;
 /** Espera depois de escolher um instrumento antes de carregar as amostras. */
 const SAMPLE_LOAD_DELAY_MS = 300;
 const KEY_VELOCITY = 0.75;
+/** Duração da pré-escuta de uma nota escolhida no editor do modo Personalizado. */
+const PREVIEW_MS = 450;
 /** Nível contínuo equivalente ao ganho 0.16 que o protótipo usava no modo teclado. */
 const KEY_CONT_LEVEL = Math.sqrt(0.16 / 0.18);
 
@@ -89,21 +92,22 @@ class Session {
 
   gestureOptions(): GestureOptions {
     const s = getState();
+    // no modo Personalizado as notas são exatas: sem altura da mão nem deslizar
+    const custom = s.noteMode === 'custom';
     return {
       sensitivity: s.sensitivity,
       thumbs: s.thumbs,
-      heightPitch: s.heightPitch,
-      glide: s.glide,
+      heightPitch: s.heightPitch && !custom,
+      glide: s.glide && !custom,
       continuous: instrumentInfo(s.instrument).kind === 'continuous',
       scaleLen: scaleLength(s.scale),
       calibration: s.calibration,
     };
   }
 
-  /** Nota MIDI de um dedo com o deslocamento em graus. */
+  /** Nota MIDI de um dedo com o deslocamento em graus (ignorado no modo Personalizado). */
   fingerMidi(i: number, shift: number): number {
-    const s = getState();
-    return degreeToMidi(fingerDegree(i, s.thumbs) + shift, tuningOf(s));
+    return fingerMidiOf(i, shift, getState());
   }
 
   // ---------- áudio ----------
@@ -153,7 +157,7 @@ class Session {
       return;
     }
     if (info.kind === 'continuous') return;
-    const midis = chordMidis(fingerDegree(i, s.thumbs) + shift, tuningOf(s), s.chord);
+    const midis = fingerChordOf(i, shift, s);
     const midi = midis[0];
     fx.midi = midi;
     fx.label = midis.length > 1 ? chordName(midis) : noteName(midi);
@@ -303,6 +307,16 @@ class Session {
     this.looper.release(this.clock.positionAt(audio.now), `k${midi}`);
     const n = live.notes.get(midi);
     if (n) n.held = false;
+  }
+
+  /** Pré-escuta de uma nota (editor do modo Personalizado): um toque curto pelo teclado de piano. */
+  previewNote(midi: number): void {
+    this.pianoDown(midi);
+    const id = setTimeout(() => {
+      this.timers.delete(id);
+      this.pianoUp(midi);
+    }, PREVIEW_MS);
+    this.timers.add(id);
   }
 
   padDown(slot: number, vel = 0.85): void {
@@ -505,7 +519,10 @@ class Session {
         s.root !== prev.root ||
         s.scale !== prev.scale ||
         s.octave !== prev.octave ||
-        s.chord !== prev.chord
+        s.chord !== prev.chord ||
+        s.tonicAt !== prev.tonicAt ||
+        s.noteMode !== prev.noteMode ||
+        s.customNotes !== prev.customNotes
       )
         this.releaseAll();
       if (s.bpm !== prev.bpm) this.clock.setBpm(s.bpm);
