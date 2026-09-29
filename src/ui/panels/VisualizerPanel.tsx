@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { audio } from '../../audio/engine';
 import { useCanvas } from '../frame';
 import { NEON } from '../theme';
-import { drawBars, RAINBOW, spectrumBars } from './draw';
+import { drawBars, drawWaves, RAINBOW, spectrumBars } from './draw';
 import { Panel } from './Panel';
 import s from './panels.module.css';
 
@@ -29,41 +29,7 @@ export function VisualizerPanel() {
 
   // Analisador dinâmico: várias linhas de onda sobrepostas, cada uma com escala e fase próprias.
   const hist = useRef<Float32Array[]>([]);
-  const multi = useCanvas((g, w, h, now) => {
-    g.clearRect(0, 0, w, h);
-    const N = 96;
-    const cur = new Float32Array(N);
-    if (audio.ready) {
-      const wf = audio.analyser.waveform();
-      const step = Math.floor(wf.length / N);
-      for (let i = 0; i < N; i++) cur[i] = wf[i * step];
-    }
-    hist.current.unshift(cur);
-    if (hist.current.length > 4) hist.current.pop();
-    const colors = [NEON.cyan, NEON.violet, NEON.magenta, NEON.blue];
-    g.lineWidth = 1.6;
-    g.shadowBlur = 6;
-    hist.current.forEach((line, k) => {
-      g.strokeStyle = colors[k];
-      g.shadowColor = colors[k];
-      g.globalAlpha = 1 - k * 0.2;
-      g.beginPath();
-      for (let i = 0; i < N; i++) {
-        const idle = Math.sin(now / 500 + i * 0.18 + k) * 0.05;
-        const v = line[i] * (2.2 - k * 0.35) + idle;
-        const x = (i / (N - 1)) * w;
-        const y =
-          h / 2 +
-          v * h * 0.45 +
-          Math.sin(i * 0.12 + k * 1.3 + now / 900) * h * 0.08 * (k + 1) * 0.4;
-        if (i) g.lineTo(x, y);
-        else g.moveTo(x, y);
-      }
-      g.stroke();
-    });
-    g.globalAlpha = 1;
-    g.shadowBlur = 0;
-  });
+  const multi = useCanvas((g, w, h, now) => drawWaves(g, w, h, now, hist.current));
 
   // Osciloscópio: traço disparado no cruzamento por zero, com rasto.
   const scope = useCanvas((g, w, h) => {

@@ -4,12 +4,13 @@ import './styles/global.css';
 import { App } from './app/App';
 import { session } from './app/session';
 import { audio } from './audio/engine';
+import { DEBUG } from './lib/debug';
 import { live } from './state/live';
 import { useStore } from './state/store';
 import { syntheticHand } from './vision/testHands';
 
 // Ganchos de diagnóstico para testes e depuração (?debug no endereço).
-if (import.meta.env.DEV || new URLSearchParams(location.search).has('debug')) {
+if (DEBUG) {
   Object.assign(window, { __vsc: { session, audio, live, store: useStore, syntheticHand } });
 }
 

@@ -6,11 +6,27 @@ const subs = new Set<FrameFn>();
 let raf = 0;
 let last = 0;
 
+/** FPS do rAF partilhado e tempo médio (ms) gasto pelos subscritores por fotograma. */
+export const frameStats = { fps: 0, ms: 0 };
+let statT = 0;
+let statN = 0;
+let statMs = 0;
+
 function loop(now: number) {
   raf = subs.size ? requestAnimationFrame(loop) : 0;
   const dt = Math.min(0.1, (now - (last || now)) / 1000);
   last = now;
+  const t0 = performance.now();
   subs.forEach((fn) => fn(now, dt));
+  statMs += performance.now() - t0;
+  statN++;
+  if (now - statT >= 1000) {
+    frameStats.fps = statN;
+    frameStats.ms = +(statMs / Math.max(1, statN)).toFixed(2);
+    statT = now;
+    statN = 0;
+    statMs = 0;
+  }
 }
 
 export function onFrame(fn: FrameFn): () => void {
@@ -43,11 +59,14 @@ export type DrawFn = (
 
 /**
  * Canvas com resolução ajustada ao ecrã (devicePixelRatio) e desenho a cada fotograma.
- * `w`/`h` chegam em píxeis CSS; o contexto já está escalado.
+ * `w`/`h` chegam em píxeis CSS; o contexto já está escalado. Não desenha quando está fora do
+ * ecrã ou tem tamanho 0, a não ser com `always` (canvases do palco, que a gravação compõe).
  */
-export function useCanvas(draw: DrawFn) {
+export function useCanvas(draw: DrawFn, opts: { always?: boolean } = {}) {
   const ref = useRef<HTMLCanvasElement>(null);
   const size = useRef({ w: 0, h: 0, dpr: 1 });
+  const visible = useRef(true);
+  const always = !!opts.always;
   useEffect(() => {
     const cv = ref.current;
     if (!cv) return;
@@ -59,12 +78,22 @@ export function useCanvas(draw: DrawFn) {
       cv.height = Math.max(1, Math.round(r.height * dpr));
     });
     ro.observe(cv);
-    return () => ro.disconnect();
-  }, []);
+    let io: IntersectionObserver | undefined;
+    if (!always && typeof IntersectionObserver !== 'undefined') {
+      io = new IntersectionObserver(([e]) => {
+        visible.current = e.isIntersecting;
+      });
+      io.observe(cv);
+    }
+    return () => {
+      ro.disconnect();
+      io?.disconnect();
+    };
+  }, [always]);
   useFrame((now, dt) => {
     const cv = ref.current;
     const { w, h, dpr } = size.current;
-    if (!cv || !w || !h) return;
+    if (!cv || !w || !h || !visible.current) return;
     const g = cv.getContext('2d');
     if (!g) return;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);

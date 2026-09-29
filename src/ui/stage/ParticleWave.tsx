@@ -113,7 +113,7 @@ export function ParticleWave() {
     }
     g.globalAlpha = 1;
     g.globalCompositeOperation = 'source-over';
-  });
+  }, { always: true });
   useEffect(() => {
     const cv = ref.current;
     stageCanvases.particles = cv;
