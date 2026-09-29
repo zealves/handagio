@@ -107,6 +107,37 @@ export const IconMetronome = (p: P) => (
     <path d="m12 16 5-9" />
   </svg>
 );
+export const IconEye = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+export const IconLoop = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M17 2l3 3-3 3" />
+    <path d="M4 11V9a4 4 0 0 1 4-4h12" />
+    <path d="M7 22l-3-3 3-3" />
+    <path d="M20 13v2a4 4 0 0 1-4 4H4" />
+  </svg>
+);
+export const IconMore = (p: P) => (
+  <svg {...base(p)}>
+    <circle cx="5" cy="12" r="1.2" />
+    <circle cx="12" cy="12" r="1.2" />
+    <circle cx="19" cy="12" r="1.2" />
+  </svg>
+);
+export const IconExpand = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+  </svg>
+);
+export const IconShrink = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" />
+  </svg>
+);
 export const IconLogo = (p: P) => (
   <svg viewBox="0 0 32 32" width={30} height={30} aria-hidden {...p}>
     <defs>

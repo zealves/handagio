@@ -1,0 +1,200 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 999px;
+  background: var(--glass-strong);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+  max-width: 100%;
+}
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  min-width: 40px;
+  justify-content: center;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.chip:hover {
+  border-color: var(--cyan);
+}
+.chip:focus-visible,
+.rec:focus-visible,
+.recMore:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+.chip[data-state='recording'],
+.chip[data-state='armed'] {
+  border-color: var(--rec);
+  color: var(--rec);
+}
+.chip[data-state='playing'] {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+.ico svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: var(--glow);
+}
+.quick {
+  display: flex;
+  gap: 2px;
+  padding: 0 4px;
+}
+/* no mini-knob só se vê o dial; o rótulo vai no title/aria */
+.quick > div > span {
+  display: none;
+}
+.recGroup {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+.rec {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  background: transparent;
+  border-radius: 999px;
+}
+.rec i {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--rec);
+  transition: border-radius var(--t-fast);
+}
+.rec[aria-pressed='true'] i {
+  border-radius: 3px;
+  box-shadow: 0 0 12px var(--rec);
+}
+.recMore {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 40px;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 0 999px 999px 0;
+}
+.recMore svg {
+  transform: rotate(-90deg);
+}
+.more {
+  position: relative;
+}
+.menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  z-index: 10;
+  display: grid;
+  min-width: 220px;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  background: var(--glass-strong);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+.menu button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  font-size: 13.5px;
+}
+.menu button:hover,
+.menu button:focus-visible {
+  background: var(--tile-bg);
+  outline: none;
+}
+.menu [aria-checked='true'] {
+  color: var(--cyan);
+}
+.menuGroup {
+  display: grid;
+  margin: 4px 0;
+  padding: 4px 0;
+  border-block: 1px solid var(--line);
+}
+.menuGroup > span {
+  padding: 4px 12px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* 600–1099: sem mini-knobs e sem o nome longo da escala */
+@media (max-width: 1099px) {
+  .wide,
+  .long {
+    display: none;
+  }
+}
+/* telemóvel: só ícones; Efeitos, Tempo e Fundo vão para o ⋯ */
+@media (max-width: 599px) {
+  .bar {
+    border-radius: var(--radius-sm);
+    justify-content: space-between;
+    width: 100%;
+  }
+  .mid {
+    display: none;
+  }
+  .label {
+    max-width: 9ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+/* paisagem baixa: barra vertical */
+@media (max-height: 499px) and (orientation: landscape) {
+  .bar {
+    flex-direction: column;
+    border-radius: var(--radius-sm);
+  }
+  .label,
+  .wide {
+    display: none;
+  }
+  .menu {
+    bottom: auto;
+    top: 0;
+    right: calc(100% + 10px);
+  }
+}
