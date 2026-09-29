@@ -1,4 +1,4 @@
-import { useCallback, type ReactNode } from 'react';
+import { useCallback } from 'react';
 import { session } from '../../app/session';
 import { useStore } from '../../state/store';
 import { WaveViz } from '../shell/WaveViz';
@@ -10,27 +10,16 @@ import s from './CameraStage.module.css';
 
 interface Props {
   onStart: () => void;
-  bottom?: ReactNode;
 }
 
-export function CameraStage({ onStart, bottom }: Props) {
+export function CameraStage({ onStart }: Props) {
   const started = useStore((st) => st.started);
   const status = useStore((st) => st.status);
   const bg = useStore((st) => st.stageBg);
-  const size = useStore((st) => st.videoSize);
   const videoRef = useCallback((v: HTMLVideoElement | null) => session.attachVideo(v), []);
   return (
     <div className={s.window}>
-      <div
-        className={s.stage}
-        data-bg={bg}
-        style={
-          size
-            ? { aspectRatio: `${size.w} / ${size.h}`, ['--ar' as string]: size.w / size.h }
-            : undefined
-        }
-        data-testid="stage"
-      >
+      <div className={s.stage} data-bg={bg} data-testid="stage">
         <video
           ref={videoRef}
           autoPlay
@@ -51,7 +40,6 @@ export function CameraStage({ onStart, bottom }: Props) {
           </div>
         )}
       </div>
-      {bottom && <div className={s.bottom}>{bottom}</div>}
     </div>
   );
 }

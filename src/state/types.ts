@@ -1,4 +1,3 @@
-export type View = 'som' | 'musica' | 'camara';
 export type Engine = 'none' | 'hands' | 'motion' | 'keyboard';
 export type Quantize = 'off' | '1/8' | '1/16';
 export type ThemeName = 'dark' | 'light';

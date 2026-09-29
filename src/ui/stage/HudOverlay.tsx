@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { instrumentInfo } from '../../audio/instruments';
+import { DEBUG } from '../../lib/debug';
 import { live } from '../../state/live';
 import { useStore } from '../../state/store';
+import { frameStats } from '../frame';
 import s from './HudOverlay.module.css';
 
 const ENGINE_LABEL = { none: '', hands: 'Mãos', motion: 'Movimento', keyboard: 'Teclado' } as const;
@@ -17,12 +19,20 @@ function RecTime({ since }: { since: number }) {
 }
 
 function Fps() {
-  const [fps, setFps] = useState(live.fps);
+  const [t, setT] = useState({ fps: live.fps, ui: frameStats.fps, ms: frameStats.ms });
   useEffect(() => {
-    const id = setInterval(() => setFps(live.fps), 1000);
+    const id = setInterval(
+      () => setT({ fps: live.fps, ui: frameStats.fps, ms: frameStats.ms }),
+      1000,
+    );
     return () => clearInterval(id);
   }, []);
-  return fps ? <b>{fps} fps</b> : null;
+  if (!t.fps) return null;
+  return (
+    <b data-testid="hud-fps">
+      {t.fps} fps{DEBUG && ` · ui ${t.ui} fps · ${t.ms} ms`}
+    </b>
+  );
 }
 
 export function HudOverlay() {
@@ -33,6 +43,7 @@ export function HudOverlay() {
   const since = useStore((st) => st.recordStart);
   const engine = useStore((st) => st.engine);
   const started = useStore((st) => st.started);
+  const loop = useStore((st) => st.looper.state);
   if (!started) return null;
   return (
     <div className={s.hud} data-testid="hud">
@@ -48,6 +59,11 @@ export function HudOverlay() {
         {recording && (
           <span className={s.rec} role="status" aria-label="A gravar">
             <i aria-hidden /> REC <RecTime since={since} />
+          </span>
+        )}
+        {loop !== 'idle' && (
+          <span className={s.chip} data-testid="hud-loop">
+            Loop: <b>{{ armed: 'à espera', recording: 'a gravar', playing: 'a tocar' }[loop]}</b>
           </span>
         )}
         <span className={s.chip}>

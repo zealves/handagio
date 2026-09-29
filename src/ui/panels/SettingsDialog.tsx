@@ -22,6 +22,11 @@ export function SettingsDialog() {
       calibrating: x.calibrating,
       engine: x.engine,
       userPresets: x.userPresets,
+      octave: x.octave,
+      heightPitch: x.heightPitch,
+      glide: x.glide,
+      sensitivity: x.sensitivity,
+      showWaves: x.showWaves,
       set: x.set,
     })),
   );
@@ -195,6 +200,35 @@ export function SettingsDialog() {
         </section>
 
         <section className={s.section}>
+          <h3>Tocar</h3>
+          <Slider
+            label="Oitava base"
+            min={1}
+            max={6}
+            value={st.octave}
+            onChange={(v) => st.set({ octave: v })}
+          />
+          <Slider
+            label="Sensibilidade da visão"
+            min={0}
+            max={100}
+            value={Math.round(st.sensitivity * 100)}
+            onChange={(v) => st.set({ sensitivity: v / 100 })}
+            format={(v) => `${v}%`}
+          />
+          <Toggle
+            label="Altura da mão muda o tom"
+            checked={st.heightPitch}
+            onChange={(v) => st.set({ heightPitch: v })}
+          />
+          <Toggle
+            label="Deslizar o tom enquanto seguras"
+            checked={st.glide}
+            onChange={(v) => st.set({ glide: v })}
+          />
+        </section>
+
+        <section className={s.section}>
           <h3>Som e aspeto</h3>
           <Slider
             label="Volume geral"
@@ -203,6 +237,12 @@ export function SettingsDialog() {
             value={Math.round(st.volume * 100)}
             onChange={(v) => st.set({ volume: v / 100 })}
             format={(v) => `${v}%`}
+          />
+          <Toggle
+            label="Mostrar ondas por baixo do palco"
+            checked={st.showWaves}
+            onChange={(v) => st.set({ showWaves: v })}
+            testId="show-waves"
           />
           <div className={s.row} style={{ justifyContent: 'space-between' }}>
             <span className={p.field} id={`${id}-th`}>
@@ -236,6 +276,36 @@ export function SettingsDialog() {
             </button>
           </div>
           <p className={s.hint}>Tudo fica guardado neste navegador. Nada sai do teu computador.</p>
+        </section>
+
+        <section className={s.section}>
+          <h3>Atalhos</h3>
+          <dl className={s.keys}>
+            <dt>
+              <kbd>A</kbd>…<kbd>Ç</kbd>
+            </dt>
+            <dd>Tocar com os dedos (sem câmara)</dd>
+            <dt>
+              <kbd>Espaço</kbd>
+            </dt>
+            <dd>Simular a boca aberta</dd>
+            <dt>
+              <kbd>,</kbd> <kbd>.</kbd>
+            </dt>
+            <dd>Instrumento anterior / seguinte</dd>
+            <dt>
+              <kbd>I</kbd>
+            </dt>
+            <dd>Esconder / mostrar a interface</dd>
+            <dt>
+              <kbd>E</kbd>
+            </dt>
+            <dd>Ecrã inteiro</dd>
+            <dt>
+              <kbd>Esc</kbd>
+            </dt>
+            <dd>Fechar a gaveta ou voltar a mostrar a interface</dd>
+          </dl>
         </section>
       </div>
     </dialog>

@@ -12,7 +12,6 @@ import type {
   Quantize,
   StageBg,
   ThemeName,
-  View,
 } from './types';
 
 /** Preferências que se guardam em localStorage e entram nos presets. */
@@ -54,7 +53,6 @@ export interface Prefs extends SoundSettings {
 }
 
 export interface Runtime {
-  view: View;
   started: boolean;
   engine: Engine;
   status: string;
@@ -123,7 +121,6 @@ export const useStore = create<Store>()(
   persist(
     (set) => ({
       ...DEFAULT_PREFS,
-      view: 'som',
       started: false,
       engine: 'none',
       status: '',

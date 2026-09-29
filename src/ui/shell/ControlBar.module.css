@@ -188,8 +188,10 @@
     flex-direction: column;
     border-radius: var(--radius-sm);
   }
+  /* sem altura para tudo: Efeitos, Tempo e Fundo vão para o ⋯, como no telemóvel */
   .label,
-  .wide {
+  .wide,
+  .mid {
     display: none;
   }
   .menu {

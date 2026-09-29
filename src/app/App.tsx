@@ -1,76 +1,55 @@
 import { useEffect } from 'react';
 import { useStore } from '../state/store';
-import { downloadRecording, shareRecording } from './recording';
 import { session } from './session';
-import { EffectsPanel } from '../ui/panels/EffectsPanel';
-import { InstrumentSelect } from '../ui/panels/InstrumentSelect';
-import { LooperPanel } from '../ui/panels/LooperPanel';
-import { RecordPanel } from '../ui/panels/RecordPanel';
-import { ScalePanel } from '../ui/panels/ScalePanel';
 import { SettingsDialog } from '../ui/panels/SettingsDialog';
-import { SoundMakerPanel } from '../ui/panels/SoundMakerPanel';
-import { StatusPanel } from '../ui/panels/StatusPanel';
-import { TempoPanel } from '../ui/panels/TempoPanel';
-import { VisualizerPanel } from '../ui/panels/VisualizerPanel';
-import { BottomStrip } from '../ui/bottom/BottomStrip';
+import { ControlBar } from '../ui/shell/ControlBar';
+import { DrawerHost } from '../ui/shell/DrawerHost';
+import { installRecents } from '../ui/shell/recents';
+import { installShortcuts } from '../ui/shell/shortcuts';
+import { useAutoHide } from '../ui/shell/useAutoHide';
+import { WaveViz } from '../ui/shell/WaveViz';
 import { CameraStage } from '../ui/stage/CameraStage';
 import s from './App.module.css';
 import { TopBar } from './TopBar';
 
 export function App() {
-  const view = useStore((st) => st.view);
   const theme = useStore((st) => st.theme);
-  const lastRecording = useStore((st) => st.lastRecordingId);
+  const uiHidden = useStore((st) => st.uiHidden);
+  const stageBg = useStore((st) => st.stageBg);
+  const showWaves = useStore((st) => st.showWaves);
+  const size = useStore((st) => st.videoSize);
+  const peek = useAutoHide(uiHidden);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
   useEffect(() => {
-    const offKeys = session.installKeyboard();
-    const offSync = session.installStoreSync();
-    return () => {
-      offKeys();
-      offSync();
-    };
+    const offs = [
+      session.installKeyboard(),
+      session.installStoreSync(),
+      installRecents(),
+      installShortcuts(),
+    ];
+    return () => offs.forEach((off) => off());
   }, []);
 
   return (
-    <div className={s.app} data-view={view}>
-      <TopBar
-        onShare={() => void shareRecording()}
-        onDownload={() => void downloadRecording()}
-        canDownload={!!lastRecording}
-      />
-      <main className={s.grid} id="conteudo">
-        <aside className={`${s.col} ${s.left}`} aria-label="Som e instrumentos">
-          <div className={s.only} data-views="som">
-            <SoundMakerPanel />
+    <div className={s.app} data-ui={uiHidden ? (peek ? 'peek' : 'hidden') : 'shown'}>
+      <TopBar />
+      <main className={s.main} id="conteudo">
+        <div
+          className={s.stageBox}
+          style={size ? { ['--ar' as string]: size.w / size.h } : undefined}
+        >
+          <CameraStage onStart={() => void session.start()} />
+          <div className={s.barSlot} data-testid="bar-slot">
+            <ControlBar />
           </div>
-          <ScalePanel />
-          <InstrumentSelect />
-          <div className={s.only} data-views="som">
-            <StatusPanel />
-          </div>
-          <TempoPanel />
-        </aside>
-        <section className={s.center} aria-label="Palco da câmara">
-          <CameraStage
-            onStart={() => void session.start()}
-            bottom={view === 'camara' ? null : <BottomStrip />}
-          />
-        </section>
-        <aside className={`${s.col} ${s.right}`} aria-label="Visualizadores e efeitos">
-          <div className={s.only} data-views="som">
-            <VisualizerPanel />
-          </div>
-          <EffectsPanel />
-          <RecordPanel />
-          <div className={s.looper}>
-            <LooperPanel />
-          </div>
-        </aside>
+        </div>
+        {stageBg === 'camara' && showWaves && <WaveViz className={s.strip} />}
       </main>
+      <DrawerHost />
       <SettingsDialog />
     </div>
   );
