@@ -218,3 +218,28 @@ describe('playSample: choke nunca prolonga uma descida mais rápida', () => {
     expect(lastStop).toBeCloseTo(1 + CHOKE_SAME * 6);
   });
 });
+
+describe('playSample: choke nunca é mais lento do que a libertação do instrumento', () => {
+  it('largada (descida aos 250 ms) e abafada antes com CHOKE_OTHER acaba até ao fim da libertação', () => {
+    const f = fakeCtx();
+    const def = SAMPLED_BY_ID.violin;
+    const v = playSample(f.ctx, entry, def, {} as AudioNode, 440, 0.8, 0, 0);
+    f.clock.currentTime = 0.05;
+    v.release();
+    const releaseEnd = 0.25 + def.rel * 6;
+    expect(f.stops.at(-1)).toBeCloseTo(releaseEnd);
+    f.clock.currentTime = 0.1;
+    v.choke(0.1, CHOKE_OTHER);
+    expect(f.stops.at(-1)!).toBeLessThanOrEqual(releaseEnd + 1e-9);
+    const g = f.gains[0];
+    // a descida usa a constante do instrumento, não a de 0,25 s
+    expect(g.at(0.1 + def.rel)).toBeCloseTo(g.at(0.1) * Math.exp(-1), 4);
+  });
+  it('beliscado mantém a cauda natural de CHOKE_OTHER', () => {
+    const f = fakeCtx();
+    const v = playSample(f.ctx, entry, SAMPLED_BY_ID.harp, {} as AudioNode, 440, 0.8, 0, 0);
+    f.clock.currentTime = 0.5;
+    v.choke(0.5, CHOKE_OTHER);
+    expect(f.stops.at(-1)).toBeCloseTo(0.5 + CHOKE_OTHER * 6);
+  });
+});

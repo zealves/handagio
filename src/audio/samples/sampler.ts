@@ -130,8 +130,10 @@ export function playSample(
       // um toque curto ainda deixa ouvir o instrumento (nunca antes de 250 ms)
       fadeOut(releaseTime(ctx.currentTime, t), def.rel);
     },
-    choke(at, tau) {
+    choke(at, chokeTau) {
       released = true;
+      // sustentados e percutidos: nunca mais lento do que a libertação do próprio instrumento
+      const tau = def.kind === 'plucked' ? chokeTau : Math.min(chokeTau, def.rel);
       const a = Math.max(at, ctx.currentTime);
       if (fade && fade.at <= a && fade.tau <= tau) return;
       fadeOut(a, tau);

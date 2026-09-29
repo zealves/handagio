@@ -36,7 +36,8 @@ export function ControlBar() {
   const open = (d: DrawerId) => st.set({ drawer: d });
   const info = instrumentInfo(st.instrument);
   const loading = st.sampleStatus === 'loading';
-  const label = `Instrumento: ${info.name}${loading ? ' (a carregar)' : ''}`;
+  const failed = st.sampleStatus === 'error';
+  const label = `Instrumento: ${info.name}${loading ? ' (a carregar)' : failed ? ' (erro ao carregar)' : ''}`;
   return (
     <nav className={s.bar} aria-label="Controlos" data-testid="control-bar">
       <button
@@ -51,7 +52,7 @@ export function ControlBar() {
         <span className={s.ico}>
           {instrumentIcon(info.id)}
           {loading && <span className={s.ring} aria-hidden />}
-          {st.sampleStatus === 'error' && <span className={s.errDot} aria-hidden />}
+          {failed && <span className={s.errDot} aria-hidden />}
         </span>
         <span className={s.label}>{info.name}</span>
       </button>

@@ -305,6 +305,9 @@ export class AudioEngine {
     if (!e || !e.voice.sustain) return;
     e.freq = midiToFreq(midi);
     e.voice.setFreq(e.freq * pitchFactor(this.params.pitch));
+    // o choke seguinte compara com a nota que está de facto a soar
+    const tail = this.sampleTails.get(key);
+    if (tail?.voice === e.voice) tail.midi = midi;
   }
 
   hasVoice(key: VoiceKey): boolean {
