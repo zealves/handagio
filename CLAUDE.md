@@ -10,6 +10,7 @@ Instrumento musical controlado pela webcam: dobrar um dedo toca uma nota, abrir 
 - `npm test` — Vitest (lógica pura em `src/**/*.test.ts`)
 - `npm run test:e2e` — Playwright com câmara falsa (Chromium completo com GPU; faz build + preview)
 - `npm run fetch-models` — copia o WASM e descarrega os modelos para `public/mediapipe/` (gitignored)
+- `npm run prepare-samples` — descarrega, corta e comprime as amostras dos instrumentos gravados para `public/samples/` (corre à mão; o resultado vai para o git)
 - `node scripts/make-demo-gif.mjs` — regenera `docs/demo.gif` (precisa de `npm run dev`)
 - `node scripts/make-icons.mjs` — regenera os PNG da PWA a partir de `public/icon.svg`
 
@@ -26,7 +27,7 @@ Instrumento musical controlado pela webcam: dobrar um dedo toca uma nota, abrir 
 
 - `src/vision` e `src/audio` não importam React.
 - Valores a 60 fps nunca vão para estado React: usar `live` e desenhar em canvas.
-- Fórmulas e valores de deteção/som vêm de `reference/maos-musicais.html`; não aproximar.
+- Fórmulas e valores de deteção e dos sons sintetizados vêm de `reference/maos-musicais.html`; não aproximar. Os instrumentos acústicos usam amostras em `public/samples/` (ver `CREDITS.md`); `npm run prepare-samples` regenera-as.
 - Decisões ambíguas ficam em `docs/DECISIONS.md` (numeradas).
 - Antes de cada commit: `npm run build && npm run lint && npm test`.
 - Commits em inglês, no formato Conventional Commits (`feat: …`, `fix: …`, `ci: …`, `docs: …`, `chore: …`), assunto no imperativo, minúsculas, sem ponto final, até ~72 caracteres; corpo opcional com bullets. Autor único: José Alves, sem `Co-Authored-By` nem outras linhas de atribuição.

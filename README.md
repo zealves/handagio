@@ -25,7 +25,7 @@ O palco da câmara ocupa o espaço livre; por cima fica uma barra de controlo fi
 
 ### Funcionalidades
 
-- 29 instrumentos: 26 melódicos (teclas, cordas, sopros, lâminas e sintetizadores, incluindo o theremin contínuo) e 3 kits de percussão (acústico, 808 e latino).
+- 38 instrumentos: 35 melódicos (teclas, cordas, sopros, lâminas e sintetizadores, incluindo o theremin contínuo) e 3 kits de percussão (acústico, 808 e latino). Os 18 acústicos (piano, órgão, cordas, sopros, harpa, guitarras e xilofone) tocam gravações reais, cada um no seu registo.
 - 11 escalas, tónica de Dó a Si e oitava base de 1 a 6.
 - Reverb, eco, pitch, filtro e drive em knobs rotativos (arrastar na vertical, roda do rato, setas, duplo clique para repor).
 - Metrónomo de 60 a 180 BPM com tap tempo, quantização a 1/8 ou 1/16 e looper de 1, 2 ou 4 compassos com camadas, desfazer e "congelar" no instrumento gravado.
@@ -55,8 +55,18 @@ npm run dev          # descarrega os modelos (1.ª vez) e abre em http://localho
 | `npm test` | Testes unitários (Vitest) |
 | `npm run test:e2e` | Teste end-to-end com câmara falsa (Playwright); na 1.ª vez corre `npx playwright install chromium` |
 | `npm run fetch-models` | Copia o WASM e descarrega os modelos do MediaPipe para `public/mediapipe/` |
+| `npm run prepare-samples` | Prepara as amostras dos instrumentos gravados em `public/samples/` (à mão, precisa de rede) |
 
 O GIF de demonstração gera-se com `node scripts/make-demo-gif.mjs` (com `npm run dev` a correr).
+
+### Acrescentar um instrumento gravado
+
+1. Em `scripts/prepare-samples.mjs`, acrescenta uma linha à tabela `INSTRUMENTS`: o id, a pasta da biblioteca [tonejs-instruments](https://github.com/nbrosowsky/tonejs-instruments), a origem das gravações (para os créditos), o intervalo de notas e a duração máxima.
+2. Corre `npm run prepare-samples`. O script descarrega as notas, converte-as para mono, corta-as, normaliza-as a −20 dBFS e grava MP3 a 96 kbps (ou 80, para caber em 250 KB por instrumento e 4 MB no total) em `public/samples/<id>/`, e atualiza `public/samples/manifest.json` e `public/samples/CREDITS.md`.
+3. Acrescenta a entrada em `src/audio/samples/catalog.ts`: nome, família, tipo (`sustained`, `plucked` ou `struck`), registo em oitavas, `rel`, o patch sintetizado de reserva e o `level` em dB, medido para soar ao nível da reserva.
+4. `npm test` confirma que o catálogo e o manifest batem certo.
+
+As amostras só são descarregadas quando o instrumento é escolhido; enquanto chegam, toca o patch de reserva.
 
 ### Estrutura
 
@@ -86,4 +96,15 @@ Testado em Chromium (desktop, com GPU). Nos outros navegadores:
 
 ## Créditos
 
-Deteção de mãos e face com [MediaPipe Tasks Vision](https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker). Sons sintetizados com a Web Audio API, sem amostras.
+Deteção de mãos e face com [MediaPipe Tasks Vision](https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker). Os restantes sons são sintetizados com a Web Audio API.
+
+### Créditos dos sons
+
+As gravações dos instrumentos acústicos vêm da biblioteca [tonejs-instruments](https://github.com/nbrosowsky/tonejs-instruments), de Nicholas Brosowsky, com as amostras sob [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/). Origem das gravações:
+
+- [VSCO 2 Community Edition](https://vis.versilstudios.net/vsco-community.html) (CC0): piano, órgão, violino, contrabaixo, flauta, clarinete, fagote, trompete, trompa, trombone, tuba, harpa e xilofone;
+- [Karoryfer Samples](https://www.karoryfer.com/karoryfer-samples) (CC0): baixo elétrico, saxofone e guitarra elétrica;
+- [University of Iowa Musical Instrument Samples](https://theremin.music.uiowa.edu/MIS.html) (sem restrições): guitarra acústica;
+- Freesound, pack ["Real Cello Notes"](https://freesound.org/people/flcellogrl/packs/12408/) de flcellogrl: violoncelo (CC-BY 3.0 no pack; a página do Freesound mostra hoje CC BY 4.0).
+
+As amostras foram cortadas, convertidas para mono e comprimidas. A lista completa está em [`public/samples/CREDITS.md`](public/samples/CREDITS.md).

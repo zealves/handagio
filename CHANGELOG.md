@@ -4,7 +4,7 @@ Versões segundo [SemVer](https://semver.org/lang/pt-BR/). A mais recente fica n
 
 ## [2.0.0] — por lançar
 
-Interface redesenhada para pôr o foco em tocar. A lógica de som e de visão não muda.
+Interface redesenhada para pôr o foco em tocar, e instrumentos acústicos gravados. A lógica de visão não muda.
 
 - Palco em primeiro plano, com uma barra de controlo e gavetas no lugar das três colunas e dos separadores.
 - Ecrã inteiro (`E`) e esconder interface (`I`), com a barra a espreitar ao mexer o rato.
@@ -14,6 +14,7 @@ Interface redesenhada para pôr o foco em tocar. A lógica de som e de visão n�
 - Efeitos em cartões (reverb, eco/delay, pitch, filtro, drive, boca), com reverb e eco à mão na barra.
 - Layout para telemóvel (folha inferior), tablet, desktop e paisagem baixa.
 - Oitava, sensibilidade, altura da mão e deslizar passam para as Definições, com a lista de atalhos.
+- Instrumentos acústicos com gravações reais e 9 novos (contrabaixo, clarinete, fagote, trompa, trombone, tuba, guitarra acústica, guitarra elétrica, xilofone), cada um no seu registo.
 
 ## [1.0.0] — 2026-09-29
 

@@ -40,6 +40,8 @@ Alterações: amostras cortadas, convertidas para mono e comprimidas (MP3 mono, 
 - **Freesound** — violoncelo: pack 12408 "Real Cello Notes", de
   [flcellogrl](https://freesound.org/people/flcellogrl/),
   <https://freesound.org/people/flcellogrl/packs/12408/>, todos os sons sob
-  [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/).
+  [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/), a licença com que o pack foi
+  publicado e incluído na biblioteca; a página do Freesound mostra hoje
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Ambas só pedem a atribuição.
 
 As amostras são geradas por `scripts/prepare-samples.mjs` (`npm run prepare-samples`).
