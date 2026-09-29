@@ -1,5 +1,4 @@
 import { useId, useRef, useState } from 'react';
-import { NOTE_NAMES, SCALE_NAMES, type ScaleName } from '../../audio/theory';
 import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../state/store';
 import { Slider } from '../controls/Slider';
@@ -13,12 +12,9 @@ import s from './panels.module.css';
 export function SoundMakerPanel() {
   const st = useStore(
     useShallow((x) => ({
-      root: x.root,
-      scale: x.scale,
       octave: x.octave,
       heightPitch: x.heightPitch,
       glide: x.glide,
-      thumbs: x.thumbs,
       sensitivity: x.sensitivity,
       set: x.set,
     })),
@@ -45,30 +41,6 @@ export function SoundMakerPanel() {
       </button>
       {open && (
         <div className={s.engine} id={`${id}-eng`}>
-          <div className={s.fields}>
-            <label className={s.field}>
-              Tónica
-              <select value={st.root} onChange={(e) => st.set({ root: +e.target.value })}>
-                {NOTE_NAMES.map((n, i) => (
-                  <option key={n} value={i}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className={s.field}>
-              Escala
-              <select
-                value={st.scale}
-                onChange={(e) => st.set({ scale: e.target.value as ScaleName })}
-                data-testid="scale"
-              >
-                {SCALE_NAMES.map((n) => (
-                  <option key={n}>{n}</option>
-                ))}
-              </select>
-            </label>
-          </div>
           <Slider
             label="Oitava base"
             min={1}
@@ -85,11 +57,6 @@ export function SoundMakerPanel() {
             label="Deslizar o tom enquanto seguras"
             checked={st.glide}
             onChange={(v) => st.set({ glide: v })}
-          />
-          <Toggle
-            label="Usar também os polegares"
-            checked={st.thumbs}
-            onChange={(v) => st.set({ thumbs: v })}
           />
         </div>
       )}

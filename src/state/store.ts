@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { ScaleName } from '../audio/theory';
+import type { ChordMode, ScaleName } from '../audio/theory';
 import type { RecordingMeta } from './recordingsDb';
 import type { Calibration, Engine, LoopBars, MouthFxId, Quantize, ThemeName, View } from './types';
 
@@ -18,6 +18,7 @@ export interface SoundSettings {
   mouthFx: MouthFxId;
   bpm: number;
   quantize: Quantize;
+  chord: ChordMode;
 }
 
 export interface Prefs extends SoundSettings {
@@ -76,6 +77,7 @@ export const DEFAULT_SOUND: SoundSettings = {
   mouthFx: 'wah',
   bpm: 120,
   quantize: 'off',
+  chord: 'off',
 };
 
 export const DEFAULT_PREFS: Prefs = {

@@ -353,3 +353,72 @@
   color: var(--muted);
   margin-top: 6px;
 }
+
+/* escala e acordes */
+.scaleList {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 4px;
+}
+.scaleGroup {
+  display: grid;
+  gap: 4px;
+}
+.scaleGroupLabel {
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.scaleChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.fingerNotes {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+}
+.fingerNote {
+  flex: 1 0 auto;
+  min-width: 30px;
+  padding: 3px 4px;
+  border-radius: 7px;
+  border: 1px solid var(--c);
+  font-size: 10.5px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.fingerNote:nth-child(4),
+.fingerNote:nth-child(5):last-child {
+  margin-right: 0;
+}
+
+.tonicRow {
+  display: grid;
+  gap: 4px;
+}
+.segFull {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+.segFull button {
+  padding: 6px 2px;
+}
+.handRow {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+}
+.handRow .fingerNote {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: normal;
+  line-height: 1.15;
+  padding: 3px 2px;
+  font-size: 10px;
+  display: grid;
+  place-items: center;
+}

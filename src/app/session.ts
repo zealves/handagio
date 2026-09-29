@@ -4,7 +4,7 @@ import { audio } from '../audio/engine';
 import { DRUMS, instrumentInfo } from '../audio/instruments';
 import { Looper, type LoopEvent } from '../audio/looper';
 import { Clock, quantizeTime, STEPS_PER_BAR, STEPS_PER_BEAT, TapTempo } from '../audio/metronome';
-import { clamp, degreeToMidi, noteName, scaleLength } from '../audio/theory';
+import { chordMidis, clamp, degreeToMidi, noteName, chordName, scaleLength } from '../audio/theory';
 import { live, pushBurst } from '../state/live';
 import { getState, setState, useStore, type Store } from '../state/store';
 import { CameraError, listCameras, openCamera, stopStream } from '../vision/camera';
@@ -24,6 +24,8 @@ const KEY_VELOCITY = 0.75;
 const KEY_CONT_LEVEL = Math.sqrt(0.16 / 0.18);
 
 const fingerPan = (i: number) => (i - 4.5) / 6;
+/** Chave da voz: o dedo (nota única ou fundamental) ou `dedo:k` para as outras notas do acorde. */
+const voiceKey = (i: number, k: number): number | string => (k ? `${i}:${k}` : i);
 
 class Session {
   video: HTMLVideoElement | null = null;
@@ -43,7 +45,7 @@ class Session {
   private startedOnce = false;
   private keysDown = new Set<string>();
   /** Nota MIDI a soar em cada dedo (para apagar a tecla certa no noteOff). */
-  private fingerNote: (number | null)[] = new Array(10).fill(null);
+  private fingerNote: (number[] | null)[] = new Array(10).fill(null);
   readonly clock = new Clock({
     now: () => audio.now,
     setInterval: (fn, ms) => setInterval(fn, ms),
@@ -63,7 +65,10 @@ class Session {
     );
     this.gesture.on('noteOff', ({ finger }) => this.fingerOff(finger));
     this.gesture.on('glide', ({ finger, pitch }) => {
-      audio.glide(finger, this.fingerMidi(finger, 0) + pitch);
+      const notes = this.fingerNote[finger];
+      const base = this.fingerMidi(finger, 0) + pitch;
+      const root = notes?.[0] ?? 0;
+      (notes ?? [root]).forEach((m, k) => audio.glide(voiceKey(finger, k), base + (m - root)));
     });
     this.gesture.on('continuous', ({ finger, level, pitch }) =>
       this.fingerContinuous(finger, level, pitch),
@@ -136,12 +141,25 @@ class Session {
       return;
     }
     if (info.kind === 'continuous') return;
-    const midi = this.fingerMidi(i, shift);
+    const midis = chordMidis(fingerDegree(i, s.thumbs) + shift, s, s.chord);
+    const midi = midis[0];
     fx.midi = midi;
-    fx.label = noteName(midi);
+    fx.label = midis.length > 1 ? chordName(midis) : noteName(midi);
     this.releaseFingerNote(i);
-    this.fingerNote[i] = midi;
-    this.playNote(i, midi, velocity, fingerPan(i), FINGER_COLORS[i], info.sustain, when);
+    this.fingerNote[i] = midis;
+    // nos acordes, as vozes extra soam um pouco mais baixo para não saturar
+    midis.forEach((m, k) =>
+      this.playNote(
+        voiceKey(i, k),
+        m,
+        velocity * (k ? 0.7 : 1),
+        fingerPan(i),
+        FINGER_COLORS[i],
+        info.sustain,
+        when,
+      ),
+    );
+    if (midis.length > 1) setState({ lastNote: fx.label });
     const tip = live.fingers[i].tip;
     pushBurst({
       x: tip?.x ?? (i + 0.5) / 10,
@@ -152,16 +170,21 @@ class Session {
   }
 
   fingerOff(i: number): void {
-    audio.noteOff(i);
-    this.looper.release(this.clock.positionAt(audio.now), String(i));
+    const n = this.fingerNote[i]?.length ?? 1;
+    for (let k = 0; k < n; k++) {
+      audio.noteOff(voiceKey(i, k));
+      this.looper.release(this.clock.positionAt(audio.now), String(voiceKey(i, k)));
+    }
     this.releaseFingerNote(i);
   }
 
   private releaseFingerNote(i: number): void {
-    const m = this.fingerNote[i];
-    if (m === null) return;
-    const n = live.notes.get(m);
-    if (n) n.held = false;
+    const ms = this.fingerNote[i];
+    if (!ms) return;
+    for (const m of ms) {
+      const n = live.notes.get(m);
+      if (n) n.held = false;
+    }
     this.fingerNote[i] = null;
   }
 
@@ -458,7 +481,12 @@ class Session {
         });
         this.motion?.reset();
       }
-      if (s.root !== prev.root || s.scale !== prev.scale || s.octave !== prev.octave)
+      if (
+        s.root !== prev.root ||
+        s.scale !== prev.scale ||
+        s.octave !== prev.octave ||
+        s.chord !== prev.chord
+      )
         this.releaseAll();
       if (s.bpm !== prev.bpm) this.clock.setBpm(s.bpm);
       if ((s.cameraId !== prev.cameraId || s.lowRes !== prev.lowRes) && this.stream)

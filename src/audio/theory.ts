@@ -18,7 +18,12 @@ export const NOTE_NAMES = [
 
 export const SCALES = {
   Maior: [0, 2, 4, 5, 7, 9, 11],
+  'Maior harmónica': [0, 2, 4, 5, 7, 8, 11],
+  Lídia: [0, 2, 4, 6, 7, 9, 11],
+  Mixolídia: [0, 2, 4, 5, 7, 9, 10],
   Menor: [0, 2, 3, 5, 7, 8, 10],
+  'Menor harmónica': [0, 2, 3, 5, 7, 8, 11],
+  'Menor melódica': [0, 2, 3, 5, 7, 9, 11],
   Pentatónica: [0, 2, 4, 7, 9],
   'Pentatónica menor': [0, 3, 5, 7, 10],
   Blues: [0, 3, 5, 6, 7, 10],
@@ -65,3 +70,47 @@ export function pitchClassName(m: number): string {
 }
 
 export const scaleLength = (s: ScaleName): number => SCALES[s].length;
+
+/** Grupos para a lista de escalas na interface. */
+export const SCALE_GROUPS: { label: string; scales: ScaleName[] }[] = [
+  { label: 'Maiores', scales: ['Maior', 'Maior harmónica', 'Lídia', 'Mixolídia'] },
+  { label: 'Menores', scales: ['Menor', 'Menor harmónica', 'Menor melódica', 'Dórica', 'Frígia'] },
+  { label: 'Pentatónicas', scales: ['Pentatónica', 'Pentatónica menor', 'Blues'] },
+  { label: 'Outras', scales: ['Árabe', 'Japonesa', 'Tons inteiros', 'Cromática'] },
+];
+
+export type ChordMode = 'off' | 'triad' | 'seventh' | 'power';
+
+/**
+ * Acordes construídos sobre o grau de cada dedo, dentro da escala (acordes diatónicos):
+ * tríade = graus +0 +2 +4; sétima = +0 +2 +4 +6. "Quinta" (power chord) usa semitons fixos.
+ */
+export const CHORD_MODES: { id: ChordMode; label: string; desc: string }[] = [
+  { id: 'off', label: 'Nota', desc: 'Cada dedo toca uma nota' },
+  { id: 'triad', label: 'Tríade', desc: 'Cada dedo toca um acorde de 3 notas da escala' },
+  { id: 'seventh', label: 'Sétima', desc: 'Acordes de 4 notas da escala (com 7.ª)' },
+  { id: 'power', label: 'Quinta', desc: 'Nota + quinta + oitava (power chord)' },
+];
+
+/** Notas MIDI do acorde de um grau (a primeira é a fundamental). */
+export function chordMidis(degree: number, t: Tuning, mode: ChordMode): number[] {
+  const root = degreeToMidi(degree, t);
+  if (mode === 'power') return [root, root + 7, root + 12];
+  const steps = mode === 'triad' ? [0, 2, 4] : mode === 'seventh' ? [0, 2, 4, 6] : [0];
+  return steps.map((k) => degreeToMidi(degree + k, t));
+}
+
+/** Nome curto de um acorde: fundamental + qualidade (ex.: "Ré m", "Sol 7", "Si m7♭5"). */
+export function chordName(ms: number[]): string {
+  const r = pitchClassName(ms[0]);
+  const iv = ms.map((m) => m - ms[0]);
+  if (iv[1] === 7) return `${r} 5`;
+  const minor = iv[1] === 3;
+  const dim = minor && iv[2] === 6;
+  const aug = !minor && iv[2] === 8;
+  if (iv[3] === undefined) return r + (dim ? ' dim' : aug ? ' aum' : minor ? ' m' : '');
+  const s = iv[3];
+  if (dim) return r + (s === 9 ? ' dim7' : ' m7♭5');
+  if (minor) return r + (s === 11 ? ' m7M' : ' m7');
+  return r + (aug ? ' aum' : '') + (s === 11 ? ' 7M' : ' 7');
+}

@@ -6,6 +6,7 @@ import { EffectsPanel } from '../ui/panels/EffectsPanel';
 import { InstrumentSelect } from '../ui/panels/InstrumentSelect';
 import { LooperPanel } from '../ui/panels/LooperPanel';
 import { RecordPanel } from '../ui/panels/RecordPanel';
+import { ScalePanel } from '../ui/panels/ScalePanel';
 import { SettingsDialog } from '../ui/panels/SettingsDialog';
 import { SoundMakerPanel } from '../ui/panels/SoundMakerPanel';
 import { StatusPanel } from '../ui/panels/StatusPanel';
@@ -46,6 +47,7 @@ export function App() {
           <div className={s.only} data-views="som">
             <SoundMakerPanel />
           </div>
+          <ScalePanel />
           <InstrumentSelect />
           <div className={s.only} data-views="som">
             <StatusPanel />
