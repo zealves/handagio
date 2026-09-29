@@ -61,18 +61,20 @@ export type DrawFn = (
  * Canvas com resolução ajustada ao ecrã (devicePixelRatio) e desenho a cada fotograma.
  * `w`/`h` chegam em píxeis CSS; o contexto já está escalado. Não desenha quando está fora do
  * ecrã ou tem tamanho 0, a não ser com `always` (canvases do palco, que a gravação compõe).
+ * `maxDpr` limita a densidade de píxeis (por defeito 2).
  */
-export function useCanvas(draw: DrawFn, opts: { always?: boolean } = {}) {
+export function useCanvas(draw: DrawFn, opts: { always?: boolean; maxDpr?: number } = {}) {
   const ref = useRef<HTMLCanvasElement>(null);
   const size = useRef({ w: 0, h: 0, dpr: 1 });
   const visible = useRef(true);
   const always = !!opts.always;
+  const maxDpr = opts.maxDpr ?? 2;
   useEffect(() => {
     const cv = ref.current;
     if (!cv) return;
     const ro = new ResizeObserver(() => {
       const r = cv.getBoundingClientRect();
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const dpr = Math.min(maxDpr, window.devicePixelRatio || 1);
       size.current = { w: r.width, h: r.height, dpr };
       cv.width = Math.max(1, Math.round(r.width * dpr));
       cv.height = Math.max(1, Math.round(r.height * dpr));
@@ -89,7 +91,7 @@ export function useCanvas(draw: DrawFn, opts: { always?: boolean } = {}) {
       ro.disconnect();
       io?.disconnect();
     };
-  }, [always]);
+  }, [always, maxDpr]);
   useFrame((now, dt) => {
     const cv = ref.current;
     const { w, h, dpr } = size.current;
