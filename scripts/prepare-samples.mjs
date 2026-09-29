@@ -286,7 +286,7 @@ async function prepare(inst, available, count, kbps) {
   return { inst, count, kbps, files, size };
 }
 
-// Tenta 96 kbps; se passar de 250 KB, 80 kbps; se ainda passar, menos notas (mínimo 6).
+// Tenta 96 kbps; se passar de 250 KiB, 80 kbps; se ainda passar, menos notas (mínimo 6).
 async function fit(inst, available, count, rates = [96, 80]) {
   for (let c = count; c >= MIN_NOTES; c--) {
     for (const kbps of rates) {
@@ -307,7 +307,7 @@ for (const inst of INSTRUMENTS) {
   results.push(await fit(inst, available, defaultCount(lo, hi)));
 }
 
-// Se o total passar de 4 MB (com margem para o manifest e os créditos), o maior instrumento que
+// Se o total passar de 4 MiB (com margem para o manifest e os créditos), o maior instrumento que
 // ainda pode encolher desce para 80 kbps ou, se já lá estiver, perde uma nota (mínimo 6).
 const BUDGET = MAX_TOTAL - 16 * 1024;
 let total = results.reduce((a, r) => a + r.size, 0);
@@ -385,13 +385,13 @@ await writeFile(join(out, 'CREDITS.md'), credits);
 // O limite total conta tudo o que fica em public/samples/.
 total += Buffer.byteLength(manifestText) + Buffer.byteLength(credits);
 
-console.log('id          notas  kbps     KB   gain');
+console.log('id          notas  kbps    KiB   gain');
 for (const r of results) {
   console.log(
     `${r.inst.id.padEnd(11)} ${String(r.files.length).padStart(5)}  ${String(r.kbps).padStart(4)}  ${(r.size / 1024).toFixed(1).padStart(5)}  ${r.gain.toFixed(3)}`,
   );
 }
-console.log(`total: ${(total / 1024).toFixed(1)} KB`);
+console.log(`total: ${(total / 1024).toFixed(1)} KiB`);
 
 // Verificação: cada MP3 escrito descodifica, tem a duração do manifest (±5%) e não é silêncio.
 const bad = [];
@@ -415,7 +415,7 @@ for (const b of bad) console.error(`Amostra inválida: ${b}`);
 const over = results.filter((r) => r.size > MAX_INSTRUMENT);
 if (bad.length > 0 || over.length > 0 || total > MAX_TOTAL) {
   for (const r of over)
-    console.error(`${r.inst.id} passa de 250 KB (${(r.size / 1024).toFixed(1)} KB)`);
-  if (total > MAX_TOTAL) console.error(`O total passa de 4 MB (${(total / 1024).toFixed(1)} KB)`);
+    console.error(`${r.inst.id} passa de 250 KiB (${(r.size / 1024).toFixed(1)} KiB)`);
+  if (total > MAX_TOTAL) console.error(`O total passa de 4 MiB (${(total / 1024).toFixed(1)} KiB)`);
   process.exit(1);
 }

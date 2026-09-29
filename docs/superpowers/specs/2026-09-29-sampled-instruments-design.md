@@ -54,7 +54,7 @@ Um script de desenvolvimento, `scripts/prepare-samples.mjs`, corre à mão e nã
 4. Codifica em MP3 a 80–96 kbps com um codificador em JS (por exemplo `lamejs`, como dependência de desenvolvimento).
 5. Escreve `public/samples/<id>/<nota>.mp3` e `public/samples/manifest.json`, com as notas de cada instrumento e a duração de cada amostra.
 
-**Meta:** ≤ 250 KB por instrumento e ≤ 4 MB no total. O resultado entra no git, para o CI e o deploy não precisarem de rede nem de ferramentas extra. O deploy passa a enviar `samples/`.
+**Meta:** ≤ 250 KiB por instrumento e ≤ 4 MiB no total. O resultado entra no git, para o CI e o deploy não precisarem de rede nem de ferramentas extra. O deploy passa a enviar `samples/`.
 
 ## Catálogo
 

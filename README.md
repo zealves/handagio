@@ -61,8 +61,8 @@ O GIF de demonstração gera-se com `node scripts/make-demo-gif.mjs` (com `npm r
 
 ### Acrescentar um instrumento gravado
 
-1. Em `scripts/prepare-samples.mjs`, acrescenta uma linha à tabela `INSTRUMENTS`: o id, a pasta da biblioteca [tonejs-instruments](https://github.com/nbrosowsky/tonejs-instruments), a origem das gravações (para os créditos), o intervalo de notas e a duração máxima.
-2. Corre `npm run prepare-samples`. O script descarrega as notas, converte-as para mono, corta-as, normaliza-as a −20 dBFS e grava MP3 a 96 kbps (ou 80, para caber em 250 KB por instrumento e 4 MB no total) em `public/samples/<id>/`, e atualiza `public/samples/manifest.json` e `public/samples/CREDITS.md`.
+1. Em `scripts/prepare-samples.mjs`, acrescenta uma linha à tabela `INSTRUMENTS`, por esta ordem: o id, a pasta da biblioteca [tonejs-instruments](https://github.com/nbrosowsky/tonejs-instruments), o tipo (`sustained`, `plucked` ou `struck`), a duração máxima em segundos, a nota mais grave, a nota mais aguda e a origem das gravações (para os créditos).
+2. Corre `npm run prepare-samples`. O script descarrega as notas, converte-as para mono, corta-as, normaliza-as a −20 dBFS e grava MP3 a 96 kbps (ou 80, para caber em 250 KiB por instrumento e 4 MiB no total) em `public/samples/<id>/`, e atualiza `public/samples/manifest.json` e `public/samples/CREDITS.md`.
 3. Acrescenta a entrada em `src/audio/samples/catalog.ts`: nome, família, tipo (`sustained`, `plucked` ou `struck`), registo em oitavas, `rel`, o patch sintetizado de reserva e o `level` em dB, medido para soar ao nível da reserva.
 4. `npm test` confirma que o catálogo e o manifest batem certo.
 
