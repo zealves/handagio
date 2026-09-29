@@ -14,7 +14,12 @@ import { GestureEngine, type GestureOptions } from '../vision/gestureEngine';
 import { CalibrationCollector, type CalPhase } from '../vision/calibration';
 import { curls } from '../vision/fingerCurl';
 import { FaceTracker, mouthOpenness } from '../vision/faceTracker';
-import { assignHands, HandTracker } from '../vision/handTracker';
+import {
+  assignHands,
+  createHandAssignState,
+  HandTracker,
+  type Handedness,
+} from '../vision/handTracker';
 import { MotionDetector } from '../vision/motionFallback';
 import type { Pt } from '../vision/types';
 import { FINGER_COLORS } from '../ui/theme';
@@ -41,6 +46,8 @@ class Session {
   readonly gesture = new GestureEngine(live.fingers);
   private motion: MotionDetector | null = null;
   private hands = new HandTracker();
+  /** Lados das mãos entre fotogramas (orientação dos rótulos aprendida e último pulso). */
+  private handState = createHandAssignState();
   private face = new FaceTracker();
   private frame = 0;
   private detections = 0;
@@ -666,7 +673,7 @@ class Session {
           if (r) {
             this.detections++;
             this.fpsCount++;
-            this.processHands(r.hands, now);
+            this.processHands(r.hands, now, r.handedness);
           }
         } catch (e) {
           console.warn('[visão] erro na deteção', e);
@@ -716,12 +723,12 @@ class Session {
     });
   }
 
-  private processHands(hands: Pt[][], now: number): void {
+  private processHands(hands: Pt[][], now: number, handedness: (Handedness | null)[] = []): void {
     const pdt = clamp((now - this.lastProcT) / 1000, 0.008, 0.1);
     this.lastProcT = now;
     live.hands = hands;
     live.handsT = now;
-    const assigned = assignHands(hands);
+    const assigned = assignHands(hands, handedness, this.handState);
     // A calibração recolhe as dobras de todos os dedos, polegares incluídos, mesmo com os
     // polegares desligados (o gestureEngine não calcula a dobra dos dedos inativos).
     if (this.cal) {
@@ -731,11 +738,14 @@ class Session {
     this.gesture.process(assigned, pdt, this.gestureOptions());
   }
 
-  /** Diagnóstico e testes: injeta pontos de mãos (já em espelho) no pipeline real. */
-  feedHands(hands: Pt[][]): void {
+  /**
+   * Diagnóstico e testes: injeta pontos de mãos (já em espelho) no pipeline real. Sem
+   * `handedness`, uma mão sozinha fica com o lado anterior ou com o lado do ecrã.
+   */
+  feedHands(hands: Pt[][], handedness?: (Handedness | null)[]): void {
     this.detectionPaused = true;
     if (getState().engine !== 'hands') setState({ engine: 'hands' });
-    this.processHands(hands, performance.now());
+    this.processHands(hands, performance.now(), handedness);
   }
 
   // ---------- calibração ----------
