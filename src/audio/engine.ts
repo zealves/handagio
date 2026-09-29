@@ -14,7 +14,14 @@ import { SharedAnalyser } from './analyser';
 import { PATCHES } from './patches';
 import { SAMPLED_BY_ID } from './samples/catalog';
 import { samples } from './samples/loader';
-import { chooseVoice, playSample, sampleSources, type SampleVoice } from './samples/sampler';
+import {
+  CHOKE_OTHER,
+  CHOKE_SAME,
+  chooseVoice,
+  playSample,
+  sampleSources,
+  type SampleVoice,
+} from './samples/sampler';
 import { midiToFreq } from './theory';
 import { playVoice, type Voice, type VoiceDeps } from './voice';
 import type { MouthFxId } from '../state/types';
@@ -68,7 +75,9 @@ export class AudioEngine {
   private tone!: ReturnType<typeof createTone>;
   private voices = new Map<VoiceKey, VoiceEntry>();
   /** Última voz com amostras de cada chave, mesmo já largada (a cauda ainda soa). */
-  private sampleTails = new Map<VoiceKey, SampleVoice>();
+  private sampleTails = new Map<VoiceKey, { voice: SampleVoice; midi: number }>();
+  /** Cauda anterior de cada chave a descer devagar (dedo que mudou de nota). */
+  private fadingTails = new Map<VoiceKey, SampleVoice>();
   private theremin: ThereminVoice[] | null = null;
   private ksCache = new Map<string, AudioBuffer>();
   private params: EngineParams = {
@@ -252,14 +261,24 @@ export class AudioEngine {
     const freq = midiToFreq(midi);
     const f = freq * pitchFactor(this.params.pitch);
     // a mesma chave (o mesmo dedo) volta a tocar: a amostra anterior, ainda a soar ou já
-    // largada, é abafada quando a nova começa, para os toques rápidos não acumularem vozes
+    // largada, é abafada quando a nova começa. A mesma nota abafa depressa (corda tocada de
+    // novo); outra nota deixa uma cauda curta e natural (arpejos). Por chave fica no máximo
+    // uma voz ativa e uma cauda a descer devagar.
     this.noteOff(key);
-    this.sampleTails.get(key)?.choke(Math.max(when ?? 0, this.ctx.currentTime));
+    const at = Math.max(when ?? 0, this.ctx.currentTime);
+    this.fadingTails.get(key)?.choke(at, CHOKE_SAME);
+    this.fadingTails.delete(key);
+    const tail = this.sampleTails.get(key);
+    if (tail) {
+      const same = tail.midi === midi;
+      tail.voice.choke(at, same ? CHOKE_SAME : CHOKE_OTHER);
+      if (!same) this.fadingTails.set(key, tail.voice);
+    }
     this.sampleTails.delete(key);
     let voice: Voice;
     if (bank) {
       const sv = playSample(this.ctx, bank, def, this.bus, f, vel, pan, when);
-      this.sampleTails.set(key, sv);
+      this.sampleTails.set(key, { voice: sv, midi });
       voice = sv;
     } else {
       voice = playVoice(this.deps, patch!, this.bus, f, vel, pan, when);
@@ -267,7 +286,8 @@ export class AudioEngine {
     const entry: VoiceEntry = { voice, freq };
     voice.onDone = () => {
       if (this.voices.get(key) === entry) this.voices.delete(key);
-      if (this.sampleTails.get(key) === voice) this.sampleTails.delete(key);
+      if (this.sampleTails.get(key)?.voice === voice) this.sampleTails.delete(key);
+      if (this.fadingTails.get(key) === voice) this.fadingTails.delete(key);
     };
     this.voices.set(key, entry);
   }

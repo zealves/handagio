@@ -42,6 +42,16 @@ describe('SAMPLED ↔ patches de reserva', () => {
   });
 });
 
+describe('level', () => {
+  it('é um número finito entre −12 e 18 dB', () => {
+    for (const s of SAMPLED) {
+      expect(Number.isFinite(s.level), s.id).toBe(true);
+      expect(s.level, s.id).toBeGreaterThanOrEqual(-12);
+      expect(s.level, s.id).toBeLessThanOrEqual(18);
+    }
+  });
+});
+
 describe('ids', () => {
   it('são únicos', () => {
     expect(new Set(SAMPLED.map((s) => s.id)).size).toBe(SAMPLED.length);

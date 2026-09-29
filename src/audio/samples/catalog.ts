@@ -16,6 +16,11 @@ export interface SampledDef {
   rel: number;
   /** Patch sintetizado usado enquanto as amostras carregam ou se falharem. */
   fallback: string;
+  /**
+   * Ajuste de volume em dB (medido): a nota com amostras soa ao nível do patch de reserva, para
+   * não haver quebra quando as amostras chegam. Os graves ficam 2–3 dB acima.
+   */
+  level: number;
 }
 
 export const SAMPLED: SampledDef[] = [
@@ -27,6 +32,7 @@ export const SAMPLED: SampledDef[] = [
     register: 0,
     rel: 0.4,
     fallback: 'piano',
+    level: 12.5,
     desc: 'Piano de cauda gravado.',
   },
   {
@@ -37,6 +43,7 @@ export const SAMPLED: SampledDef[] = [
     register: 0,
     rel: 0.1,
     fallback: 'organ',
+    level: 1.5,
     desc: 'Órgão de tubos; sustenta enquanto seguras.',
   },
   {
@@ -47,6 +54,7 @@ export const SAMPLED: SampledDef[] = [
     register: 0,
     rel: 0.2,
     fallback: 'violin',
+    level: 9.5,
     desc: 'Violino com arco.',
   },
   {
@@ -57,6 +65,7 @@ export const SAMPLED: SampledDef[] = [
     register: -1,
     rel: 0.25,
     fallback: 'cello',
+    level: 7.5,
     desc: 'Cordas graves e quentes.',
   },
   {
@@ -67,6 +76,7 @@ export const SAMPLED: SampledDef[] = [
     register: -2,
     rel: 0.25,
     fallback: 'cello',
+    level: 10.5,
     desc: 'O mais grave das cordas.',
   },
   {
@@ -77,6 +87,7 @@ export const SAMPLED: SampledDef[] = [
     register: -2,
     rel: 0.2,
     fallback: 'bass',
+    level: 7.5,
     desc: 'Baixo dedilhado.',
   },
   {
@@ -87,6 +98,7 @@ export const SAMPLED: SampledDef[] = [
     register: 0,
     rel: 0.3,
     fallback: 'harp',
+    level: 12,
     desc: 'Cordas beliscadas que ressoam.',
   },
   {
@@ -97,6 +109,7 @@ export const SAMPLED: SampledDef[] = [
     register: -1,
     rel: 0.3,
     fallback: 'pluck',
+    level: 7.5,
     desc: 'Cordas de aço, dedilhadas.',
   },
   {
@@ -107,6 +120,7 @@ export const SAMPLED: SampledDef[] = [
     register: -1,
     rel: 0.3,
     fallback: 'pluck',
+    level: 9.5,
     desc: 'Guitarra limpa, sem distorção.',
   },
   {
@@ -117,6 +131,7 @@ export const SAMPLED: SampledDef[] = [
     register: 1,
     rel: 0.15,
     fallback: 'flute',
+    level: 7,
     desc: 'Flauta transversal.',
   },
   {
@@ -127,6 +142,7 @@ export const SAMPLED: SampledDef[] = [
     register: 0,
     rel: 0.15,
     fallback: 'flute',
+    level: 3.5,
     desc: 'Madeira escura e redonda.',
   },
   {
@@ -137,6 +153,7 @@ export const SAMPLED: SampledDef[] = [
     register: 0,
     rel: 0.15,
     fallback: 'sax',
+    level: 3.5,
     desc: 'Saxofone expressivo.',
   },
   {
@@ -147,6 +164,7 @@ export const SAMPLED: SampledDef[] = [
     register: -1,
     rel: 0.15,
     fallback: 'sax',
+    level: 6,
     desc: 'Madeira grave.',
   },
   {
@@ -157,6 +175,7 @@ export const SAMPLED: SampledDef[] = [
     register: 0,
     rel: 0.12,
     fallback: 'brass',
+    level: 7,
     desc: 'Metal brilhante.',
   },
   {
@@ -167,6 +186,7 @@ export const SAMPLED: SampledDef[] = [
     register: -1,
     rel: 0.15,
     fallback: 'brass',
+    level: 6,
     desc: 'Metal suave e redondo.',
   },
   {
@@ -177,6 +197,7 @@ export const SAMPLED: SampledDef[] = [
     register: -1,
     rel: 0.15,
     fallback: 'brass',
+    level: 4.5,
     desc: 'Metal grave.',
   },
   {
@@ -187,6 +208,7 @@ export const SAMPLED: SampledDef[] = [
     register: -2,
     rel: 0.15,
     fallback: 'brass',
+    level: 11.5,
     desc: 'O mais grave dos metais.',
   },
   {
@@ -197,6 +219,7 @@ export const SAMPLED: SampledDef[] = [
     register: 1,
     rel: 0.3,
     fallback: 'marimba',
+    level: -2,
     desc: 'Lâminas de madeira, secas e brilhantes.',
   },
 ];

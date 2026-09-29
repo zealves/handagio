@@ -24,10 +24,10 @@ export function loopPoints(duration: number, offset: number): { start: number; e
 
 export interface SampleVoice extends Voice {
   /**
-   * Abafa a voz em `at` com uma descida curta (~0,2 s): a mesma chave voltou a tocar, como uma
-   * corda tocada de novo. Sem clique e sem acumular vozes.
+   * Abafa a voz a partir de `at` com constante de tempo `tau`: a mesma chave voltou a tocar.
+   * Nunca prolonga uma descida que já está a acontecer mais depressa.
    */
-  choke(at: number): void;
+  choke(at: number, tau: number): void;
 }
 
 let sounding = 0;
@@ -35,6 +35,14 @@ let sounding = 0;
 export const sampleSources = (): number => sounding;
 
 const ATTACK = 0.005;
+
+/** Abafar quando a mesma chave volta a tocar: a mesma nota (corda tocada de novo) ou outra. */
+export const CHOKE_SAME = 0.03;
+export const CHOKE_OTHER = 0.25;
+
+/** Ganho de pico da voz: normalização do manifest × ajuste do catálogo (dB) × força. */
+export const samplePeak = (manifestGain: number, levelDb: number, vel: number): number =>
+  manifestGain * 0.5 * Math.pow(10, levelDb / 20) * (0.15 + 0.85 * vel);
 
 export function playSample(
   ctx: BaseAudioContext,
@@ -65,7 +73,9 @@ export function playSample(
   lp.frequency.value = 1500 + vel * 12000;
   lp.Q.value = 0.5;
   const g = ctx.createGain();
-  const peak = entry.gain * 0.5 * (0.15 + 0.85 * vel);
+  // valor intrínseco a 0: se as automações forem canceladas antes do início, não há rajada a 1
+  g.gain.value = 0;
+  const peak = samplePeak(entry.gain, def.level, vel);
   g.gain.setValueAtTime(0, t);
   g.gain.linearRampToValueAtTime(peak, t + ATTACK);
   const p = ctx.createStereoPanner();
@@ -79,6 +89,8 @@ export function playSample(
   sounding++;
 
   let released = false;
+  /** Descida já agendada (início e constante de tempo). */
+  let fade: { at: number; tau: number } | null = null;
   const stop = (at: number) => {
     try {
       src.stop(at);
@@ -87,6 +99,13 @@ export function playSample(
     }
   };
   const fadeOut = (at: number, tau: number) => {
+    fade = { at, tau };
+    if (at <= t) {
+      // ainda não começou: cancela o ataque (o ganho fica no 0 intrínseco) e não chega a soar
+      g.gain.cancelScheduledValues(ctx.currentTime);
+      stop(t);
+      return;
+    }
     g.gain.cancelScheduledValues(at);
     g.gain.setTargetAtTime(0, at, tau);
     stop(at + tau * 6);
@@ -111,13 +130,20 @@ export function playSample(
       // um toque curto ainda deixa ouvir o instrumento (nunca antes de 250 ms)
       fadeOut(releaseTime(ctx.currentTime, t), def.rel);
     },
-    choke(at) {
+    choke(at, tau) {
       released = true;
-      fadeOut(Math.max(at, ctx.currentTime), 0.03);
+      const a = Math.max(at, ctx.currentTime);
+      if (fade && fade.at <= a && fade.tau <= tau) return;
+      fadeOut(a, tau);
     },
     kill() {
       released = true;
       const n = ctx.currentTime;
+      if (n <= t) {
+        fadeOut(n, 0.01);
+        return;
+      }
+      fade = { at: n, tau: 0.01 };
       g.gain.cancelScheduledValues(n);
       g.gain.setValueAtTime(g.gain.value, n);
       g.gain.linearRampToValueAtTime(0, n + 0.01);
