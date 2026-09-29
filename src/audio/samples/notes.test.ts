@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { degreeToMidi } from '../theory';
+import { fingerDegree } from '../../vision/fingerMap';
 import { nearestSample, noteToMidi, playbackRateFor, releaseTime } from './notes';
 
 describe('noteToMidi', () => {
@@ -36,9 +38,30 @@ describe('playbackRateFor', () => {
     expect(playbackRateFor(60, 60)).toBe(1);
     expect(playbackRateFor(59, 60)).toBeCloseTo(0.9439, 3);
   });
-  it('limita a [0.25, 4]', () => {
-    expect(playbackRateFor(120, 60)).toBe(4);
-    expect(playbackRateFor(0, 60)).toBe(0.25);
+  it('afinada até ±48 meios-tons (quatro oitavas)', () => {
+    expect(playbackRateFor(60 - 36, 60)).toBeCloseTo(1 / 8);
+    expect(playbackRateFor(60 + 36, 60)).toBeCloseTo(8);
+    expect(playbackRateFor(60 - 48, 60)).toBeCloseTo(1 / 16);
+    expect(playbackRateFor(60 + 48, 60)).toBeCloseTo(16);
+  });
+  it('limita a [1/16, 16]', () => {
+    expect(playbackRateFor(127, 60)).toBe(16);
+    expect(playbackRateFor(0, 60)).toBe(1 / 16);
+  });
+  it('violino na oitava 2 (com pitch −12): cada dedo tem a sua nota, afinada', () => {
+    // amostras do violino no manifest: G3 C4 E4 G4 C5 E5 A5 E6
+    const violin = ['G3', 'C4', 'E4', 'G4', 'C5', 'E5', 'A5', 'E6'].map(noteToMidi);
+    const tuning = { root: 0, scale: 'Maior' as const, octave: 2 };
+    for (const pitch of [0, -12]) {
+      const rates = [0, 1, 2, 3, 4].map((i) => {
+        const target = degreeToMidi(fingerDegree(i, true), tuning) + pitch;
+        const sample = nearestSample(target, violin);
+        const rate = playbackRateFor(target, sample);
+        expect(rate).toBeCloseTo(Math.pow(2, (target - sample) / 12), 9);
+        return rate;
+      });
+      expect(new Set(rates).size).toBe(rates.length);
+    }
   });
 });
 
