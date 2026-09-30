@@ -690,7 +690,7 @@ for (const showVideo of [false, true]) {
       if (sessionStorage.getItem('seeded')) return;
       sessionStorage.setItem('seeded', '1');
       localStorage.setItem(
-        'vision-sound-cam:prefs',
+        'handagio:prefs',
         JSON.stringify({ state: { showVideo, instrument: 'marimba' }, version: 1 }),
       );
     }, showVideo);

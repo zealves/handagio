@@ -1,8 +1,10 @@
-# Vision Sound Cam
+# Handagio
+
+**Vision Sound Cam:** instrumento musical controlado pela webcam.
 
 Um instrumento musical que se toca com as mãos à frente da webcam. Cada dedo toca uma nota ou um som de percussão; a rapidez com que dobras o dedo define a intensidade, subir ou descer a mão depois de tocar dobra o tom e abrir a boca aplica um efeito ao som.
 
-![Demonstração da Vision Sound Cam](docs/demo.gif)
+![Demonstração do Handagio](docs/demo.gif)
 
 > Tudo corre no navegador. O vídeo da câmara nunca sai do teu computador.
 

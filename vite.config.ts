@@ -27,7 +27,7 @@ function precachedSamples(): string[] {
 /** Gera dist/sw.js com a lista de ficheiros do build, para a app funcionar sem internet. */
 function serviceWorker(): Plugin {
   return {
-    name: 'vsc-service-worker',
+    name: 'handagio-service-worker',
     apply: 'build',
     generateBundle(_, bundle) {
       const files = Object.keys(bundle).filter((f) => !f.endsWith('.map') && f !== 'index.html');

@@ -19,7 +19,8 @@ export function TopBar() {
     <header className={s.bar}>
       <h1 className={s.brand}>
         <IconLogo />
-        <span>Vision Sound Cam</span>
+        <span className={s.name}>Handagio</span>
+        <span className={s.tag}>Vision Sound Cam</span>
       </h1>
       <div className={s.actions}>
         <IconButton

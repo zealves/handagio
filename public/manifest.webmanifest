@@ -1,6 +1,6 @@
 {
-  "name": "Vision Sound Cam",
-  "short_name": "Sound Cam",
+  "name": "Handagio — Vision Sound Cam",
+  "short_name": "Handagio",
   "description": "Instrumento musical que se toca com as mãos à frente da câmara.",
   "lang": "pt-PT",
   "start_url": "./",

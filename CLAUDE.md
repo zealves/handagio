@@ -1,6 +1,6 @@
-# Vision Sound Cam
+# Handagio
 
-Instrumento musical controlado pela webcam: dobrar um dedo toca uma nota, abrir a boca aplica um efeito. Vite + React 18 + TypeScript estrito, Zustand, MediaPipe `tasks-vision`, Web Audio nativa (sem Tone.js). Interface em português de Portugal.
+Vision Sound Cam: instrumento musical controlado pela webcam. Dobrar um dedo toca uma nota, abrir a boca aplica um efeito. Vite + React 18 + TypeScript estrito, Zustand, MediaPipe `tasks-vision`, Web Audio nativa (sem Tone.js). Interface em português de Portugal.
 
 ## Comandos
 

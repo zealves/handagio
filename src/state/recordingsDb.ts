@@ -13,7 +13,7 @@ export interface Recording {
 
 export type RecordingMeta = Omit<Recording, 'blob'> & { size: number };
 
-const DB = 'vision-sound-cam';
+const DB = 'handagio';
 const STORE = 'recordings';
 const memory = new Map<string, Recording>();
 let dbp: Promise<IDBDatabase | null> | null = null;

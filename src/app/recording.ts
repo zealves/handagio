@@ -22,7 +22,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
 function fileName(r: Pick<Recording, 'createdAt' | 'mime'>): string {
   const d = new Date(r.createdAt);
   const stamp = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
-  return `vision-sound-cam-${stamp}.${extensionFor(r.mime)}`;
+  return `handagio-${stamp}.${extensionFor(r.mime)}`;
 }
 
 export async function refreshRecordings(): Promise<void> {
@@ -125,8 +125,8 @@ export async function shareRecording(
   const file = new File([r.blob], fileName(r), { type: r.mime });
   const data = {
     files: [file],
-    title: 'Vision Sound Cam',
-    text: 'Música feita com as mãos na Vision Sound Cam.',
+    title: 'Handagio',
+    text: 'Música feita com as mãos no Handagio.',
   };
   if (navigator.canShare?.(data)) {
     try {

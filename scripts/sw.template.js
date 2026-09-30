@@ -1,6 +1,8 @@
-// Service worker da Vision Sound Cam (gerado no build a partir de scripts/sw.template.js).
+// Service worker do Handagio (gerado no build a partir de scripts/sw.template.js).
 // Pré-carrega a app, o WASM e os modelos do MediaPipe para funcionar sem internet.
-const CACHE = 'vsc-__VERSION__';
+const CACHE = 'handagio-__VERSION__';
+// caches desta app, incluindo as do nome antigo (vsc-*), que a ativação apaga
+const OURS = /^(handagio|vsc)-/;
 const PRECACHE = __PRECACHE__;
 
 self.addEventListener('install', (e) => {
@@ -17,9 +19,7 @@ self.addEventListener('activate', (e) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(
-          keys.filter((k) => k.startsWith('vsc-') && k !== CACHE).map((k) => caches.delete(k)),
-        ),
+        Promise.all(keys.filter((k) => OURS.test(k) && k !== CACHE).map((k) => caches.delete(k))),
       )
       .then(() => self.clients.claim()),
   );

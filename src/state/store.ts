@@ -149,7 +149,7 @@ export const useStore = create<Store>()(
       set: (p) => set(p),
     }),
     {
-      name: 'vision-sound-cam:prefs',
+      name: 'handagio:prefs',
       version: 7,
       migrate: (old, version) => migratePrefs(old, version) as unknown as Store,
       merge: (persisted, current) => ({
