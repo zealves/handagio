@@ -34,11 +34,29 @@ export interface CameraOptions {
   lowRes?: boolean;
 }
 
+/**
+ * Resolução pedida à câmara. O vídeo não aparece no ecrã (o palco mostra só as mãos) e o
+ * detetor de mãos trabalha com imagens pequenas (192–224 px), por isso 640×360 chega e custa um
+ * quarto de 1280×720 a enviar para a GPU em cada fotograma. "Baixar a resolução" desce a 480×270.
+ */
+export const CAMERA_SIZE = { width: 640, height: 360 } as const;
+export const CAMERA_SIZE_LOW = { width: 480, height: 270 } as const;
+/** Fotogramas por segundo pedidos (ideal): algumas câmaras (e a falsa do Chromium) dão 20 sem pedir. */
+export const CAMERA_FPS = 30;
+
+/** Restrições de vídeo pedidas ao getUserMedia (sem a câmara). */
+export function cameraConstraints(lowRes?: boolean): MediaTrackConstraints {
+  const s = lowRes ? CAMERA_SIZE_LOW : CAMERA_SIZE;
+  return {
+    width: { ideal: s.width },
+    height: { ideal: s.height },
+    frameRate: { ideal: CAMERA_FPS },
+  };
+}
+
 export async function openCamera(o: CameraOptions = {}): Promise<MediaStream> {
   if (!navigator.mediaDevices?.getUserMedia) throw translateCameraError({ name: 'Unsupported' });
-  const size = o.lowRes
-    ? { width: { ideal: 640 }, height: { ideal: 360 } }
-    : { width: { ideal: 1280 }, height: { ideal: 720 } };
+  const size = cameraConstraints(o.lowRes);
   const video: MediaTrackConstraints = o.deviceId
     ? { ...size, deviceId: { exact: o.deviceId } }
     : { ...size, facingMode: 'user' };

@@ -332,6 +332,63 @@ test('liga a câmara, toca todos os instrumentos e grava', async ({ page }) => {
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
+test('deteção leve: câmara a 640×360, overlay a 1280 e a face só com o efeito da boca', async ({
+  page,
+}) => {
+  const errors = watchConsole(page);
+  await page.goto('/?debug');
+  await page.getByTestId('start').click();
+  type Dbg = {
+    __vsc: {
+      session: { stats: { handDetects: number; faceDetects: number } };
+      store: { getState(): { faceState: string; engine: string; set(p: unknown): void } };
+    };
+  };
+  const state = () =>
+    page.evaluate(() => {
+      const v = (window as unknown as Dbg).__vsc;
+      const st = v.store.getState();
+      return { ...v.session.stats, faceState: st.faceState, engine: st.engine };
+    });
+  await expect.poll(async () => (await state()).faceState, { timeout: 30_000 }).toBe('ok');
+  await expect.poll(async () => (await state()).engine, { timeout: 30_000 }).toBe('hands');
+  // a câmara pede 640×360; o overlay continua a desenhar a 1280 de largura
+  expect(
+    await page.evaluate(() => {
+      const v = document.querySelector('video')!;
+      return `${v.videoWidth}x${v.videoHeight}`;
+    }),
+  ).toBe('640x360');
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (document.querySelector('[data-testid="overlay"]') as HTMLCanvasElement).width,
+      ),
+    )
+    .toBe(1280);
+
+  // com o efeito da boca em "Nenhum", o detetor da face não é chamado; o das mãos continua
+  await page.evaluate(() =>
+    (window as unknown as Dbg).__vsc.store.getState().set({ mouthFx: 'off' }),
+  );
+  await page.waitForTimeout(200);
+  const a = await state();
+  await page.waitForTimeout(1500);
+  const b = await state();
+  expect(b.faceDetects).toBe(a.faceDetects);
+  expect(b.handDetects).toBeGreaterThan(a.handDetects + 10);
+
+  // com um efeito da boca, a face volta a correr (menos vezes do que as mãos)
+  await page.evaluate(() =>
+    (window as unknown as Dbg).__vsc.store.getState().set({ mouthFx: 'wah' }),
+  );
+  await page.waitForTimeout(1500);
+  const c = await state();
+  expect(c.faceDetects).toBeGreaterThan(b.faceDetects + 5);
+  expect(c.faceDetects - b.faceDetects).toBeLessThan(c.handDetects - b.handDetects);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
 test('esconder interface com I e voltar com Esc', async ({ page }) => {
   const errors = watchConsole(page);
   await page.goto('/?debug');

@@ -8,7 +8,7 @@ import { Clock, quantizeTime, STEPS_PER_BAR, STEPS_PER_BEAT, TapTempo } from '..
 import { clamp, noteName, chordName } from '../audio/theory';
 import { live, pushBurst } from '../state/live';
 import { getState, setState, useStore, type Store } from '../state/store';
-import { CameraError, listCameras, openCamera, stopStream } from '../vision/camera';
+import { CAMERA_SIZE, CameraError, listCameras, openCamera, stopStream } from '../vision/camera';
 import { isActive, KEYMAP, slotOf } from '../vision/fingerMap';
 import { GestureEngine, type GestureOptions } from '../vision/gestureEngine';
 import { CalibrationCollector, type CalPhase } from '../vision/calibration';
@@ -27,6 +27,13 @@ import { isTypingTarget } from '../lib/keys';
 import { fingerChordOf, fingerMidiOf } from './notes';
 
 const NO_RESULT_MS = 6000;
+/**
+ * Boca: a face corre no máximo 1 vez em cada `FACE_EVERY` fotogramas de vídeo, num tick do rAF
+ * sem fotograma novo (o das mãos fica sozinho no seu tick). Ao fim de `FACE_MAX_GAP` fotogramas
+ * sem nenhum tick livre (ecrã a 30 Hz, ou câmara a 60 fps), corre depois das mãos.
+ */
+const FACE_EVERY = 2;
+const FACE_MAX_GAP = 3;
 const LOAD_TIMEOUT_MS = 20000;
 /** Espera depois de escolher um instrumento antes de carregar as amostras. */
 const SAMPLE_LOAD_DELAY_MS = 300;
@@ -51,8 +58,11 @@ class Session {
   /** Lados das mãos entre fotogramas (orientação dos rótulos aprendida e último pulso). */
   private handState = createHandAssignState();
   private face = new FaceTracker();
-  private frame = 0;
+  /** Fotogramas de vídeo novos desde a última deteção da face. */
+  private faceGap = 0;
   private detections = 0;
+  /** Diagnóstico (`__vsc.session.stats`): chamadas ao detetor das mãos e ao da face. */
+  readonly stats = { handDetects: 0, faceDetects: 0 };
   private raf = 0;
   private lastT = 0;
   private lastProcT = 0;
@@ -622,8 +632,8 @@ class Session {
     } catch {
       /* autoplay bloqueado: o vídeo arranca no próximo gesto */
     }
-    live.videoW = v.videoWidth || 1280;
-    live.videoH = v.videoHeight || 720;
+    live.videoW = v.videoWidth || CAMERA_SIZE.width;
+    live.videoH = v.videoHeight || CAMERA_SIZE.height;
   }
 
   /** Troca de câmara ou de resolução com a app a correr. */
@@ -666,6 +676,7 @@ class Session {
     const fresh = !!v && v.readyState >= 2 && v.currentTime !== this.lastVideoTime;
     if (fresh && v) {
       this.lastVideoTime = v.currentTime;
+      this.faceGap++;
       // o tablet pode rodar a imagem da câmara sem reabrir o stream: o overlay segue-a
       if (v.videoWidth && (v.videoWidth !== live.videoW || v.videoHeight !== live.videoH)) {
         live.videoW = v.videoWidth;
@@ -673,6 +684,7 @@ class Session {
       }
       if (s.engine === 'hands' && !this.detectionPaused) {
         try {
+          this.stats.handDetects++;
           const r = this.hands.detect(v, now);
           if (r) {
             this.detections++;
@@ -691,24 +703,34 @@ class Session {
           sustain: instrumentInfo(s.instrument).sustain,
         });
       }
-      // A face corre em fotogramas alternados.
-      if (this.face.ready && ++this.frame % 2 === 0) {
-        try {
-          const lm = this.face.detect(v, now);
-          if (lm) {
-            live.lips = lm;
-            live.lipsT = now;
-            live.mouthTarget = mouthOpenness(lm);
-          }
-        } catch (e) {
-          console.warn('[visão] erro na deteção da face', e);
-        }
-      }
     }
+    // A face (boca) só corre com um efeito da boca escolhido, e nunca antes das mãos: num tick
+    // sem fotograma novo ou, se não houver nenhum, depois das mãos (ver FACE_EVERY).
+    if (
+      v &&
+      this.face.ready &&
+      s.mouthFx !== 'off' &&
+      v.readyState >= 2 &&
+      this.faceGap >= FACE_EVERY &&
+      (!fresh || this.faceGap >= FACE_MAX_GAP)
+    ) {
+      this.faceGap = 0;
+      try {
+        this.stats.faceDetects++;
+        const lm = this.face.detect(v, now);
+        if (lm) {
+          live.lips = lm;
+          live.lipsT = now;
+          live.mouthTarget = mouthOpenness(lm);
+        }
+      } catch (e) {
+        console.warn('[visão] erro na deteção da face', e);
+      }
+    } else if (s.mouthFx === 'off') live.lips = null;
 
     // boca
     if (live.spaceHeld) live.mouthTarget = 1;
-    else if (now - live.lipsT > 600) live.mouthTarget = 0;
+    else if (s.mouthFx === 'off' || now - live.lipsT > 600) live.mouthTarget = 0;
     live.mouth += (live.mouthTarget - live.mouth) * Math.min(1, dt * 18);
     audio.setMouth(live.mouth, s.mouthFx);
 

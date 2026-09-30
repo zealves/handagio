@@ -1,6 +1,6 @@
 // Canvas do overlay; desenha no seu próprio rAF a partir de `live`, sem re-render do React.
 import { useEffect, useRef } from 'react';
-import { live } from '../../state/live';
+import { drawSize } from '../../state/live';
 import { stageCanvases } from '../../state/stageCanvases';
 import { prefersReducedMotion } from '../theme';
 import { drawOverlay } from './drawOverlay';
@@ -15,9 +15,10 @@ export function HandOverlay() {
     let raf = 0;
     const draw = () => {
       raf = requestAnimationFrame(draw);
-      if (cv.width !== live.videoW || cv.height !== live.videoH) {
-        cv.width = live.videoW;
-        cv.height = live.videoH;
+      const d = drawSize();
+      if (cv.width !== d.w || cv.height !== d.h) {
+        cv.width = d.w;
+        cv.height = d.h;
       }
       drawOverlay(g, cv.width, cv.height, reduced);
     };

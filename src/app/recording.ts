@@ -2,7 +2,7 @@
 import { audio } from '../audio/engine';
 import { instrumentInfo } from '../audio/instruments';
 import { extensionFor, Recorder } from '../audio/recorder';
-import { live } from '../state/live';
+import { drawSize } from '../state/live';
 import {
   deleteRecording,
   getRecording,
@@ -48,10 +48,10 @@ export async function startRecording(): Promise<void> {
     recorder.start(
       withVideo
         ? {
-            // a câmara só serve para o tamanho: a gravação nunca inclui a imagem da pessoa
+            // a câmara só serve para a proporção: a gravação nunca inclui a imagem da pessoa
             video: compositeSources(stageCanvases).video,
-            width: live.videoW,
-            height: live.videoH,
+            width: drawSize().w,
+            height: drawSize().h,
             layers: () => compositeSources(stageCanvases).layers,
             hud: () => {
               const st = getState();

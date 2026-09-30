@@ -164,7 +164,7 @@ export function SettingsDialog() {
             </select>
           </label>
           <Toggle
-            label="Baixar a resolução (computadores mais lentos)"
+            label="Baixar ainda mais a resolução (computadores mais lentos)"
             checked={st.lowRes}
             onChange={(v) => st.set({ lowRes: v })}
           />
