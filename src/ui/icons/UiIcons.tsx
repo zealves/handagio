@@ -27,13 +27,6 @@ export const IconMusic = (p: P) => (
     <circle cx="17.5" cy="16" r="2.5" />
   </svg>
 );
-export const IconChord = (p: P) => (
-  <svg {...base(p)}>
-    <circle cx="8" cy="18" r="2.5" />
-    <circle cx="12" cy="12" r="2.5" />
-    <circle cx="16" cy="6" r="2.5" />
-  </svg>
-);
 export const IconCamera = (p: P) => (
   <svg {...base(p)}>
     <rect x="3" y="6" width="13" height="12" rx="2.5" />

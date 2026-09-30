@@ -37,7 +37,7 @@ Na gaveta **Escala e acordes** escolhes como cada dedo sabe que nota tocar. A fi
 
 O palco da câmara ocupa o espaço livre; por cima fica uma barra de controlo fina com o instrumento, a escala, reverb e eco (só em ecrãs largos), o tempo, gravar, o looper e um menu **⋯** com o resto. O que não cabe na barra fica em gavetas (Instrumentos, Escala e acordes, Efeitos, Tempo e looper, Gravações, Tocar com o rato), abertas uma de cada vez. O palco mostra só as tuas mãos e as partículas (tu não apareces, nem na gravação: a câmara serve só para a deteção) e, por baixo, uma faixa com as ondas do som.
 
-- **Forma de tocar** (chip na barra, tecla `C` ou menu ⋯): cada dedo toca uma nota, uma tríade, uma sétima ou uma quinta.
+- **Forma de tocar** (seletor na barra com as 4 opções, tecla `C` ou menu ⋯): cada dedo toca uma nota, uma tríade, uma sétima ou uma quinta.
 - **⛶ Ecrã inteiro** (tecla `E`) e **esconder a interface** (tecla `I`, ou no menu ⋯): fica só o palco. Mexer o rato ou tocar no ecrã volta a mostrar a barra por 3 segundos.
 - **`,` e `.`** passam ao instrumento anterior ou seguinte sem abrir a gaveta.
 

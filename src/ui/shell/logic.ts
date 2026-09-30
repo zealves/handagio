@@ -41,9 +41,6 @@ export function nextChord(c: ChordMode): ChordMode {
   return CHORD_MODES[(k + 1) % CHORD_MODES.length].id;
 }
 
-export const chordLabel = (c: ChordMode): string =>
-  CHORD_MODES.find((m) => m.id === c)?.label ?? 'Nota';
-
 export function nextInstrument(id: string, dir: 1 | -1, filter = 'Todos'): string {
   const list = filterByFamily(filter);
   if (!list.length) return id;

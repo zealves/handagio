@@ -10,7 +10,7 @@ Interface redesenhada para pôr o foco em tocar, e instrumentos acústicos grava
 - Ecrã inteiro (`E`) e esconder interface (`I`), com a barra a espreitar ao mexer o rato.
 - O palco mostra sempre só as mãos (a pessoa não aparece, nem na gravação); ondas sempre por baixo do palco, mais leves.
 - Um só visualizador (ondas sobrepostas); os canvases fora do ecrã deixam de desenhar.
-- Forma de tocar (nota, tríade, sétima, quinta) à mão: chip na barra, tecla `C` e menu ⋯.
+- Forma de tocar (nota, tríade, sétima, quinta) à mão: seletor na barra com as 4 opções, tecla `C` e menu ⋯.
 - Seletor de instrumentos com pesquisa e grupos por família; `,` e `.` mudam de instrumento.
 - Efeitos em cartões (reverb, eco/delay, pitch, filtro, drive, boca), com reverb e eco à mão na barra.
 - Layout para telemóvel (folha inferior), tablet, desktop e paisagem baixa.

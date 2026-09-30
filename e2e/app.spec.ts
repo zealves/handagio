@@ -342,7 +342,7 @@ test('esconder interface com I e voltar com Esc', async ({ page }) => {
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
-test('forma de tocar à mão: chip, tecla C e menu ⋯', async ({ page }) => {
+test('forma de tocar à mão: seletor na barra, tecla C e menu ⋯', async ({ page }) => {
   const errors = watchConsole(page);
   await page.goto('/?debug');
   const chord = () =>
@@ -352,19 +352,25 @@ test('forma de tocar à mão: chip, tecla C e menu ⋯', async ({ page }) => {
           window as unknown as { __vsc: { store: { getState(): { chord: string } } } }
         ).__vsc.store.getState().chord,
     );
-  const chip = page.getByTestId('chip-chord');
-  await expect(chip).toContainText('Nota');
-  await chip.click();
-  await expect(chip).toContainText('Tríade');
-  await expect(chip).toHaveAttribute('data-active', 'true');
+  const checked = (id: string) =>
+    expect(page.getByTestId(`chord-${id}`)).toHaveAttribute('aria-checked', 'true');
+  // as 4 opções estão à vista e escolhem-se diretamente
+  for (const id of ['off', 'triad', 'seventh', 'power'])
+    await expect(page.getByTestId(`chord-${id}`)).toBeVisible();
+  await checked('off');
+  await page.getByTestId('chord-power').click();
+  await checked('power');
+  expect(await chord()).toBe('power');
+  await page.getByTestId('chord-triad').click();
   expect(await chord()).toBe('triad');
+  // C passa ao seguinte
   await page.locator('body').click({ position: { x: 5, y: 5 } });
   await page.keyboard.press('c');
-  await expect(chip).toContainText('Sétima');
+  await checked('seventh');
+  // e no menu ⋯
   await page.getByTestId('more').click();
   await page.getByTestId('menu-chord-off').click();
-  await expect(chip).toContainText('Nota');
-  await expect(chip).toHaveAttribute('data-active', 'false');
+  await checked('off');
   expect(await chord()).toBe('off');
   expect(errors, errors.join('\n')).toEqual([]);
 });

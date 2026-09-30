@@ -45,9 +45,39 @@
   outline: 2px solid var(--cyan);
   outline-offset: 2px;
 }
-.chip[data-active='true'] {
-  border-color: var(--cyan);
+/* Forma de tocar: as 4 opções sempre à vista */
+.seg {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+.seg button {
+  min-height: 34px;
+  min-width: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.seg button:hover {
+  color: var(--ink);
+}
+.seg button[aria-checked='true'] {
+  background: rgba(53, 224, 255, 0.14);
   color: var(--cyan);
+}
+.seg button:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 1px;
+}
+.segShort {
+  display: none;
 }
 .chip[data-state='recording'],
 .chip[data-state='armed'] {
@@ -214,8 +244,12 @@
 /* 600–1099: sem mini-knobs e sem o nome longo da escala */
 @media (max-width: 1099px) {
   .wide,
-  .long {
+  .long,
+  .segFull {
     display: none;
+  }
+  .segShort {
+    display: inline;
   }
   .recMore {
     width: 40px;

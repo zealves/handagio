@@ -3,22 +3,22 @@ import { useShallow } from 'zustand/react/shallow';
 import { toggleRecording } from '../../app/recording';
 import { session } from '../../app/session';
 import { instrumentInfo } from '../../audio/instruments';
-import { NOTE_NAMES } from '../../audio/theory';
+import { CHORD_MODES, NOTE_NAMES, type ChordMode } from '../../audio/theory';
 import { useStore } from '../../state/store';
 import type { DrawerId } from '../../state/types';
 import { instrumentIcon } from '../icons/InstrumentIcons';
-import {
-  IconChevron,
-  IconChord,
-  IconLoop,
-  IconMetronome,
-  IconMusic,
-  IconSliders,
-} from '../icons/UiIcons';
+import { IconChevron, IconLoop, IconMetronome, IconMusic, IconSliders } from '../icons/UiIcons';
 import { EFFECTS } from './effects';
-import { chordLabel, nextChord } from './logic';
 import { MoreMenu } from './MoreMenu';
 import s from './ControlBar.module.css';
+
+/** Nomes curtos para ecrãs médios (o nome completo fica no title e no aria-label). */
+const CHORD_SHORT: Record<ChordMode, string> = {
+  off: 'Nota',
+  triad: '3',
+  seventh: '7',
+  power: '5',
+};
 
 const LOOP_LABEL = {
   idle: 'Gravar loop',
@@ -88,18 +88,30 @@ export function ControlBar() {
           </span>
         )}
       </button>
-      <button
-        type="button"
-        className={`${s.chip} ${s.mid}`}
-        onClick={() => st.set({ chord: nextChord(st.chord) })}
-        data-testid="chip-chord"
-        data-active={st.chord !== 'off'}
-        aria-label={`Tocar: ${chordLabel(st.chord)}. Mudar para ${chordLabel(nextChord(st.chord))} (C)`}
-        title="Forma de tocar (C para mudar)"
+      <div
+        role="radiogroup"
+        aria-label="Forma de tocar (C para mudar)"
+        className={`${s.seg} ${s.mid}`}
+        data-testid="chord-seg"
       >
-        <IconChord />
-        <span className={s.label}>{chordLabel(st.chord)}</span>
-      </button>
+        {CHORD_MODES.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            role="radio"
+            aria-checked={st.chord === m.id}
+            aria-label={m.label}
+            title={`${m.label}: ${m.desc}`}
+            onClick={() => st.set({ chord: m.id })}
+            data-testid={`chord-${m.id}`}
+          >
+            <span className={s.segFull}>{m.label}</span>
+            <span className={s.segShort} aria-hidden>
+              {CHORD_SHORT[m.id]}
+            </span>
+          </button>
+        ))}
+      </div>
       <div className={`${s.quick} ${s.wide}`}>
         {EFFECTS.filter((e) => e.quick).map(({ id, Control }) => (
           <Control key={id} size={30} testId={`quick-${id}`} />
