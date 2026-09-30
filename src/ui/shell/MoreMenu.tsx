@@ -5,6 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from
 import { createPortal } from 'react-dom';
 import { useStore, type Prefs, type Runtime } from '../../state/store';
 import { IconMore } from '../icons/UiIcons';
+import { CHORD_MODES } from '../../audio/theory';
 import { DRAWER_IDS, DRAWER_TITLES } from './logic';
 import s from './ControlBar.module.css';
 
@@ -25,6 +26,7 @@ export function MoreMenu() {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<CSSProperties>({});
   const uiHidden = useStore((st) => st.uiHidden);
+  const chord = useStore((st) => st.chord);
   const set = useStore((st) => st.set);
   const root = useRef<HTMLDivElement>(null);
   const btn = useRef<HTMLButtonElement>(null);
@@ -102,6 +104,22 @@ export function MoreMenu() {
                 {DRAWER_TITLES[d]}
               </button>
             ))}
+            <div role="group" aria-label="Forma de tocar" className={s.menuGroup}>
+              <span aria-hidden>Tocar</span>
+              {CHORD_MODES.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={chord === m.id}
+                  tabIndex={-1}
+                  onClick={() => pick({ chord: m.id })}
+                  data-testid={`menu-chord-${m.id}`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
             <button
               type="button"
               role="menuitem"

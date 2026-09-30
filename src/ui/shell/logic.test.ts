@@ -4,7 +4,9 @@ import { INSTRUMENTS } from '../../audio/instruments';
 import {
   compositeSources,
   groupByFamily,
+  chordLabel,
   migratePrefs,
+  nextChord,
   nextInstrument,
   normalize,
   searchInstruments,
@@ -162,5 +164,18 @@ describe('compositeSources', () => {
       video: null,
       layers: ['P', 'O'],
     });
+  });
+});
+
+describe('nextChord', () => {
+  it('roda Nota → Tríade → Sétima → Quinta → Nota', () => {
+    expect(nextChord('off')).toBe('triad');
+    expect(nextChord('triad')).toBe('seventh');
+    expect(nextChord('seventh')).toBe('power');
+    expect(nextChord('power')).toBe('off');
+  });
+  it('dá o nome curto de cada modo', () => {
+    expect(chordLabel('off')).toBe('Nota');
+    expect(chordLabel('power')).toBe('Quinta');
   });
 });

@@ -7,8 +7,16 @@ import { NOTE_NAMES } from '../../audio/theory';
 import { useStore } from '../../state/store';
 import type { DrawerId } from '../../state/types';
 import { instrumentIcon } from '../icons/InstrumentIcons';
-import { IconChevron, IconLoop, IconMetronome, IconMusic, IconSliders } from '../icons/UiIcons';
+import {
+  IconChevron,
+  IconChord,
+  IconLoop,
+  IconMetronome,
+  IconMusic,
+  IconSliders,
+} from '../icons/UiIcons';
 import { EFFECTS } from './effects';
+import { chordLabel, nextChord } from './logic';
 import { MoreMenu } from './MoreMenu';
 import s from './ControlBar.module.css';
 
@@ -26,6 +34,7 @@ export function ControlBar() {
       root: x.root,
       scale: x.scale,
       custom: x.noteMode === 'custom',
+      chord: x.chord,
       bpm: x.bpm,
       metronome: x.metronome,
       recording: x.recording,
@@ -78,6 +87,18 @@ export function ControlBar() {
             <span className={s.long}> · {st.scale}</span>
           </span>
         )}
+      </button>
+      <button
+        type="button"
+        className={`${s.chip} ${s.mid}`}
+        onClick={() => st.set({ chord: nextChord(st.chord) })}
+        data-testid="chip-chord"
+        data-active={st.chord !== 'off'}
+        aria-label={`Tocar: ${chordLabel(st.chord)}. Mudar para ${chordLabel(nextChord(st.chord))} (C)`}
+        title="Forma de tocar (C para mudar)"
+      >
+        <IconChord />
+        <span className={s.label}>{chordLabel(st.chord)}</span>
       </button>
       <div className={`${s.quick} ${s.wide}`}>
         {EFFECTS.filter((e) => e.quick).map(({ id, Control }) => (

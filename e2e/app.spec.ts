@@ -342,6 +342,33 @@ test('esconder interface com I e voltar com Esc', async ({ page }) => {
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
+test('forma de tocar à mão: chip, tecla C e menu ⋯', async ({ page }) => {
+  const errors = watchConsole(page);
+  await page.goto('/?debug');
+  const chord = () =>
+    page.evaluate(
+      () =>
+        (
+          window as unknown as { __vsc: { store: { getState(): { chord: string } } } }
+        ).__vsc.store.getState().chord,
+    );
+  const chip = page.getByTestId('chip-chord');
+  await expect(chip).toContainText('Nota');
+  await chip.click();
+  await expect(chip).toContainText('Tríade');
+  await expect(chip).toHaveAttribute('data-active', 'true');
+  expect(await chord()).toBe('triad');
+  await page.locator('body').click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press('c');
+  await expect(chip).toContainText('Sétima');
+  await page.getByTestId('more').click();
+  await page.getByTestId('menu-chord-off').click();
+  await expect(chip).toContainText('Nota');
+  await expect(chip).toHaveAttribute('data-active', 'false');
+  expect(await chord()).toBe('off');
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
 test('uma gaveta de cada vez', async ({ page }) => {
   const errors = watchConsole(page);
   await page.goto('/?debug');

@@ -45,6 +45,10 @@
   outline: 2px solid var(--cyan);
   outline-offset: 2px;
 }
+.chip[data-active='true'] {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
 .chip[data-state='recording'],
 .chip[data-state='armed'] {
   border-color: var(--rec);
@@ -189,6 +193,22 @@
 .menu button:focus-visible {
   background: var(--tile-bg);
   outline: none;
+}
+.menuGroup {
+  display: grid;
+  margin: 4px 0;
+  padding: 4px 0;
+  border-block: 1px solid var(--line);
+}
+.menuGroup > span {
+  padding: 4px 12px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.menu [aria-checked='true'] {
+  color: var(--cyan);
 }
 
 /* 600–1099: sem mini-knobs e sem o nome longo da escala */

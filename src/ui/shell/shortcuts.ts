@@ -1,9 +1,10 @@
-// Atalhos da interface: I esconder, E ecrã inteiro, , e . instrumento, Esc volta a mostrar.
+// Atalhos da interface: I esconder, E ecrã inteiro, , e . instrumento, C forma de tocar,
+// Esc volta a mostrar.
 // H e F já tocam notas; [ e ] precisam de AltGr no teclado português.
 import { isTypingTarget } from '../../lib/keys';
 import { getState } from '../../state/store';
 import { toggleFullscreen } from './fullscreen';
-import { nextInstrument } from './logic';
+import { nextChord, nextInstrument } from './logic';
 
 export function installShortcuts(): () => void {
   const down = (e: KeyboardEvent) => {
@@ -18,6 +19,7 @@ export function installShortcuts(): () => void {
     else if (k === 'e') toggleFullscreen();
     else if (k === ',' || k === '.')
       st.set({ instrument: nextInstrument(st.instrument, k === '.' ? 1 : -1, st.familyFilter) });
+    else if (k === 'c') st.set({ chord: nextChord(st.chord) });
     else if (k === 'escape' && st.uiHidden && !st.drawer) st.set({ uiHidden: false });
     else return;
     e.preventDefault();

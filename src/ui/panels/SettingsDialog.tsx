@@ -316,6 +316,10 @@ export function SettingsDialog() {
             </dt>
             <dd>Instrumento anterior / seguinte</dd>
             <dt>
+              <kbd>C</kbd>
+            </dt>
+            <dd>Forma de tocar: nota, tríade, sétima ou quinta</dd>
+            <dt>
               <kbd>I</kbd>
             </dt>
             <dd>Esconder / mostrar a interface</dd>
