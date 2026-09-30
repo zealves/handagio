@@ -342,9 +342,21 @@ test('esconder interface com I e voltar com Esc', async ({ page }) => {
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
-test('forma de tocar à mão: seletor na barra, tecla C e menu ⋯', async ({ page }) => {
+type Box = { x: number; y: number; width: number; height: number };
+const overlaps = (a: Box, b: Box) =>
+  a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+
+/** Liga o palco sem câmara (o ecrã inicial sai e o HUD aparece). */
+function markStarted(page: Page) {
+  return page.evaluate(() =>
+    (window as unknown as { __vsc: Vsc }).__vsc.store.getState().set({ started: true }),
+  );
+}
+
+test('forma de tocar: coluna à esquerda do palco, dica, tecla C e menu ⋯', async ({ page }) => {
   const errors = watchConsole(page);
   await page.goto('/?debug');
+  await markStarted(page);
   const chord = () =>
     page.evaluate(
       () =>
@@ -354,25 +366,109 @@ test('forma de tocar à mão: seletor na barra, tecla C e menu ⋯', async ({ pa
     );
   const checked = (id: string) =>
     expect(page.getByTestId(`chord-${id}`)).toHaveAttribute('aria-checked', 'true');
-  // as 4 opções estão à vista e escolhem-se diretamente
-  for (const id of ['off', 'triad', 'seventh', 'power'])
-    await expect(page.getByTestId(`chord-${id}`)).toBeVisible();
+  const column = page.getByRole('radiogroup', { name: 'Cada dedo toca' });
+  await expect(column).toBeVisible();
+  await expect(column).toContainText('Cada dedo toca…');
+  // as 4 opções estão à vista, da mais simples à mais rica
+  await expect(column.getByRole('radio')).toHaveText(['Uma nota', 'Quinta', 'Acorde', 'Sétima']);
+  // à esquerda do palco, sem tapar a barra nem os chips do HUD
+  const stage = (await page.getByTestId('stage').boundingBox())!;
+  const col = (await column.boundingBox())!;
+  expect(col.x).toBeGreaterThanOrEqual(stage.x);
+  expect(col.x).toBeLessThan(stage.x + stage.width * 0.2);
+  expect(overlaps(col, (await page.getByTestId('control-bar').boundingBox())!)).toBe(false);
+  for (const chip of await page.getByTestId('hud').locator('span').all())
+    expect(overlaps(col, (await chip.boundingBox())!)).toBe(false);
+  // alvos de toque com pelo menos 36 px de altura
+  expect((await page.getByTestId('chord-power').boundingBox())!.height).toBeGreaterThanOrEqual(36);
   await checked('off');
   await page.getByTestId('chord-power').click();
   await checked('power');
   expect(await chord()).toBe('power');
-  await page.getByTestId('chord-triad').click();
-  expect(await chord()).toBe('triad');
+  // a explicação aparece numa dica ao passar o rato
+  await page.getByTestId('chord-seventh').hover();
+  const tip = page.getByRole('tooltip');
+  await expect(tip).toBeVisible();
+  await expect(tip).toContainText('4 notas');
+  await expect(page.getByTestId('chord-seventh')).toHaveAccessibleDescription(/4 notas/);
+  await page.mouse.move(700, 300);
+  await expect(tip).toHaveCount(0);
+  // teclado: a opção escolhida é a única no Tab; as setas mudam de opção
+  await page.getByTestId('chord-power').blur();
+  await page.keyboard.press('Shift'); // o foco que se segue conta como de teclado
+  await page.getByTestId('chord-power').focus();
+  await expect(tip).toContainText('power chord');
+  await page.keyboard.press('ArrowDown');
+  await checked('triad');
+  await expect(page.getByTestId('chord-triad')).toBeFocused();
+  await expect(page.getByTestId('chord-power')).toHaveAttribute('tabindex', '-1');
   // C passa ao seguinte
   await page.locator('body').click({ position: { x: 5, y: 5 } });
   await page.keyboard.press('c');
   await checked('seventh');
-  // e no menu ⋯
-  await page.getByTestId('more').click();
-  await page.getByTestId('menu-chord-off').click();
+  await page.keyboard.press('c');
   await checked('off');
-  expect(await chord()).toBe('off');
+  // e no menu ⋯, com o mesmo título
+  await page.getByTestId('more').click();
+  await expect(page.getByRole('group', { name: 'Cada dedo toca' })).toBeVisible();
+  await page.getByTestId('menu-chord-power').click();
+  await checked('power');
+  expect(await chord()).toBe('power');
+  // a coluna esconde-se com a interface
+  await page.locator('body').click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press('i');
+  await expect(page.getByTestId('chord-slot')).toHaveCSS('visibility', 'hidden');
   expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('forma de tocar no telemóvel: sem coluna, no menu ⋯', async ({ page }) => {
+  const errors = watchConsole(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/?debug');
+  await markStarted(page);
+  await expect(page.getByTestId('chord-column')).toBeHidden();
+  await page.getByTestId('more').click();
+  for (const id of ['off', 'power', 'triad', 'seventh'])
+    await expect(page.getByTestId(`menu-chord-${id}`)).toBeVisible();
+  await page.getByTestId('menu-chord-triad').click();
+  await expect(page.getByTestId('chord-triad')).toHaveAttribute('aria-checked', 'true');
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('forma de tocar em paisagem baixa: coluna compacta, dentro do ecrã', async ({ page }) => {
+  const errors = watchConsole(page);
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.goto('/?debug');
+  await markStarted(page);
+  const column = page.getByTestId('chord-column');
+  await expect(column).toBeVisible();
+  await expect(column).toBeInViewport({ ratio: 1 });
+  const col = (await column.boundingBox())!;
+  expect(overlaps(col, (await page.getByTestId('control-bar').boundingBox())!)).toBe(false);
+  for (const chip of await page.getByTestId('hud').locator('span').all())
+    expect(overlaps(col, (await chip.boundingBox())!)).toBe(false);
+  // só os desenhos: o rótulo passa para a dica
+  await expect(page.getByTestId('chord-power').getByText('Quinta')).toBeHidden();
+  await page.getByTestId('chord-power').hover();
+  await expect(page.getByRole('tooltip')).toContainText('Quinta');
+  await page.getByTestId('chord-power').click();
+  await expect(page.getByTestId('chord-power')).toHaveAttribute('aria-checked', 'true');
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test.describe('ecrã tátil', () => {
+  test.use({ hasTouch: true, viewport: { width: 1024, height: 768 } });
+  test('forma de tocar: a explicação aparece por um instante ao escolher', async ({ page }) => {
+    const errors = watchConsole(page);
+    await page.goto('/?debug');
+    await markStarted(page);
+    await page.getByTestId('chord-seventh').tap();
+    await expect(page.getByTestId('chord-seventh')).toHaveAttribute('aria-checked', 'true');
+    const tip = page.getByRole('tooltip');
+    await expect(tip).toContainText('4 notas');
+    await expect(tip).toHaveCount(0, { timeout: 4000 });
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
 });
 
 test('uma gaveta de cada vez', async ({ page }) => {
