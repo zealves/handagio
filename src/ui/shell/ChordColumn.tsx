@@ -5,6 +5,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { CHORD_MODES, type ChordMode } from '../../audio/theory';
 import { useStore } from '../../state/store';
 import { ChordGlyph } from './ChordGlyph';
+import { keyTarget } from './logic';
 import s from './ChordColumn.module.css';
 
 const HOVER_DELAY = 300;
@@ -34,14 +35,15 @@ export function ChordColumn() {
     setTip(null);
   };
 
-  // radiogroup: as setas mudam de opção e escolhem-na (o Espaço fica para a boca, decisão 14)
+  // radiogroup: ↓/→ passam à seguinte e ↑/← à anterior (também na grelha compacta de 2×4, pela
+  // ordem de leitura), Home/End à primeira e à última; escolhem-na logo (o Espaço fica para a boca,
+  // decisão 14)
   const onKey = (e: KeyboardEvent) => {
-    const step = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
-    if (!step) return;
-    e.preventDefault();
     const n = CHORD_MODES.length;
     const k = CHORD_MODES.findIndex((m) => m.id === chord);
-    const next = (k + step + n) % n;
+    const next = keyTarget(e.key, k, n);
+    if (next === null) return;
+    e.preventDefault();
     set({ chord: CHORD_MODES[next].id });
     refs.current[next]?.focus();
   };

@@ -41,6 +41,19 @@ export function nextChord(c: ChordMode): ChordMode {
   return CHORD_MODES[(k + 1) % CHORD_MODES.length].id;
 }
 
+/** Opção de destino de uma tecla num radiogroup (↓/→ seguinte, ↑/← anterior, Home, End) (ou `null` se a tecla não mexe na escolha). */
+export function keyTarget(key: string, k: number, n: number): number | null {
+  if (key === 'Home') return 0;
+  if (key === 'End') return n - 1;
+  const step =
+    key === 'ArrowDown' || key === 'ArrowRight'
+      ? 1
+      : key === 'ArrowUp' || key === 'ArrowLeft'
+        ? -1
+        : 0;
+  return step ? (k + step + n) % n : null;
+}
+
 export function nextInstrument(id: string, dir: 1 | -1, filter = 'Todos'): string {
   const list = filterByFamily(filter);
   if (!list.length) return id;

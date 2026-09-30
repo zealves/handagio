@@ -5,6 +5,7 @@ import {
   compositeSources,
   groupByFamily,
   migratePrefs,
+  keyTarget,
   nextChord,
   sanitizePrefs,
   nextInstrument,
@@ -190,5 +191,19 @@ describe('sanitizePrefs', () => {
     expect(sanitizePrefs({ chord: 'eleventh', bpm: 90 })).toEqual({ chord: 'off', bpm: 90 });
     expect(sanitizePrefs({ chord: 'arp' })).toEqual({ chord: 'arp' });
     expect(sanitizePrefs({ bpm: 90 })).toEqual({ bpm: 90 });
+  });
+});
+
+describe('keyTarget', () => {
+  it('setas nos dois eixos, com volta, e Home/End', () => {
+    expect(keyTarget('ArrowDown', 0, 8)).toBe(1);
+    expect(keyTarget('ArrowRight', 0, 8)).toBe(1);
+    expect(keyTarget('ArrowUp', 0, 8)).toBe(7);
+    expect(keyTarget('ArrowLeft', 3, 8)).toBe(2);
+    expect(keyTarget('ArrowRight', 7, 8)).toBe(0);
+    expect(keyTarget('Home', 5, 8)).toBe(0);
+    expect(keyTarget('End', 2, 8)).toBe(7);
+    expect(keyTarget('Enter', 2, 8)).toBeNull();
+    expect(keyTarget(' ', 2, 8)).toBeNull();
   });
 });
