@@ -44,6 +44,19 @@ const TONIC_AT: { id: TonicAt; label: string }[] = [
   { id: 'right-index', label: 'Indicador direito' },
 ];
 
+/** Explicação de cada forma de tocar no modo Personalizado (sem escala, meios-tons fixos). */
+const CUSTOM_CHORD_HINT: Record<Exclude<ChordMode, 'off'>, string> = {
+  octave: 'A Oitava junta à nota do dedo a mesma nota 12 meios-tons acima.',
+  power: 'A Quinta junta à nota do dedo a quinta (7 meios-tons acima) e a oitava (12 acima).',
+  triad:
+    'Sem escala, o Acorde é sempre maior: a nota do dedo e as que ficam 4 e 7 meios-tons acima.',
+  sus4: 'O Suspenso junta à nota do dedo as que ficam 5 e 7 meios-tons acima.',
+  seventh:
+    'Sem escala, a Sétima é sempre um acorde maior com sétima: a nota do dedo e as que ficam 4, 7 e 10 meios-tons acima.',
+  ninth:
+    'Sem escala, a Nona junta à Sétima a nona: a nota do dedo e as que ficam 4, 7, 10 e 14 meios-tons acima.',
+};
+
 export function ScalePanel() {
   const st = useStore(
     useShallow((x) => ({
@@ -75,7 +88,7 @@ export function ScalePanel() {
   const custom = st.noteMode === 'custom';
   const order = activeScreenOrder(st.thumbs);
   const notesOf = (i: number) => fingerChordOf(i, 0, st);
-  const label = (ms: number[]) => (ms.length > 1 ? chordName(ms) : noteName(ms[0]));
+  const label = (ms: number[]) => (ms.length > 1 ? chordName(ms, st.chord) : noteName(ms[0]));
   const editingActive = custom && !drum && editing !== null && order.includes(editing);
 
   const closeEditor = () => {
@@ -205,15 +218,7 @@ export function ScalePanel() {
           ))}
         </div>
       </div>
-      {custom && st.chord !== 'off' && (
-        <p className={s.hint}>
-          {st.chord === 'power'
-            ? 'A Quinta junta à nota do dedo a quinta (7 meios-tons acima) e a oitava (12 acima).'
-            : st.chord === 'seventh'
-              ? 'Sem escala, a Sétima é sempre um acorde maior com sétima: a nota do dedo e as que ficam 4, 7 e 10 meios-tons acima.'
-              : 'Sem escala, o Acorde é sempre maior: a nota do dedo e as que ficam 4 e 7 meios-tons acima.'}
-        </p>
-      )}
+      {custom && st.chord !== 'off' && <p className={s.hint}>{CUSTOM_CHORD_HINT[st.chord]}</p>}
 
       {!custom && (
         <>

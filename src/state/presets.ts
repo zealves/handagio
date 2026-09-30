@@ -1,5 +1,6 @@
 // Predefinições: 4 de fábrica e as do utilizador (guardadas em localStorage com as preferências).
 import { normalizeCustomNotes } from '../app/notes';
+import { validChord } from '../audio/theory';
 import { DEFAULT_SOUND, type SoundSettings } from './store';
 
 export const FACTORY_PRESETS: Record<string, SoundSettings> = {
@@ -75,4 +76,5 @@ export const completePreset = (p: Partial<SoundSettings>): SoundSettings => ({
   ...DEFAULT_SOUND,
   ...p,
   customNotes: normalizeCustomNotes(p.customNotes),
+  chord: validChord(p.chord ?? DEFAULT_SOUND.chord),
 });

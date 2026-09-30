@@ -27,7 +27,7 @@
   align-items: center;
   gap: 8px;
   width: 100%;
-  min-height: 38px;
+  min-height: 36px;
   padding: 0 8px;
   border: 0;
   border-radius: 8px;
@@ -111,9 +111,11 @@
   }
 }
 
-/* Sem altura para os rótulos (o App dá à coluna o espaço livre como contentor): só desenhos. */
-@container chords (max-height: 199px) {
+/* Sem altura para os rótulos (o App dá à coluna o espaço livre como contentor; com os 8 modos
+   e os rótulos a coluna tem ~340 px): só desenhos, em duas colunas de 4. */
+@container chords (max-height: 343px) {
   .col {
+    grid-template-columns: repeat(2, 40px);
     padding: 6px;
   }
   .title,
@@ -125,6 +127,10 @@
     width: 40px;
     min-height: 36px;
     padding: 0;
+  }
+  /* a dica da coluna da esquerda passa por cima da da direita (40 px + o intervalo de 2) */
+  .item:nth-of-type(odd) .tip {
+    left: calc(200% + 14px);
   }
   .tipLabel {
     display: inline;

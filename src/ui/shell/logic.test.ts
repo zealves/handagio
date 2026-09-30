@@ -6,6 +6,7 @@ import {
   groupByFamily,
   migratePrefs,
   nextChord,
+  sanitizePrefs,
   nextInstrument,
   normalize,
   searchInstruments,
@@ -167,10 +168,17 @@ describe('compositeSources', () => {
 });
 
 describe('nextChord', () => {
-  it('roda Uma nota → Quinta → Acorde → Sétima → Uma nota', () => {
-    expect(nextChord('off')).toBe('power');
-    expect(nextChord('power')).toBe('triad');
-    expect(nextChord('triad')).toBe('seventh');
-    expect(nextChord('seventh')).toBe('off');
+  it('roda pelas 7 formas, da mais simples à mais rica, e volta a Uma nota', () => {
+    const seen = ['off'];
+    for (let k = 0; k < 7; k++) seen.push(nextChord(seen[k] as Parameters<typeof nextChord>[0]));
+    expect(seen).toEqual(['off', 'octave', 'power', 'triad', 'sus4', 'seventh', 'ninth', 'off']);
+  });
+});
+
+describe('sanitizePrefs', () => {
+  it('forma de tocar desconhecida passa a Uma nota; as outras ficam', () => {
+    expect(sanitizePrefs({ chord: 'eleventh', bpm: 90 })).toEqual({ chord: 'off', bpm: 90 });
+    expect(sanitizePrefs({ chord: 'ninth' })).toEqual({ chord: 'ninth' });
+    expect(sanitizePrefs({ bpm: 90 })).toEqual({ bpm: 90 });
   });
 });

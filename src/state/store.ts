@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ChordMode, ScaleName } from '../audio/theory';
 import { DEFAULT_CUSTOM_NOTES, type NoteMode } from '../app/notes';
-import { migratePrefs } from '../ui/shell/logic';
+import { migratePrefs, sanitizePrefs } from '../ui/shell/logic';
 import type { TonicAt } from '../vision/fingerMap';
 import type { RecordingMeta } from './recordingsDb';
 import type {
@@ -154,6 +154,10 @@ export const useStore = create<Store>()(
       name: 'vision-sound-cam:prefs',
       version: 7,
       migrate: (old, version) => migratePrefs(old, version) as unknown as Store,
+      merge: (persisted, current) => ({
+        ...current,
+        ...sanitizePrefs((persisted ?? {}) as Record<string, unknown>),
+      }),
       partialize: (s) => Object.fromEntries(PREF_KEYS.map((k) => [k, s[k]])) as Partial<Store>,
     },
   ),

@@ -39,6 +39,8 @@ const KEY_CONT_LEVEL = Math.sqrt(0.16 / 0.18);
 const fingerPan = (i: number) => (i - 4.5) / 6;
 /** Chave da voz: o dedo (nota única ou fundamental) ou `dedo:k` para as outras notas do acorde. */
 const voiceKey = (i: number, k: number): number | string => (k ? `${i}:${k}` : i);
+/** Nos acordes, as vozes extra soam mais baixo para não saturar; na Nona (5 vozes) ainda mais. */
+const extraVoiceGain = (n: number): number => (n >= 5 ? 0.55 : 0.7);
 
 class Session {
   video: HTMLVideoElement | null = null;
@@ -167,15 +169,15 @@ class Session {
     const midis = fingerChordOf(i, shift, s);
     const midi = midis[0];
     fx.midi = midi;
-    fx.label = midis.length > 1 ? chordName(midis) : noteName(midi);
+    fx.label = midis.length > 1 ? chordName(midis, s.chord) : noteName(midi);
     this.releaseFingerNote(i);
     this.fingerNote[i] = midis;
-    // nos acordes, as vozes extra soam um pouco mais baixo para não saturar
+    const extra = extraVoiceGain(midis.length);
     midis.forEach((m, k) =>
       this.playNote(
         voiceKey(i, k),
         m,
-        velocity * (k ? 0.7 : 1),
+        velocity * (k ? extra : 1),
         fingerPan(i),
         FINGER_COLORS[i],
         info.sustain,

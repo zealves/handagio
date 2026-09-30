@@ -27,6 +27,11 @@ describe('presets', () => {
   it('completa presets antigos', () => {
     expect(completePreset({ instrument: 'pad' })).toEqual({ ...DEFAULT_SOUND, instrument: 'pad' });
   });
+  it('preset com uma forma de tocar desconhecida volta a Uma nota', () => {
+    const p = { chord: 'eleventh' } as unknown as Partial<typeof DEFAULT_SOUND>;
+    expect(completePreset(p).chord).toBe('off');
+    expect(completePreset({ chord: 'ninth' }).chord).toBe('ninth');
+  });
   it('as notas dos dedos entram nos presets', () => {
     const notes = [60, 61, 62, 63, 64, 65, 66, 67, 68, 69];
     const s = pickSound({

@@ -3,7 +3,7 @@
 import { DEFAULT_CUSTOM_NOTES, LEGACY_CUSTOM_NOTES, normalizeCustomNotes } from '../../app/notes';
 import { INSTRUMENTS, type InstrumentInfo } from '../../audio/instruments';
 import { FAMILIES, type Family } from '../../audio/patches/types';
-import { CHORD_MODES, type ChordMode } from '../../audio/theory';
+import { CHORD_MODES, validChord, type ChordMode } from '../../audio/theory';
 import type { DrawerId } from '../../state/types';
 
 export const normalize = (s: string): string =>
@@ -113,6 +113,15 @@ export function migratePrefs(old: unknown, version: number): Record<string, unkn
   // v7: sem a lista de instrumentos recentes.
   if (version < 7) delete o.recentInstruments;
   return o;
+}
+
+/**
+ * Validação das preferências guardadas a cada arranque (a migração só corre quando a versão
+ * muda): uma forma de tocar desconhecida (de outra versão da app) passa a "Uma nota".
+ */
+export function sanitizePrefs<T extends Record<string, unknown>>(p: T): T {
+  if (!('chord' in p)) return p;
+  return { ...p, chord: validChord(p.chord) };
 }
 
 /** O que entra no vídeo gravado: nunca a imagem da câmara, só as partículas e as mãos. */
