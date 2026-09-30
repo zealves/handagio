@@ -9,6 +9,7 @@ import {
   DRAG_SEMITONES,
   dragSemitones,
   EARLY_FRACTION,
+  EARLY_MIN_RISES,
   EARLY_VEL,
   FINGER_ON_DISCOUNT,
   GestureEngine,
@@ -415,18 +416,37 @@ describe('gestureEngine', () => {
       expect(fireFrame(4, 0.45, 200, 20)).not.toBeNull();
     });
 
-    it('disparo antecipado: uma dobra rápida toca ao 2.º fotograma, antes de passar o on', () => {
-      expect(fireFrame(1, 0.9, 150, 30)).toBe(2);
-      expect(fireFrame(1, 0.9, 150, 20)).toBe(2);
+    it(`disparo antecipado: ${EARLY_MIN_RISES} fotogramas a subir, antes de passar o on`, () => {
+      // dobra rápida (150 ms): toca ao 3.º fotograma, como a v2.1 (o antecipado não ganha aqui)
+      expect(fireFrame(1, 0.9, 150, 30)).toBe(3);
+      expect(fireFrame(1, 0.9, 150, 20)).toBe(3);
+      // dobra média (300 ms): a v2.1 tocava ao 6.º (30 fps) e ao 4.º (20 fps)
+      expect(fireFrame(1, 0.9, 300, 30)).toBe(5);
+      expect(fireFrame(1, 0.9, 300, 20)).toBe(3);
       // no fotograma do disparo a dobra suavizada ainda não chegou ao limiar
       const g = new GestureEngine();
       let at = -1;
       g.on('noteOn', () => (at = g.fingers[1].curl));
-      for (let k = 0; k < 5; k++) g.process(handWith([0, 0, 0, 0, 0]), 1 / 30, opts);
-      for (const v of [0.114, 0.375]) g.process(handWith([0, v, 0, 0, 0]), 1 / 30, opts);
-      expect(at).toBeGreaterThan(0);
+      for (let k = 0; k < 10; k++) g.process(handWith([0, 0, 0, 0, 0]), 1 / 30, opts);
+      for (let k = 1; k <= 10 && at < 0; k++)
+        g.process(handWith([0, 0.9 * smooth(Math.min(1, k / 9)), 0, 0, 0]), 1 / 30, opts);
+      expect(g.lastTrigger[1]).toBe('early');
       expect(at).toBeLessThan(thresholds(1, 0.55).on);
-      expect(g.fingers[1].raw).toBeGreaterThanOrEqual(thresholds(1, 0.55).full * EARLY_FRACTION);
+    });
+
+    it('salto de 2 fotogramas da deteção até 0.55 não toca (como na v2.1)', () => {
+      for (const j of [1, 4]) {
+        const g = new GestureEngine();
+        const ev = record(g);
+        const at = (v: number) => {
+          const c = [0, 0.15, 0.1, 0.1, 0.1];
+          c[j] = v;
+          g.process(handWith(c), 1 / 30, opts);
+        };
+        for (let k = 0; k < 30; k++) at(0.15);
+        for (const v of [0.35, 0.55, 0.15, 0.15, 0.15]) at(v);
+        expect(ev).toEqual([]);
+      }
     });
 
     it('sem disparo antecipado com um salto isolado ou um tremor abaixo do nível', () => {
@@ -557,17 +577,94 @@ describe('gestureEngine', () => {
       }
     });
 
-    it('regras de disparo: antecipado no dedo rápido, desconto no mindinho fraco', () => {
+    it('regras de disparo: a da v2.1 na dobra forte, as novas no mindinho fraco', () => {
       const g = new GestureEngine();
       for (let k = 0; k < 10; k++) g.process(handWith([0, 0, 0, 0, 0]), 1 / 30, opts);
-      for (const v of [0.114, 0.375]) g.process(handWith([0, v, 0, 0, 0]), 1 / 30, opts);
+      for (const v of [0.114, 0.375, 0.667]) g.process(handWith([0, v, 0, 0, 0]), 1 / 30, opts);
       expect(g.fingers[1].down).toBe(true);
-      expect(g.lastTrigger[1]).toBe('early');
+      expect(g.lastTrigger[1]).toBe('full');
       const g2 = new GestureEngine();
       for (let k = 0; k < 10; k++) g2.process(handWith([0, 0, 0, 0, 0]), 1 / 30, opts);
       for (let k = 1; k <= 8 && !g2.fingers[4].down; k++)
         g2.process(handWith([0, 0, 0, 0, 0.45 * smooth(Math.min(1, k / 6))]), 1 / 30, opts);
-      expect(g2.lastTrigger[4]).toBe('discount');
+      expect(g2.fingers[4].down).toBe(true);
+      expect(g2.lastTrigger[4]).not.toBe('full');
+    });
+
+    it('mindinho fraco a partir de um repouso meio dobrado (0.10, 0.15) toca', () => {
+      for (const rest of [0.1, 0.15]) {
+        const g = new GestureEngine();
+        const ev = record(g);
+        const at = (v: number) => g.process(handWith([0, rest, rest, rest, v]), 1 / 30, opts);
+        for (let k = 0; k < 30; k++) at(rest);
+        for (let r = 0; r < 10; r++) {
+          for (let k = 1; k <= 6; k++) at(rest + (0.45 - rest) * smooth(Math.min(1, k / 5)));
+          for (let k = 1; k <= 5; k++) at(0.45 - (0.45 - rest) * smooth(Math.min(1, k / 4)));
+          for (let k = 0; k < 15; k++) at(rest);
+        }
+        expect(ev.filter((e) => e === 'on4').length, `repouso ${rest}`).toBeGreaterThanOrEqual(9);
+      }
+    });
+
+    it('frase no anelar com o mindinho arrastado a 40%: a dobra fraca do mindinho toca', () => {
+      for (const pause of [3, 9, 18]) {
+        const g = new GestureEngine();
+        const ev = record(g);
+        const at = (ring: number, p: number) =>
+          g.process(handWith([0, 0, 0, ring, p]), 1 / 30, opts);
+        for (let k = 0; k < 30; k++) at(0, 0);
+        for (let n = 0; n < 3; n++)
+          for (let k = 1; k <= 18; k++) {
+            const t =
+              k <= 6
+                ? smooth(Math.min(1, k / 5))
+                : k <= 9
+                  ? 1
+                  : 1 - smooth(Math.min(1, (k - 9) / 5));
+            at(0.8 * t, 0.32 * t);
+          }
+        expect(ev.filter((e) => e === 'on4')).toEqual([]);
+        for (let k = 0; k < pause; k++) at(0, 0);
+        for (let k = 1; k <= 12; k++) at(0, 0.45 * smooth(Math.min(1, k / 5)));
+        expect(
+          ev.filter((e) => e === 'on4'),
+          `pausa ${pause}`,
+        ).toHaveLength(1);
+      }
+    });
+
+    it('tentativas falhadas e ruído forte não prendem o tremor em cima', () => {
+      const g = new GestureEngine();
+      const ev = record(g);
+      const r = rng(5);
+      // 60 s de deteção muito tremida, depois 20 tentativas que não chegam a tocar (até 0.3)
+      for (let k = 0; k < 1800; k++) {
+        const n = () => 0.15 + gauss(r) * 0.2;
+        g.process(handWith([0, n(), n(), n(), n()]), 1 / 30, opts);
+      }
+      for (let q = 0; q < 20; q++)
+        for (let k = 1; k <= 15; k++)
+          g.process(
+            handWith([0, 0.1, 0.1, 0.1, 0.1 + 0.2 * Math.sin((Math.PI * k) / 15)]),
+            1 / 30,
+            opts,
+          );
+      ev.length = 0;
+      // limpo outra vez: a dobra fraca do mindinho volta a tocar em poucos segundos
+      let hits = 0;
+      for (let q = 0; q < 4; q++) {
+        for (let k = 0; k < 30; k++) g.process(handWith([0, 0.1, 0.1, 0.1, 0.1]), 1 / 30, opts);
+        const b = ev.length;
+        for (let k = 1; k <= 12; k++)
+          g.process(
+            handWith([0, 0.1, 0.1, 0.1, 0.1 + 0.35 * smooth(Math.min(1, k / 6))]),
+            1 / 30,
+            opts,
+          );
+        for (let k = 0; k < 8; k++) g.process(handWith([0, 0.1, 0.1, 0.1, 0.1]), 1 / 30, opts);
+        if (ev.slice(b).includes('on4')) hits++;
+      }
+      expect(hits).toBeGreaterThanOrEqual(3);
     });
 
     it('dobras fracas repetidas do mindinho tocam todas (o tremor não sobe com o tocar)', () => {

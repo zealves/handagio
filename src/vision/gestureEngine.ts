@@ -142,16 +142,43 @@ export const DISCOUNT_MIN_SLOPE = 1.5;
  */
 export const DISCOUNT_MIN_RISES = 3;
 /**
- * Tremor de cada dedo: desvio-padrão da dobra crua à volta de uma média lenta (constante de tempo
- * `JITTER_TAU_S`), medido com o dedo solto, sem estar a subir e só `JITTER_HOLD_S` depois de
- * soltar a nota (o dedo a esticar depois de tocar não é tremor). O disparo antecipado e o disparo
- * só pelo desconto exigem uma subida de pelo menos `JITTER_K` × esse tremor: com uma deteção
- * muito tremida, só fica o disparo da v2.1. Começa em `JITTER_START`.
+ * Repouso de cada dedo: o mínimo da dobra crua no último `REST_WINDOW_S`. O disparo antecipado e
+ * o disparo só pelo desconto pedem que o dedo suba desde a linha de base o que falta do seu
+ * repouso até ao nível (e nunca menos de `RISE_MIN`): um mindinho que repousa a 0.10 não tem de
+ * subir como se repousasse a 0.
  */
-export const JITTER_TAU_S = 1;
-export const JITTER_K = 8;
+export const REST_WINDOW_S = 1;
+export const RISE_MIN = 0.12;
+/**
+ * Disparo antecipado: fotogramas seguidos com a dobra crua a subir. Com 2, um salto de dois
+ * fotogramas da deteção (oclusão) até 0.55 tocava, e a v2.1 não; com 3 fica igual à v2.1.
+ */
+export const EARLY_MIN_RISES = 3;
+/**
+ * Tremor de cada dedo, robusto: a dispersão da parte de baixo das dobras cruas dos últimos
+ * `JITTER_WINDOW` fotogramas com o dedo solto (`JITTER_LO_PCT`..`JITTER_HI_PCT`), convertida em
+ * desvio-padrão para ruído gaussiano. Um movimento (uma dobra que não tocou, um vizinho a arrastar
+ * o dedo) só junta valores altos e quase não mexe na parte de baixo; o valor não se alimenta de si próprio e não
+ * fica preso. Não conta com o dedo em baixo nem `JITTER_HOLD_S` depois de soltar (o dedo a
+ * esticar). Nunca passa de `JITTER_MAX`; até haver `JITTER_MIN_SAMPLES` vale `JITTER_START`. O
+ * disparo antecipado e o disparo só pelo desconto exigem uma subida de pelo menos `JITTER_K` ×
+ * esse tremor: com uma deteção muito tremida, só fica o disparo da v2.1.
+ */
+export const JITTER_WINDOW = 60;
+export const JITTER_K = 14;
 export const JITTER_START = 0.03;
+export const JITTER_MIN_SAMPLES = 15;
 export const JITTER_HOLD_S = 0.4;
+export const JITTER_MAX = 0.035;
+/**
+ * Percentis da parte de baixo das dobras usados para o tremor, e a distância entre eles numa
+ * normal (em desvios-padrão): P30 − P5 = 1.121 σ. Só a parte de baixo, porque os movimentos
+ * (dobras, vizinhos a arrastar o dedo) só juntam valores altos; aguenta até ~70% da janela com
+ * movimento.
+ */
+export const JITTER_LO_PCT = 0.05;
+export const JITTER_HI_PCT = 0.3;
+const JITTER_SPREAD = 1.121;
 /** Fotogramas de uma mão ignorados pela aprendizagem depois de trocar de lado. */
 export const LEARN_SKIP_AFTER_SWAP = 10;
 /** Período refratário (s) depois de um noteOff: o tremor ao esticar não volta a disparar. */
@@ -370,11 +397,15 @@ export class GestureEngine extends Emitter<GestureEvents> {
   /** Fotogramas seguidos com a dobra crua a subir, e a dobra crua antes de começar a subir. */
   private rises = new Array<number>(10).fill(0);
   private runStart = new Array<number>(10).fill(0);
-  /** Tremor de cada dedo (ver `JITTER_TAU_S`): média lenta e variância da dobra crua. */
-  private jMean = new Array<number>(10).fill(0);
-  private jVar = new Array<number>(10).fill(JITTER_START ** 2);
-  /** Segundos desde a última nota solta de cada dedo. */
+  /** Tremor de cada dedo (ver `JITTER_WINDOW`): dobras cruas recentes e o desvio estimado. */
+  private jDelta = Array.from({ length: 10 }, () => new Float32Array(JITTER_WINDOW));
+  private jCount = new Array<number>(10).fill(0);
+  private jPos = new Array<number>(10).fill(0);
+  private jSd = new Array<number>(10).fill(JITTER_START);
+  /** Segundos desde a última nota ou subida clara de cada dedo (ver `JITTER_HOLD_S`). */
   private sinceOff = new Array<number>(10).fill(Infinity);
+  /** Repouso de cada dedo (ver `REST_WINDOW_S`). */
+  private slowRest = new Array<number>(10).fill(0);
   /** Dobra e velocidade com a suavização da v2.1 (ver `THUMB_CURL_SMOOTH_PREV`). */
   private slowCurl = new Array<number>(10).fill(0);
   private slowVel = new Array<number>(10).fill(0);
@@ -476,8 +507,10 @@ export class GestureEngine extends Emitter<GestureEvents> {
           this.slowCurl[i] = raw;
           this.slowVel[i] = 0;
           this.rises[i] = 0;
-          this.jMean[i] = raw;
-          this.jVar[i] = JITTER_START ** 2;
+          this.jCount[i] = 0;
+          this.jPos[i] = 0;
+          this.jSd[i] = JITTER_START;
+          this.slowRest[i] = raw;
           continue;
         }
         if (j === 0) {
@@ -505,19 +538,22 @@ export class GestureEngine extends Emitter<GestureEvents> {
         hv.push(f.raw);
         ha.push(0);
         for (let k = 0; k < ha.length; k++) ha[k] += dt;
-        while (ha.length > 1 && ha[0] > BASELINE_S + 1e-9) {
+        while (ha.length > 1 && ha[0] > REST_WINDOW_S + 1e-9) {
           ha.shift();
           hv.shift();
         }
-        // a subida conta desde o mais alto de: o mínimo da janela e o início da subida atual
-        // tremor: só com o dedo solto e sem estar a subir (uma dobra não conta como tremor)
-        this.sinceOff[i] = f.down ? 0 : this.sinceOff[i] + dt;
-        if (j > 0 && !f.down && f.rawVel <= 0 && this.sinceOff[i] >= JITTER_HOLD_S) {
-          const a = 1 - Math.exp(-dt / JITTER_TAU_S);
-          this.jMean[i] += (raw - this.jMean[i]) * a;
-          this.jVar[i] += ((raw - this.jMean[i]) ** 2 - this.jVar[i]) * a;
+        let near = Infinity;
+        let all = Infinity;
+        for (let k = 0; k < hv.length; k++) {
+          all = Math.min(all, hv[k]);
+          if (ha[k] <= BASELINE_S + 1e-9) near = Math.min(near, hv[k]);
         }
-        this.base[i] = Math.max(Math.min(...hv), j > 0 && this.rises[i] > 0 ? this.runStart[i] : 0);
+        this.slowRest[i] = all;
+        // tremor: só com o dedo solto e longe de uma nota
+        this.sinceOff[i] = f.down ? 0 : this.sinceOff[i] + dt;
+        if (j > 0 && this.sinceOff[i] >= JITTER_HOLD_S) this.sampleJitter(i, raw);
+        // a subida conta desde o mais alto de: o mínimo recente e o início da subida atual
+        this.base[i] = Math.max(near, j > 0 && this.rises[i] > 0 ? this.runStart[i] : 0);
         f.raw = raw;
       }
 
@@ -608,15 +644,35 @@ export class GestureEngine extends Emitter<GestureEvents> {
     const f = this.fingers[i];
     // o disparo da v2.1: o `on` sem desconto, com a dobra e a velocidade da v2.1
     if (this.slowCurl[i] > full && this.slowVel[i] > VEL_TRIGGER) return 'full';
-    if (f.curl > on && f.vel > VEL_TRIGGER && this.discounted(i, on - rest, dt, prevDt, maxRawVel))
+    // repouso do dedo: o de referência (0, calibrado ou aprendido) ou o medido, se for mais alto
+    const r = Math.max(rest, this.slowRest[i]);
+    const need = (level: number) => Math.max(RISE_MIN, level - r);
+    if (f.curl > on && f.vel > VEL_TRIGGER && this.discounted(i, need(on), dt, prevDt, maxRawVel))
       return 'discount';
-    if (this.early(i, early, early - rest, dt, prevDt, maxRawVel)) return 'early';
+    if (this.early(i, early, need(early), dt, prevDt, maxRawVel)) return 'early';
     return null;
+  }
+
+  /** Uma dobra crua do dedo i solto para a estimativa do tremor. */
+  private sampleJitter(i: number, d: number): void {
+    const w = this.jDelta[i];
+    w[this.jPos[i]] = d;
+    this.jPos[i] = (this.jPos[i] + 1) % JITTER_WINDOW;
+    const n = (this.jCount[i] = Math.min(JITTER_WINDOW, this.jCount[i] + 1));
+    if (n < JITTER_MIN_SAMPLES) return;
+    const sorted = Array.from(w.subarray(0, n)).sort((a, b) => a - b);
+    const q = (p: number) => sorted[Math.round(p * (n - 1))];
+    this.jSd[i] = (q(JITTER_HI_PCT) - q(JITTER_LO_PCT)) / JITTER_SPREAD;
+  }
+
+  /** Tremor do dedo i (ver `JITTER_MAX`). */
+  private jitter(i: number): number {
+    return Math.min(JITTER_MAX, this.jSd[i]);
   }
 
   /** Subida mínima que o tremor do dedo i exige (ver `JITTER_K`). */
   private jitterRise(i: number): number {
-    return JITTER_K * Math.sqrt(this.jVar[i]);
+    return JITTER_K * this.jitter(i);
   }
 
   /** Declive médio da dobra crua nos dois últimos fotogramas, ou 0 se não subiu nos dois. */
@@ -656,6 +712,7 @@ export class GestureEngine extends Emitter<GestureEvents> {
     const f = this.fingers[i];
     if (i % 5 === 0) return false;
     return (
+      this.rises[i] >= EARLY_MIN_RISES &&
       this.slope2(i, dt, prevDt) > EARLY_VEL &&
       f.raw >= level &&
       f.raw - this.base[i] >= Math.max(rise, this.jitterRise(i)) &&

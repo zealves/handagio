@@ -50,11 +50,15 @@ export interface HandAssignState {
   disagree: number;
   /**
    * Lados cuja mão mudou no último fotograma (resultado de `assignHands`): o pulso ficou mais perto
-   * do último pulso do OUTRO lado do que do seu. O gestureEngine trata-os como uma mão nova. Uma
+   * de onde se esperava o pulso do OUTRO lado do que do seu (o último pulso mais a última
+   * velocidade). Com as duas mãos à vista compara-se a soma das duas distâncias: duas mãos juntas
+   * a mexer-se depressa para o mesmo lado não contam. O gestureEngine trata-os como uma mão nova. Uma
    * mão que muda de lado pelo rótulo chega a um lado que ficou vazio e já conta como nova; um
    * salto grande no mesmo lado (mão a mexer-se depressa, a arrastar a nota) não conta.
    */
   swapped: [boolean, boolean];
+  /** Última velocidade do pulso de cada lado (por fotograma), ou null. */
+  vel: [Pt | null, Pt | null];
 }
 
 export const createHandAssignState = (): HandAssignState => ({
@@ -64,6 +68,7 @@ export const createHandAssignState = (): HandAssignState => ({
   missed: [0, 0],
   disagree: 0,
   swapped: [false, false],
+  vel: [null, null],
 });
 
 /** Converte as categorias do resultado do MediaPipe (a mais provável de cada mão). */
@@ -144,13 +149,31 @@ export function assignHands(
   }
   if (list.length !== 1) state.disagree = 0;
   const dist = (a: Pt | null, b: Pt) => (a ? Math.hypot(a.x - b.x, a.y - b.y) : Infinity);
-  for (const k of [0, 1] as const) {
-    const hand = out[k];
-    const own = before[k];
-    state.swapped[k] = !!hand && !!own && dist(before[1 - k], hand[0]) < dist(own, hand[0]);
+  // onde se esperava cada pulso: o último mais a última velocidade
+  const pred = (k: 0 | 1): Pt | null => {
+    const p = before[k];
+    const v = state.vel[k];
+    return p && v ? { x: p.x + v.x, y: p.y + v.y, z: p.z } : p;
+  };
+  const p0 = pred(0);
+  const p1 = pred(1);
+  if (out[0] && out[1] && p0 && p1) {
+    // duas mãos: troca só se a atribuição cruzada explicar melhor os dois pulsos juntos
+    const keep = dist(p0, out[0][0]) + dist(p1, out[1][0]);
+    const cross = dist(p1, out[0][0]) + dist(p0, out[1][0]);
+    state.swapped[0] = state.swapped[1] = cross < keep;
+  } else {
+    for (const k of [0, 1] as const) {
+      const hand = out[k];
+      const own = k === 0 ? p0 : p1;
+      state.swapped[k] = !!hand && !!own && dist(k === 0 ? p1 : p0, hand[0]) < dist(own, hand[0]);
+    }
   }
   for (const k of [0, 1] as const) {
     const hand = out[k];
+    const p = before[k];
+    state.vel[k] =
+      hand && p && state.missed[k] === 0 ? { x: hand[0].x - p.x, y: hand[0].y - p.y, z: 0 } : null;
     if (hand) {
       state.prev[k] = hand[0];
       state.missed[k] = 0;
