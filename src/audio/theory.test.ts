@@ -131,6 +131,13 @@ describe('formas de tocar novas', () => {
     expect(chordName([60, 65, 67], 'sus4')).toBe('Dó sus4');
     expect(chordName(chordMidis(FA, t, 'sus4'), 'sus4')).toBe('Fá sus♯4');
     expect(chordName(chordMidis(6, t, 'sus4'), 'sus4')).toBe('Si sus4♭5');
+    // Pentatónica: a "4.ª" da escala cai na 5.ª (Dó Sol Lá), não é uma quinta ("Dó 5")
+    const penta = { root: 0, scale: 'Pentatónica' as const, octave: 4 };
+    expect(chordMidis(DO, penta, 'sus4')).toEqual([60, 67, 69]);
+    expect(chordName(chordMidis(DO, penta, 'sus4'), 'sus4')).toBe('Dó sus(5,6)');
+    expect(chordName(chordMidis(1, penta, 'sus4'), 'sus4')).toBe('Ré sus(5,♭7)');
+    // sem o modo, [0, 7, 12] continua a ser a quinta
+    expect(chordName([60, 67, 72])).toBe('Dó 5');
     expect(chordName(customChord(60, 'ninth'), 'ninth')).toBe('Dó 9');
     expect(chordName(chordMidis(4, t, 'ninth'))).toBe('Sol 9');
     expect(chordName(chordMidis(1, t, 'ninth'))).toBe('Ré m9');

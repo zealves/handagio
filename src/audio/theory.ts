@@ -152,6 +152,11 @@ export function customChord(midi: number, mode: ChordMode): number[] {
   return CUSTOM_STEPS[mode].map((k) => midi + k);
 }
 
+/** Nome curto de um intervalo em meios-tons acima da fundamental (dentro de uma oitava e meia). */
+const INTERVAL_NAMES = ['1', '♭2', '2', '♭3', '3', '4', '♯4', '5', '♭6', '6', '♭7', '7M'];
+const intervalName = (st: number): string =>
+  st >= 12 ? String(Number(INTERVAL_NAMES[st - 12].replace(/\D/g, '')) + 7) : INTERVAL_NAMES[st];
+
 /** Nome da tríade ou da tétrade (sem a nona). */
 function baseName(r: string, iv: number[]): string {
   const minor = iv[1] === 3;
@@ -173,12 +178,14 @@ export function chordName(ms: number[], mode?: ChordMode): string {
   const r = pitchClassName(ms[0]);
   const iv = ms.map((m) => m - ms[0]);
   if (iv.length === 2 && iv[1] === 12) return r;
-  if (iv[1] === 7) return `${r} 5`;
+  // o suspenso antes da quinta: nas escalas com saltos (pentatónicas) a "4.ª" pode ser a 5.ª
   if (mode === 'sus4') {
+    if (iv[1] < 4 || iv[1] > 6) return `${r} sus(${iv.slice(1).map(intervalName).join(',')})`;
     const fourth = iv[1] === 6 ? 'sus♯4' : iv[1] === 4 ? 'sus♭4' : 'sus4';
     const fifth = iv[2] === 6 ? '♭5' : iv[2] === 8 ? '♯5' : '';
     return `${r} ${fourth}${fifth}`;
   }
+  if (iv[1] === 7) return `${r} 5`;
   const base = baseName(r, iv);
   if (iv[4] === undefined) return base;
   // nona: "Sol 9" e "Ré m9" quando a 7.ª é menor e a 9.ª maior; senão junta-se a nona: "Dó 7M(9)"
