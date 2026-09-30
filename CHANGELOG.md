@@ -7,8 +7,8 @@ Versões segundo [SemVer](https://semver.org/lang/pt-BR/). A mais recente fica n
 Deteção dos dedos mais rápida e mais fácil, sobretudo no anelar e no mindinho.
 
 - A app aprende a tua mão enquanto tocas: o intervalo de cada dedo (esticado a dobrado) ajusta os limiares sozinho e fica guardado para a próxima vez. Liga e desliga em Definições → Mãos; "Repor calibração" esquece também o aprendido.
-- Anelar e mindinho tocam com menos dobra; uma dobra rápida toca logo, antes de chegar ao fim; um período curto depois de soltar evita repetir a nota com o tremor.
-- Resposta mais rápida: suavização mais leve da dobra e velocidade calculada a partir da dobra crua (um fotograma a menos a 20 e a 30 fps).
+- Anelar e mindinho tocam com menos dobra; uma dobra decidida toca antes de chegar ao fim; um período curto depois de soltar evita repetir a nota com o tremor.
+- Resposta mais rápida nas dobras médias e fracas (até 2 fotogramas a menos); nas dobras rápidas fica como antes, para um salto da deteção nunca tocar sozinho.
 - Câmara pedida a 640×360 e 30 fps (a resolução baixa passa a 480×270); o overlay e a gravação de vídeo continuam a 1280 de largura.
 - A deteção da boca só corre com um efeito da boca escolhido, e nunca no mesmo fotograma que as mãos.
 
