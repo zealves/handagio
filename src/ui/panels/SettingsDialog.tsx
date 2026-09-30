@@ -7,7 +7,7 @@ import { IconButton } from '../controls/IconButton';
 import { Slider } from '../controls/Slider';
 import { Toggle } from '../controls/Toggle';
 import type { LearnedRange } from '../../vision/adaptive';
-import { fingerLabel } from '../../vision/fingerMap';
+import { activeScreenOrder, fingerLabel } from '../../vision/fingerMap';
 import { FINGER_COLORS } from '../theme';
 import { IconClose } from '../icons/UiIcons';
 import p from './panels.module.css';
@@ -206,8 +206,8 @@ export function SettingsDialog() {
             {st.engine !== 'hands'
               ? 'A calibração fica disponível quando a deteção das mãos estiver ligada.'
               : st.calibration
-                ? 'Limiares calibrados para ti. Estica e dobra os dedos durante 3 s cada para recalibrar.'
-                : 'Estica os dedos durante 3 s e depois dobra-os durante 3 s; os limiares ajustam-se à tua mão.'}
+                ? 'Limiares calibrados para ti. Para recalibrar: 3 s com os dedos esticados e o polegar afastado, e 3 s com os dedos dobrados e o polegar encostado ao lado do indicador.'
+                : 'Estica os dedos e afasta o polegar durante 3 s; depois dobra os dedos e encosta o polegar ao lado do indicador durante 3 s. Os limiares ajustam-se à tua mão.'}
           </p>
           <Toggle
             label="Aprender a minha mão enquanto toco"
@@ -219,7 +219,9 @@ export function SettingsDialog() {
             A app vai vendo até onde cada dedo estica e dobra e ajusta-se sozinha, para o anelar e o
             mindinho tocarem com menos esforço. A calibração, se a fizeres, tem prioridade.
           </p>
-          {st.learnHand && st.learnedRanges && <LearnedBars ranges={st.learnedRanges} />}
+          {st.learnHand && st.learnedRanges && (
+            <LearnedBars ranges={st.learnedRanges} thumbs={st.thumbs} />
+          )}
           {st.thumbs && (
             <>
               <Slider
@@ -232,7 +234,8 @@ export function SettingsDialog() {
                 testId="thumb-sensitivity"
               />
               <p className={s.hint}>
-                Se os polegares tocam sem querer, baixa. Se custam a tocar, sobe.
+                O polegar toca ao encostar ao lado do indicador. Se os polegares tocam sem querer,
+                baixa. Se custam a tocar, sobe.
               </p>
             </>
           )}
@@ -372,24 +375,30 @@ export function SettingsDialog() {
   );
 }
 
-/** Dedos no ecrã sem polegares (os polegares não aprendem). */
-const LEARN_ORDER = [4, 3, 2, 1, 6, 7, 8, 9];
-
-/** Barrinhas com o intervalo aprendido de cada dedo (0 = esticado, em baixo; 1 = dobrado). */
-function LearnedBars({ ranges }: { ranges: (LearnedRange | null)[] }) {
+/**
+ * Barrinhas com o intervalo aprendido de cada dedo ativo, pela ordem do ecrã (0 = esticado, em
+ * baixo; 1 = dobrado): 8 sem polegares, 10 com (nos polegares, 0 afastado e 1 encostado).
+ */
+function LearnedBars({ ranges, thumbs }: { ranges: (LearnedRange | null)[]; thumbs: boolean }) {
   return (
     <div
       className={s.bars}
       data-testid="learned-bars"
       aria-label="Intervalo aprendido de cada dedo"
     >
-      {LEARN_ORDER.map((i) => {
+      {activeScreenOrder(thumbs).map((i) => {
         const r = ranges[i];
         const title = r
           ? `${fingerLabel(i)}: ${Math.round(r.lo * 100)}–${Math.round(r.hi * 100)}%`
           : `${fingerLabel(i)}: ainda a aprender`;
         return (
-          <span key={i} className={s.bar} title={title} role="img" aria-label={title}>
+          <span
+            key={i}
+            className={i === (thumbs ? 0 : 1) ? `${s.bar} ${s.barGap}` : s.bar}
+            title={title}
+            role="img"
+            aria-label={title}
+          >
             {r && (
               <span
                 className={s.barFill}

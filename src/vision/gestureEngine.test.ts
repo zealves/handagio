@@ -201,6 +201,25 @@ describe('gestureEngine', () => {
       expect(thumbThresholds(0, 0.5, narrow).off).toBeGreaterThanOrEqual(0.2 + 0.3 * 0.15);
     });
 
+    it('aprendido: segue o intervalo, com limites, e a calibração tem prioridade', () => {
+      const def = thumbThresholds(0, 0.5);
+      // intervalo 0..1: o mesmo que sem aprendizagem
+      expect(thumbThresholds(0, 0.5, null, { lo: 0, hi: 1 }).on).toBeCloseTo(def.on);
+      // polegar que repousa perto do indicador: `on` mais alto
+      const near = thumbThresholds(0, 0.5, null, { lo: 0.4, hi: 1 });
+      expect(near.on).toBeCloseTo(0.4 + 0.6 * THUMB_ON);
+      expect(near.off).toBeLessThanOrEqual(near.on - 0.08 + 1e-9);
+      expect(near.off).toBeGreaterThan(0.4);
+      // intervalo estreito em baixo: nunca mais de LEARN_MAX_DROP abaixo do `on` sem aprendizagem
+      expect(thumbThresholds(0, 0.5, null, { lo: 0, hi: 0.4 }).on).toBeCloseTo(
+        def.on - LEARN_MAX_DROP,
+      );
+      const cal = { open: Array(10).fill(0.1), closed: Array(10).fill(0.9) };
+      expect(thumbThresholds(0, 0.5, cal, { lo: 0.4, hi: 1 })).toEqual(
+        thumbThresholds(0, 0.5, cal),
+      );
+    });
+
     it('encostar dispara com a confirmação e afastar solta', () => {
       const g = new GestureEngine();
       const ev = record(g);
@@ -282,6 +301,18 @@ describe('gestureEngine', () => {
       const first = velocityFrom(g.fingers[0].vel);
       for (let k = 1; k < THUMB_DWELL; k++) g.process(thumbAt(1), 1 / 50, topts);
       expect(vel).toBeCloseTo(first);
+    });
+
+    it('aprende o intervalo dos polegares (só com os polegares ligados)', () => {
+      const lo = { ...topts, learn: true };
+      const g = new GestureEngine();
+      for (let k = 0; k < 300; k++) g.process(thumbAt(k % 20 < 4 ? 1 : 0.3), 1 / 30, lo);
+      expect(g.adaptive.samples(0)).toBeGreaterThan(200);
+      expect(g.adaptive.ranges[0]).not.toBeNull();
+      const g2 = new GestureEngine();
+      for (let k = 0; k < 300; k++)
+        g2.process(thumbAt(k % 20 < 4 ? 1 : 0.3), 1 / 30, { ...lo, thumbs: false });
+      expect(g2.adaptive.samples(0)).toBe(0);
     });
 
     it('os outros dedos disparam logo no primeiro fotograma acima do limiar', () => {
@@ -922,7 +953,7 @@ describe('gestureEngine', () => {
       g2.process([null, null], 1 / 30, lo);
       for (let k = 0; k < 5; k++) g2.process(handWith([0, 0, 0, 0, 0]), 1 / 30, lo, [0.95, 0.95]);
       expect(g2.adaptive.samples(1)).toBe(3);
-      // polegares nunca aprendem
+      // polegares desligados não aprendem
       expect(g2.adaptive.samples(0)).toBe(0);
     });
   });

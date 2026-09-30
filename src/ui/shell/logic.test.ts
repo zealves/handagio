@@ -168,6 +168,35 @@ describe('migratePrefs', () => {
       learnedRanges: learned,
     });
   });
+  it('v9 põe neutros só a calibração e o aprendido dos polegares', () => {
+    const calibration = {
+      open: [0.3, 0.1, 0.1, 0.1, 0.1, 0.35, 0.1, 0.1, 0.1, 0.1],
+      closed: [0.8, 0.9, 0.9, 0.9, 0.9, 0.85, 0.9, 0.9, 0.9, 0.9],
+    };
+    const learned = [
+      { lo: 0.2, hi: 0.7 },
+      { lo: 0.1, hi: 0.6 },
+      null,
+      null,
+      null,
+      { lo: 0.1, hi: 0.5 },
+    ];
+    const m = migratePrefs({ calibration, learnedRanges: learned, bpm: 90 }, 8);
+    expect(m.bpm).toBe(90);
+    expect(m.calibration).toEqual({
+      open: [0, 0.1, 0.1, 0.1, 0.1, 0, 0.1, 0.1, 0.1, 0.1],
+      closed: [0, 0.9, 0.9, 0.9, 0.9, 0, 0.9, 0.9, 0.9, 0.9],
+    });
+    expect(m.learnedRanges).toEqual([null, { lo: 0.1, hi: 0.6 }, null, null, null, null]);
+    // o original não muda
+    expect(calibration.open[0]).toBe(0.3);
+    // sem calibração nem aprendido não acrescenta nada; a v9 fica igual
+    expect(migratePrefs({ calibration: null, bpm: 90 }, 8)).toEqual({ calibration: null, bpm: 90 });
+    expect(migratePrefs({ calibration, learnedRanges: learned }, 9)).toEqual({
+      calibration,
+      learnedRanges: learned,
+    });
+  });
   it('v5 fica igual nas notas personalizadas', () => {
     expect(migratePrefs({ customNotes: [...LEGACY_CUSTOM_NOTES] }, 5).customNotes).toEqual([
       ...LEGACY_CUSTOM_NOTES,

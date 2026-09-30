@@ -418,6 +418,14 @@ test('aprender a mão: toggle nas Definições e Repor calibração esquece o ap
   const toggle = settings.getByTestId('learn-hand');
   await expect(toggle).toBeChecked();
   await expect(settings.getByTestId('learned-bars').locator('span[role="img"]')).toHaveCount(8);
+  // com os polegares, os 10 dedos (os polegares também aprendem)
+  await page.evaluate(() =>
+    (window as unknown as Dbg).__vsc.store.getState().set({ thumbs: true }),
+  );
+  await expect(settings.getByTestId('learned-bars').locator('span[role="img"]')).toHaveCount(10);
+  await page.evaluate(() =>
+    (window as unknown as Dbg).__vsc.store.getState().set({ thumbs: false }),
+  );
   await settings.getByTestId('reset-calibration').click();
   expect(
     await page.evaluate(() => (window as unknown as Dbg).__vsc.store.getState().learnedRanges),

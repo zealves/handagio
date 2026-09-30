@@ -832,8 +832,8 @@ class Session {
       }
     };
     try {
-      await step('open', 'Mostra as duas mãos e estica bem todos os dedos.');
-      await step('closed', 'Agora dobra todos os dedos, como um punho.');
+      await step('open', 'Mostra as duas mãos, estica bem todos os dedos e afasta o polegar.');
+      await step('closed', 'Agora dobra todos os dedos e encosta o polegar ao lado do indicador.');
     } finally {
       this.cal = null;
     }

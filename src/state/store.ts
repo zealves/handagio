@@ -157,7 +157,7 @@ export const useStore = create<Store>()(
     }),
     {
       name: 'handagio:prefs',
-      version: 8,
+      version: 9,
       migrate: (old, version) => migratePrefs(old, version) as unknown as Store,
       merge: (persisted, current) => ({
         ...current,

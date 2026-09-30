@@ -87,7 +87,12 @@ export const DRAWER_TITLES: Record<DrawerId, string> = {
  * dos polegares, com os valores por defeito quando faltam. A v6 desliga uma vez a altura da mão
  * (`heightPitch`), que passou a só escolher a nota e começa desligada; o arrastar (`glide`) fica.
  * A v8 liga a aprendizagem da mão (`learnHand`) sem nada aprendido (`learnedRanges`).
+ * A v9 mede o polegar de outra forma (encostar ao lado do indicador): a calibração e o aprendido
+ * dos polegares (índices 0 e 5) eram da medida antiga e voltam aos valores neutros.
  */
+/** Índices dos polegares (mão esquerda e direita). */
+const THUMB_IDS = [0, 5] as const;
+
 export function migratePrefs(old: unknown, version: number): Record<string, unknown> {
   const o: Record<string, unknown> = { ...((old as Record<string, unknown> | null) ?? {}) };
   if (version < 3) {
@@ -131,6 +136,24 @@ export function migratePrefs(old: unknown, version: number): Record<string, unkn
   if (version < 8) {
     o.learnHand = true;
     o.learnedRanges = null;
+  }
+  if (version < 9) {
+    const cal = o.calibration as { open?: unknown; closed?: unknown } | null | undefined;
+    if (cal && Array.isArray(cal.open) && Array.isArray(cal.closed)) {
+      const open = [...(cal.open as unknown[])];
+      const closed = [...(cal.closed as unknown[])];
+      // 0 e 0: os valores neutros do `CalibrationCollector` (o polegar volta à sensibilidade)
+      for (const i of THUMB_IDS) {
+        open[i] = 0;
+        closed[i] = 0;
+      }
+      o.calibration = { ...cal, open, closed };
+    }
+    if (Array.isArray(o.learnedRanges)) {
+      const r = [...(o.learnedRanges as unknown[])];
+      for (const i of THUMB_IDS) if (i < r.length) r[i] = null;
+      o.learnedRanges = r;
+    }
   }
   return o;
 }

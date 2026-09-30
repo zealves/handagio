@@ -376,15 +376,20 @@ const thumbOn = (thumbSens: number): number =>
 
 /**
  * Limiares de um polegar, na pressão (ver `thumbGap`). Prioridade como nos dedos: calibração
- * (afastado/encostado) > `THUMB_ON` com a sensibilidade dos polegares.
+ * (afastado/encostado) > intervalo aprendido > `THUMB_ON` com a sensibilidade dos polegares.
  * - Calibrado: a fórmula da calibração dos dedos, com o ponto neutro dos polegares, e nunca acima
  *   de `THUMB_CAL_MAX` do caminho, para um polegar encostado continuar a disparar.
+ * - Aprendido: o `on` fica a `THUMB_ON` do caminho entre `lo` e `hi` (e o `off` a
+ *   `THUMB_ON − THUMB_HYSTERESIS`), com os limites da aprendizagem dos dedos (`LEARN_ON_MIN`,
+ *   `LEARN_ON_MAX`, `LEARN_MIN_HYST`) e nunca mais de `LEARN_MAX_DROP` abaixo do `on` sem
+ *   aprendizagem. Um polegar que repousa perto do indicador fica com o `on` mais alto.
  * Nunca há disparo antecipado (`early` = `on`).
  */
 export function thumbThresholds(
   i: number,
   thumbSens: number,
   cal?: Calibration | null,
+  learned?: LearnedRange | null,
 ): Thresholds {
   if (calibrated(i, cal)) {
     const span = cal.closed[i] - cal.open[i];
@@ -398,6 +403,20 @@ export function thumbThresholds(
       early: on,
       rest: cal.open[i],
     };
+  }
+  if (usableRange(learned)) {
+    const span = learned.hi - learned.lo;
+    const shift = (thumbSens - THUMB_SENS_NEUTRAL) * THUMB_SENS_SPAN;
+    const on = clamp(
+      Math.max(thumbOn(thumbSens) - LEARN_MAX_DROP, learned.lo + span * THUMB_ON - shift),
+      LEARN_ON_MIN,
+      LEARN_ON_MAX,
+    );
+    const off = Math.min(
+      learned.lo + span * (THUMB_ON - THUMB_HYSTERESIS) - shift,
+      on - LEARN_MIN_HYST,
+    );
+    return { on, off, full: on, early: on, rest: learned.lo };
   }
   const on = thumbOn(thumbSens);
   return { on, off: on - THUMB_HYSTERESIS, full: on, early: on, rest: 0 };
@@ -636,11 +655,12 @@ export class GestureEngine extends Emitter<GestureEvents> {
         }
         const tip = lm[TIP_IDS[j]];
         f.tip = { x: tip.x, y: tip.y };
-        if (learnHere && j > 0) this.adaptive.observe(i, f.raw, dt);
+        if (learnHere) this.adaptive.observe(i, f.raw, dt);
+        const learned = o.learn ? this.adaptive.ranges[i] : null;
         const { on, off, full, early, rest } =
           j === 0
-            ? thumbThresholds(i, o.thumbSensitivity ?? THUMB_SENS_NEUTRAL, o.calibration)
-            : thresholds(i, o.sensitivity, o.calibration, o.learn ? this.adaptive.ranges[i] : null);
+            ? thumbThresholds(i, o.thumbSensitivity ?? THUMB_SENS_NEUTRAL, o.calibration, learned)
+            : thresholds(i, o.sensitivity, o.calibration, learned);
 
         if (!this.armed[i] && (j === 0 ? f.curl < off : f.raw < Math.max(off, early)))
           this.armed[i] = true;
