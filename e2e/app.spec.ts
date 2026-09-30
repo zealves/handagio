@@ -685,6 +685,70 @@ test('Nona: um dedo toca 5 vozes', async ({ page }) => {
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
+/** Diagnóstico com a pose da mão sintética e o estado ao vivo dos dedos. */
+type ThumbVsc = Vsc & {
+  syntheticHand(closed: boolean[] | boolean, x?: number, y?: number, pose?: object): unknown;
+  live: { fingers: { down: boolean; curl: number }[] };
+};
+
+test('polegar: encostar ao lado do indicador toca a nota do polegar e afastar solta', async ({
+  page,
+}) => {
+  const errors = watchConsole(page);
+  await page.goto('/?debug');
+  await page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.session.ensureAudio());
+  await pinNotes(page, {
+    started: true,
+    instrument: 'synth',
+    chord: 'off',
+    noteMode: 'scale',
+    thumbs: true,
+    calibration: null,
+    learnHand: false,
+    lastNote: '—',
+  });
+  const r = await page.evaluate(async () => {
+    const v = (window as unknown as { __vsc: ThumbVsc }).__vsc;
+    const wait = () => new Promise((res) => setTimeout(res, 33));
+    // polegar esquerdo entre afastado (0) e encostado ao lado do indicador (1)
+    const hands = (thumb: number) => [
+      v.syntheticHand(false, 0.3, 0.8, { thumb }),
+      v.syntheticHand(false, 0.7),
+    ];
+    const feed = async (thumb: number, n: number) => {
+      for (let k = 0; k < n; k++) {
+        v.session.feedHands(hands(thumb));
+        await wait();
+      }
+    };
+    await feed(0, 6);
+    const idle = v.store.getState().lastNote;
+    await feed(0.5, 1);
+    await feed(1, 6);
+    const held = {
+      note: v.store.getState().lastNote,
+      midi: v.audio.voiceMidi(0),
+      down: v.live.fingers[0].down,
+      curl: v.live.fingers[0].curl,
+    };
+    await feed(0, 6);
+    return {
+      idle,
+      held,
+      after: { midi: v.audio.voiceMidi(0), down: v.live.fingers[0].down },
+      others: [1, 2, 3, 4].some((i) => v.live.fingers[i].down),
+    };
+  });
+  expect(r.idle).toBe('—');
+  expect(r.held.note).not.toBe('—');
+  expect(r.held.midi).not.toBeNull();
+  expect(r.held.down).toBe(true);
+  expect(r.held.curl).toBeGreaterThan(0.9);
+  expect(r.after).toEqual({ midi: null, down: false });
+  expect(r.others).toBe(false);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
 test.describe('ecrã tátil', () => {
   test.use({ hasTouch: true, viewport: { width: 1024, height: 768 } });
   test('forma de tocar: a explicação aparece por um instante ao escolher', async ({ page }) => {
