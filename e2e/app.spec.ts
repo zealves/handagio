@@ -801,6 +801,52 @@ for (const vp of VIEWPORTS) {
   });
 }
 
+// O palco ocupa todo o espaço livre (o vídeo não se vê): panorâmico em paisagem, também no
+// tablet, com margens mínimas.
+for (const vp of [
+  { width: 1024, height: 768, minW: 0.9, wide: true },
+  { width: 1180, height: 820, minW: 0.9, wide: true },
+  { width: 1440, height: 900, minW: 0.9, wide: true },
+  { width: 820, height: 1180, minW: 0.95, wide: false },
+]) {
+  test(`palco ${vp.width}×${vp.height}: ocupa ≥ ${vp.minW * 100}% da largura`, async ({ page }) => {
+    const errors = watchConsole(page);
+    await page.setViewportSize(vp);
+    await page.goto('/?debug');
+    const stage = (await page.getByTestId('stage').boundingBox())!;
+    expect(stage.width).toBeGreaterThanOrEqual(vp.width * vp.minW);
+    if (vp.wide) expect(stage.width).toBeGreaterThan(stage.height);
+    // a câmara falsa entrega 16:9 mas o palco não segue a proporção dela
+    expect(stage.height).toBeGreaterThanOrEqual(vp.height * 0.6);
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+    // o overlay das mãos enche o palco
+    const overlay = (await page.getByTestId('overlay').boundingBox())!;
+    expect(overlay.width).toBeCloseTo(stage.width, 0);
+    expect(overlay.height).toBeCloseTo(stage.height, 0);
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+}
+
+test('marca: Handagio no título e no cabeçalho, com Vision Sound Cam como descritivo', async ({
+  page,
+}) => {
+  const errors = watchConsole(page);
+  await page.goto('/?debug');
+  await expect(page).toHaveTitle(/Handagio/);
+  const brand = page.getByRole('banner').getByRole('heading', { level: 1 });
+  await expect(brand).toContainText('Handagio');
+  await expect(brand).toContainText('Vision Sound Cam');
+  // as preferências ficam guardadas com a chave nova
+  await page.evaluate(() =>
+    (window as unknown as { __vsc: Vsc }).__vsc.store.getState().set({ instrument: 'marimba' }),
+  );
+  expect(await page.evaluate(() => localStorage.getItem('handagio:prefs'))).toContain('marimba');
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
 test('rodapé dos efeitos: os 5 knobs com o nome e o efeito da boca', async ({ page }) => {
   const errors = watchConsole(page);
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -1010,6 +1056,29 @@ test.describe('instrumentos gravados', () => {
 
 test.describe('sem internet', () => {
   test.use({ serviceWorkers: 'allow' });
+
+  test('a cache passa a handagio-* e a ativação apaga as vsc-* do nome antigo', async ({
+    page,
+  }) => {
+    const errors = watchConsole(page);
+    // caches que a versão antiga deixou (e uma de outra app, que fica)
+    await page.addInitScript(() => {
+      if (sessionStorage.getItem('seeded')) return;
+      sessionStorage.setItem('seeded', '1');
+      void caches.open('vsc-2.0.0');
+      void caches.open('outra-app');
+    });
+    await page.goto('/?debug');
+    await page.evaluate(async () => {
+      await navigator.serviceWorker.ready;
+    });
+    await expect
+      .poll(() => page.evaluate(() => caches.keys()))
+      .toEqual(expect.arrayContaining(['outra-app', expect.stringMatching(/^handagio-/)]));
+    const keys = await page.evaluate(() => caches.keys());
+    expect(keys.filter((k) => k.startsWith('vsc-'))).toEqual([]);
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
 
   test('funciona offline depois do primeiro carregamento', async ({ page, context }) => {
     const errors = watchConsole(page);
