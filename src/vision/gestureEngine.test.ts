@@ -343,7 +343,7 @@ describe('gestureEngine', () => {
     });
   });
 
-  describe('deteção afinada (v2.1)', () => {
+  describe('deteção afinada (v2.2)', () => {
     const OPEN = syntheticHand(false, 0.3);
     const CLOSED = syntheticHand(true, 0.3);
     const RIGHT = syntheticHand(false, 0.7);

@@ -14,6 +14,8 @@ Um instrumento musical que se toca com as mãos à frente da webcam. Cada dedo t
 2. Mostra as duas mãos à câmara, com os dedos esticados.
 3. Dobra um dedo para tocar a nota dele. O mindinho esquerdo é a nota mais grave e o mindinho direito a mais aguda. Os polegares estão desligados por defeito (liga-os em **Escala e acordes → Usar também os polegares**).
 4. Quanto mais depressa dobras, mais forte soa. Sobe ou desce a mão para mudar o tom.
+
+A app aprende a tua mão enquanto tocas: vai vendo até onde cada dedo estica e dobra e ajusta-se sozinha, para o anelar e o mindinho tocarem com menos esforço (desliga em **Definições → Mãos → Aprender a minha mão enquanto toco**; **Repor calibração** esquece o que aprendeu).
 5. Abre a boca para aplicar o efeito escolhido no rodapé ou na gaveta **Efeitos** (wah, filtro, distorção, eco, vibrato, robô, tremolo ou expressão).
 
 Sem câmara, toca com o teclado: **A S D F** (mão esquerda) e **J K L Ç** (mão direita); **G** e **H** são os polegares. Segura **Espaço** para simular a boca aberta. O teclado de piano e os pads também se tocam com o rato ou com toque.

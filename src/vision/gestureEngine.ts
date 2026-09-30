@@ -1,7 +1,7 @@
 // Transforma dobras de dedos em eventos de notas: histerese, velocidade, disparo e libertação.
-// Partiu de processHands() no protótipo; desde a v2.1 a deteção dos dedos (suavização,
+// Partiu de processHands() no protótipo; desde a v2.2 a deteção dos dedos (suavização,
 // limiares por dedo, disparo antecipado, período refratário e aprendizagem) foi afinada para
-// ser mais rápida e mais fácil (docs/DECISIONS.md, 60). Os polegares mantêm as regras antigas.
+// ser mais rápida e mais fácil (docs/DECISIONS.md, 62). Os polegares mantêm as regras antigas.
 import { clamp } from '../audio/theory';
 import { Emitter } from '../lib/emitter';
 import type { Calibration } from '../state/types';
