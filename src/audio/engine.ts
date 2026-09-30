@@ -3,6 +3,7 @@
 //   vozes → bus → seco ─┬─→ post → tom (filtro/drive) → master → compressor → mudo → saída
 //               └ boca ─┘                        ├→ reverb ─┘   └→ analisador, gravação
 //                                                └→ delay ──┘
+import { LIMIT_DB, LIMIT_RATIO, limiterTrim } from './limiter';
 import { drumTools } from './drums/types';
 import { DRUMS } from './drums';
 import { createDelay } from './effects/delay';
@@ -100,8 +101,22 @@ export class AudioEngine {
     comp.ratio.value = 4;
     comp.attack.value = 0.003;
     comp.release.value = 0.2;
+    // limitador de segurança: o compressor acima não é um limitador e muitos dedos com acordes
+    // (8 dedos com a Nona são 40 vozes) passavam de 1 e saturavam. Só atua acima de −2 dBFS;
+    // o `trim` desfaz a compensação automática, por isso uma nota ou um acorde soam como antes
+    // (decisão 54)
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = LIMIT_DB;
+    limiter.knee.value = 0;
+    limiter.ratio.value = LIMIT_RATIO;
+    limiter.attack.value = 0.001;
+    limiter.release.value = 0.1;
+    comp.connect(limiter);
+    const trim = ctx.createGain();
+    trim.gain.value = limiterTrim(LIMIT_DB, LIMIT_RATIO);
+    limiter.connect(trim);
     this.output = ctx.createGain();
-    comp.connect(this.output);
+    trim.connect(this.output);
     this.speakers = ctx.createGain();
     this.output.connect(this.speakers);
     this.speakers.connect(ctx.destination);
