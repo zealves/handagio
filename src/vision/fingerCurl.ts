@@ -1,4 +1,5 @@
-// Dobra de cada dedo (0 = esticado, 1 = dobrado). Fórmulas copiadas do protótipo.
+// Dobra de cada dedo (0 = esticado, 1 = dobrado). Fórmulas copiadas do protótipo, menos a do
+// polegar, que mede o encostar ao lado do indicador (docs/DECISIONS.md, 63).
 import { clamp } from '../audio/theory';
 import type { Pt } from './types';
 
@@ -20,23 +21,46 @@ const FINGERS: [number, number, number, number][] = [
   [17, 18, 19, 20],
 ];
 
-/** Devolve 5 valores: polegar, indicador, médio, anelar, mindinho. */
+/**
+ * Polegar: distância da ponta (4) ao segmento entre o MCP (5) e o PIP (6) do indicador, a dividir
+ * pelo tamanho da palma (`dist3(0, 9)`), com o z atenuado como em `dist3`. O polegar não dobra
+ * como os outros dedos: anda para o lado e toca ao encostar ao lado do indicador. Tudo é relativo
+ * à própria mão, por isso a medida não muda com a rotação, a inclinação nem a escala.
+ */
+export function thumbGap(lm: Pt[]): number {
+  const palm = dist3(lm[0], lm[9]) || 1;
+  const p = lm[4];
+  const a = lm[5];
+  const b = lm[6];
+  const Z = 0.6; // o mesmo peso do z que em `dist3`
+  const ab = { x: b.x - a.x, y: b.y - a.y, z: (b.z - a.z) * Z };
+  const ap = { x: p.x - a.x, y: p.y - a.y, z: (p.z - a.z) * Z };
+  const len2 = ab.x * ab.x + ab.y * ab.y + ab.z * ab.z;
+  const t = len2 > 0 ? clamp((ap.x * ab.x + ap.y * ab.y + ap.z * ab.z) / len2, 0, 1) : 0;
+  return Math.hypot(ap.x - ab.x * t, ap.y - ab.y * t, ap.z - ab.z * t) / palm;
+}
+
+/**
+ * Polegar afastado: a partir desta distância (em palmas) a pressão é 0. Numa mão aberta com o
+ * polegar esticado para o lado a ponta fica a ~0.8–0.9 palmas do segmento; 0.6 deixa margem para
+ * um polegar mais fechado continuar a contar como afastado.
+ */
+export const GAP_OPEN = 0.6;
+/**
+ * Polegar encostado: a esta distância (em palmas) a pressão é 1. Os pontos do MediaPipe ficam no
+ * eixo dos ossos, por isso dois dedos encostados continuam com os centros a ~1,5–2 cm (~0.15–0.2
+ * palmas); 0.15 dá pressão perto de 1 sem ser preciso esmagar.
+ */
+export const GAP_TOUCH = 0.15;
+
+/** Pressão do polegar (0 = afastado, 1 = encostado ao lado do indicador). */
+export const thumbPress = (gap: number): number =>
+  clamp((GAP_OPEN - gap) / (GAP_OPEN - GAP_TOUCH), 0, 1);
+
+/** Devolve 5 valores: polegar (a pressão, ver `thumbGap`), indicador, médio, anelar, mindinho. */
 export function curls(lm: Pt[]): number[] {
   const palm = dist3(lm[0], lm[9]) || 1;
-  const out: number[] = [];
-  // Polegar: fórmula própria.
-  const tDist = dist3(lm[4], lm[5]) / palm;
-  const tDist2 = dist3(lm[4], lm[13]) / palm;
-  const tAng = angleAt(lm[2], lm[3], lm[4]);
-  out.push(
-    clamp(
-      0.5 * clamp((1.0 - tDist) / 0.7, 0, 1) +
-        0.3 * clamp((1.25 - tDist2) / 0.7, 0, 1) +
-        0.2 * clamp((175 - tAng) / 50, 0, 1),
-      0,
-      1,
-    ),
-  );
+  const out: number[] = [thumbPress(thumbGap(lm))];
   // Restantes: 60% ângulos PIP/DIP + 40% distância ponta–pulso normalizada pela palma.
   for (const [m, p, dd, t] of FINGERS) {
     const a1 = angleAt(lm[m], lm[p], lm[dd]);

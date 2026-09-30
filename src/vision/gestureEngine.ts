@@ -1,7 +1,8 @@
 // Transforma dobras de dedos em eventos de notas: histerese, velocidade, disparo e libertação.
 // Partiu de processHands() no protótipo; desde a v2.2 a deteção dos dedos (suavização,
 // limiares por dedo, disparo antecipado, período refratário e aprendizagem) foi afinada para
-// ser mais rápida e mais fácil (docs/DECISIONS.md, 62). Os polegares mantêm as regras antigas.
+// ser mais rápida e mais fácil (docs/DECISIONS.md, 62). Os polegares têm regras próprias: tocam
+// ao encostar ao lado do indicador, com confirmação e sem disparo antecipado (63).
 import { clamp } from '../audio/theory';
 import { Emitter } from '../lib/emitter';
 import type { Calibration } from '../state/types';
@@ -12,9 +13,9 @@ import {
   usableRange,
   type LearnedRange,
 } from './adaptive';
-import { curls } from './fingerCurl';
+import { curls, dist3 } from './fingerCurl';
 import { isActive, TIP_IDS } from './fingerMap';
-import type { AssignedHands } from './types';
+import type { AssignedHands, HandLandmarks } from './types';
 
 export interface GestureEvents extends Record<string, unknown> {
   /** Dedo dobrou: velocity 0.2..1, shift em graus da escala (altura do pulso). */
@@ -40,7 +41,10 @@ export interface GestureOptions {
 }
 
 export interface FingerLive {
-  /** Dobra suavizada (0..1): é a que passa os limiares e a que os canvas desenham. */
+  /**
+   * Dobra suavizada (0..1): é a que passa os limiares e a que os canvas desenham. Nos polegares é
+   * a pressão (0 afastado, 1 encostado ao lado do indicador; ver `thumbGap`).
+   */
   curl: number;
   prevCurl: number;
   /** Velocidade da dobra (/s), da dobra crua com uma suavização leve (polegares: da suavizada). */
@@ -247,10 +251,33 @@ export function dragSemitones(y0: number, y: number): number {
 }
 
 /**
- * Polegares: o polegar mexe-se muito quando se dobram os outros dedos e a sua dobra é mais
- * ruidosa, por isso o limiar de disparo (e o de libertação) sobe esta margem.
+ * Polegares: o `on` da pressão (0 afastado, 1 encostado ao lado do indicador) com a sensibilidade
+ * neutra: a ponta tem de percorrer 60% do caminho entre afastado (`GAP_OPEN`) e encostado
+ * (`GAP_TOUCH`), ou seja, ficar a ~0.33 palmas do indicador. Chega para tocar sem esmagar e fica
+ * acima de um polegar relaxado perto da mão. Substitui o `THUMB_ON_EXTRA` da medida antiga.
  */
-export const THUMB_ON_EXTRA = 0.1;
+export const THUMB_ON = 0.6;
+/**
+ * Polegares: histerese entre o `on` e o `off` da pressão (o `off` fica em 0.35 com a sensibilidade
+ * neutra, a ~0.44 palmas). Maior do que a dos dedos (`HYSTERESIS`): a pressão é mais ruidosa
+ * (depende de três pontos e da palma) e, uma vez a tocar, só solta ao afastar de verdade.
+ */
+export const THUMB_HYSTERESIS = 0.25;
+/** Polegares: quanto o `on` desce por cada unidade de sensibilidade (a inclinação dos dedos). */
+export const THUMB_SENS_SPAN = 0.45;
+/**
+ * Polegares, proteção contra o indicador: o polegar só começa a confirmar (e continua) se, nos
+ * últimos `THUMB_GUARD_S` segundos, a dobra crua do indicador da mesma mão subiu no máximo
+ * `THUMB_INDEX_RISE_MAX`, ou se a ponta do polegar se mexeu mais do que o ponto do segmento 5–6
+ * mais perto dela, em coordenadas da mão (relativas ao pulso, a dividir pela palma). Ao dobrar, o
+ * indicador aproxima o segmento de um polegar parado e a pressão sobe sem o polegar se mexer.
+ * Quando a proteção trava o polegar, ele só volta a poder tocar depois de visto afastado (o portão
+ * `armed`): senão, ao parar o indicador, o polegar tocava uns fotogramas depois. A janela é em
+ * segundos (~4–5 fotogramas a 30 fps) e não em fotogramas: com 4 fotogramas a 60 fps, uma dobra
+ * de 500 ms do indicador subia pouco em cada janela e o polegar parado tocava.
+ */
+export const THUMB_GUARD_S = 0.15;
+export const THUMB_INDEX_RISE_MAX = 0.08;
 /**
  * Polegares: confirmação do disparo. O polegar tem de ficar acima do limiar em fotogramas de
  * deteção seguidos: dispara ao `THUMB_DWELL_MIN`.º fotograma se já esteve acima pelo menos
@@ -264,7 +291,7 @@ export const THUMB_DWELL_MIN = 2;
 export const THUMB_DWELL_S = 0.05;
 /** Sensibilidade dos polegares neutra (a que não desloca o limiar calibrado). */
 export const THUMB_SENS_NEUTRAL = 0.5;
-/** Calibrado, o limiar do polegar nunca passa de 85% do caminho entre esticado e dobrado. */
+/** Calibrado, o limiar do polegar nunca passa de 85% do caminho entre afastado e encostado. */
 const THUMB_CAL_MAX = 0.85;
 
 /** limiar = 0.75 − sens × 0.45 */
@@ -343,10 +370,16 @@ export function thresholds(
   return defaultThresholds(i, sens);
 }
 
+/** `on` de um polegar sem calibração nem aprendizagem (ver `THUMB_ON`). */
+const thumbOn = (thumbSens: number): number =>
+  THUMB_ON - (thumbSens - THUMB_SENS_NEUTRAL) * THUMB_SENS_SPAN;
+
 /**
- * Limiares de um polegar: os mesmos, com a sensibilidade própria dos polegares, e mais
- * `THUMB_ON_EXTRA`. Com calibração, o limiar vem dos valores do próprio polegar e não passa de
- * `THUMB_CAL_MAX` do caminho, para um polegar dobrado continuar a disparar.
+ * Limiares de um polegar, na pressão (ver `thumbGap`). Prioridade como nos dedos: calibração
+ * (afastado/encostado) > `THUMB_ON` com a sensibilidade dos polegares.
+ * - Calibrado: a fórmula da calibração dos dedos, com o ponto neutro dos polegares, e nunca acima
+ *   de `THUMB_CAL_MAX` do caminho, para um polegar encostado continuar a disparar.
+ * Nunca há disparo antecipado (`early` = `on`).
  */
 export function thumbThresholds(
   i: number,
@@ -357,21 +390,17 @@ export function thumbThresholds(
     const span = cal.closed[i] - cal.open[i];
     // a mesma fórmula da calibração, com o ponto neutro dos polegares (0.5)
     const base = thresholds(i, thumbSens + (0.55 - THUMB_SENS_NEUTRAL), cal);
-    const on = clamp(
-      Math.min(base.on + THUMB_ON_EXTRA, cal.open[i] + span * THUMB_CAL_MAX),
-      0.15,
-      0.95,
-    );
+    const on = clamp(Math.min(base.on, cal.open[i] + span * THUMB_CAL_MAX), 0.15, 0.95);
     return {
       on,
-      off: Math.max(cal.open[i] + span * 0.15, on - HYSTERESIS),
+      off: Math.max(cal.open[i] + span * 0.15, on - THUMB_HYSTERESIS),
       full: on,
       early: on,
       rest: cal.open[i],
     };
   }
-  const on = onThreshold(thumbSens) + THUMB_ON_EXTRA;
-  return { on, off: on - HYSTERESIS, full: on, early: on, rest: 0 };
+  const on = thumbOn(thumbSens);
+  return { on, off: on - THUMB_HYSTERESIS, full: on, early: on, rest: 0 };
 }
 
 /** Intensidade da nota a partir da velocidade no disparo. */
@@ -437,6 +466,11 @@ export class GestureEngine extends Emitter<GestureEvents> {
   private base = new Array<number>(10).fill(0);
   /** Fotogramas que a aprendizagem ainda ignora em cada mão. */
   private learnSkip = [0, 0];
+  /**
+   * Polegares: ponta do polegar e pontos 5 e 6 dos fotogramas dos últimos `THUMB_GUARD_S` de cada
+   * mão (e do anterior a esses), em coordenadas da mão, com a idade (s) de cada um (ver `thumbFree`).
+   */
+  private thumbHist: { pts: HandPts; age: number }[][] = [[], []];
 
   constructor(readonly fingers: FingerLive[] = Array.from({ length: 10 }, newFinger)) {
     super();
@@ -492,7 +526,12 @@ export class GestureEngine extends Emitter<GestureEvents> {
         this.handFrames[h] = 0;
         // as notas deste lado eram da outra mão
         if (swap) for (let j = 0; j < 5; j++) this.release(h * 5 + j);
+        this.thumbHist[h].length = 0;
       }
+      const th = this.thumbHist[h];
+      for (const e of th) e.age += dt;
+      th.push({ pts: handPts(lm), age: 0 });
+      while (th.length > 2 && th[1].age >= THUMB_GUARD_S - 1e-9) th.shift();
       this.handFrames[h]++;
       const score = scores[h];
       const skipping = this.learnSkip[h] > 0;
@@ -615,6 +654,12 @@ export class GestureEngine extends Emitter<GestureEvents> {
           if (f.curl <= on) {
             f.dwell = 0;
             f.dwellT = 0;
+          } else if (!this.thumbFree(h)) {
+            // foi o indicador que se aproximou (ver THUMB_GUARD_S): não toca, e só volta a
+            // poder tocar depois de o polegar ser visto afastado (abaixo do `off`)
+            f.dwell = 0;
+            f.dwellT = 0;
+            this.armed[i] = false;
           } else if (f.dwell > 0) {
             f.dwell++;
             f.dwellT += dt;
@@ -703,6 +748,22 @@ export class GestureEngine extends Emitter<GestureEvents> {
     return null;
   }
 
+  /**
+   * Proteção do polegar da mão h contra o indicador (ver `THUMB_GUARD_S`): falso quando o
+   * indicador subiu mais de `THUMB_INDEX_RISE_MAX` e a ponta do polegar se mexeu menos do que o
+   * ponto do segmento 5–6 mais perto dela.
+   */
+  private thumbFree(h: number): boolean {
+    if (this.riseSince(h * 5 + 1, THUMB_GUARD_S) <= THUMB_INDEX_RISE_MAX) return true;
+    const hist = this.thumbHist[h];
+    if (hist.length < 2) return true;
+    const old = hist[0].pts;
+    const cur = hist[hist.length - 1].pts;
+    const t = segmentT(cur.tip, cur.a, cur.b);
+    const seg = dist(lerp(cur.a, cur.b, t), lerp(old.a, old.b, t));
+    return dist(cur.tip, old.tip) > seg;
+  }
+
   /** Uma dobra crua do dedo i solto para a estimativa do tremor. */
   private sampleJitter(i: number, d: number): void {
     const w = this.jDelta[i];
@@ -720,6 +781,15 @@ export class GestureEngine extends Emitter<GestureEvents> {
     const hv = this.histV[i];
     let m = this.fingers[i].raw;
     for (let k = Math.max(0, hv.length - n); k < hv.length; k++) m = Math.min(m, hv[k]);
+    return this.fingers[i].raw - m;
+  }
+
+  /** Subida da dobra crua do dedo i nos últimos `s` segundos (desde o mínimo). */
+  private riseSince(i: number, s: number): number {
+    const hv = this.histV[i];
+    const ha = this.histAge[i];
+    let m = this.fingers[i].raw;
+    for (let k = 0; k < hv.length; k++) if (ha[k] <= s + 1e-9) m = Math.min(m, hv[k]);
     return this.fingers[i].raw - m;
   }
 
@@ -818,5 +888,45 @@ export class GestureEngine extends Emitter<GestureEvents> {
     this.fingers.forEach((f) => Object.assign(f, newFinger()));
     this.handFrames = [0, 0];
     this.armed.fill(false);
+    this.thumbHist = [[], []];
   }
+}
+
+/** Vetor 3D em coordenadas da mão (relativo ao pulso, em palmas, z atenuado como em `dist3`). */
+type V3 = [number, number, number];
+/** Ponta do polegar (4) e os pontos 5 e 6 do indicador, em coordenadas da mão. */
+interface HandPts {
+  tip: V3;
+  a: V3;
+  b: V3;
+}
+
+function handPts(lm: HandLandmarks): HandPts {
+  const w = lm[0];
+  const palm = dist3(w, lm[9]) || 1;
+  const v = (k: number): V3 => [
+    (lm[k].x - w.x) / palm,
+    (lm[k].y - w.y) / palm,
+    ((lm[k].z - w.z) * 0.6) / palm,
+  ];
+  return { tip: v(4), a: v(5), b: v(6) };
+}
+
+const lerp = (a: V3, b: V3, t: number): V3 => [
+  a[0] + (b[0] - a[0]) * t,
+  a[1] + (b[1] - a[1]) * t,
+  a[2] + (b[2] - a[2]) * t,
+];
+const dist = (a: V3, b: V3): number => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+
+/** Parâmetro (0..1) do ponto do segmento a–b mais perto de p. */
+function segmentT(p: V3, a: V3, b: V3): number {
+  const ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+  const len2 = ab[0] * ab[0] + ab[1] * ab[1] + ab[2] * ab[2];
+  if (len2 <= 0) return 0;
+  return clamp(
+    ((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1] + (p[2] - a[2]) * ab[2]) / len2,
+    0,
+    1,
+  );
 }

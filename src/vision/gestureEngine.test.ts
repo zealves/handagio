@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { usableRange } from './adaptive';
-import { curls } from './fingerCurl';
+import { curls, GAP_OPEN, GAP_TOUCH } from './fingerCurl';
 import {
   COUPLED_DOMINANCE,
   CURL_SMOOTH_PREV,
@@ -25,7 +25,9 @@ import {
   onThreshold,
   THUMB_DWELL,
   THUMB_DWELL_MIN,
-  THUMB_ON_EXTRA,
+  THUMB_HYSTERESIS,
+  THUMB_ON,
+  THUMB_SENS_NEUTRAL,
   thresholds,
   thumbThresholds,
   REFRACTORY_S,
@@ -34,7 +36,7 @@ import {
   type GestureOptions,
 } from './gestureEngine';
 import { syntheticHand } from './testHands';
-import type { AssignedHands, Pt } from './types';
+import type { AssignedHands } from './types';
 
 const opts: GestureOptions = {
   sensitivity: 0.55,
@@ -164,36 +166,56 @@ describe('gestureEngine', () => {
 
   describe('polegares', () => {
     const topts: GestureOptions = { ...opts, thumbs: true };
-    const thumbAt = (t: number): AssignedHands => {
-      // polegar esquerdo a meio caminho entre esticado (t = 0) e dobrado (t = 1)
-      const a = syntheticHand(false, 0.3);
-      const b = syntheticHand([true, false, false, false, false], 0.3);
-      const lm = a.map((p, k): Pt => ({
-        x: p.x + (b[k].x - p.x) * t,
-        y: p.y + (b[k].y - p.y) * t,
-        z: p.z + (b[k].z - p.z) * t,
-      }));
+    /** Polegar esquerdo entre afastado (t = 0) e encostado ao lado do indicador (t = 1). */
+    const thumbAt = (t: number): AssignedHands => [
+      syntheticHand(false, 0.3, 0.8, { thumb: t }),
+      syntheticHand(false, 0.7),
+    ];
+    /** Mão esquerda com a pressão do polegar `p` (a ponta à distância certa, para o lado). */
+    const pressAt = (p: number): AssignedHands => {
+      const lm = syntheticHand(false, 0.3);
+      const gap = GAP_OPEN - p * (GAP_OPEN - GAP_TOUCH);
+      // o segmento 5–6 está em x = 0.27, de y 0.6 a 0.52; a palma mede 0.2
+      lm[4] = { x: 0.27 - gap * 0.2, y: 0.56, z: 0 };
       return [lm, syntheticHand(false, 0.7)];
     };
 
-    it('limiar próprio, mais alto e deslocado pela sensibilidade dos polegares', () => {
-      const t = thumbThresholds(0, 0.5);
-      expect(t.on).toBeCloseTo(onThreshold(0.5) + THUMB_ON_EXTRA);
-      expect(t.on - t.off).toBeCloseTo(0.18);
+    it('limiares próprios na pressão, deslocados pela sensibilidade dos polegares', () => {
+      const t = thumbThresholds(0, THUMB_SENS_NEUTRAL);
+      expect(t.on).toBeCloseTo(THUMB_ON);
+      expect(t.off).toBeCloseTo(THUMB_ON - THUMB_HYSTERESIS);
+      expect(t.early).toBe(t.on);
       expect(thumbThresholds(0, 1).on).toBeLessThan(t.on);
       expect(thumbThresholds(0, 0).on).toBeGreaterThan(t.on);
-      expect(t.on).toBeGreaterThan(thresholds(0, opts.sensitivity).on);
+      expect(thumbThresholds(0, 1).off).toBeGreaterThan(0);
     });
 
     it('calibrado: vem dos valores do polegar e nunca passa de 85% do caminho', () => {
-      const cal = { open: Array(10).fill(0.2), closed: Array(10).fill(0.5) };
+      const cal = { open: Array(10).fill(0.1), closed: Array(10).fill(0.9) };
       const t = thumbThresholds(0, 0.5, cal);
-      expect(t.on).toBeLessThanOrEqual(0.2 + 0.3 * 0.85 + 1e-9);
-      expect(t.on).toBeGreaterThan(0.2 + 0.3 * 0.6);
-      expect(t.off).toBeGreaterThanOrEqual(0.2 + 0.3 * 0.15);
+      // a 60% do caminho entre afastado e encostado, como nos dedos
+      expect(t.on).toBeCloseTo(0.1 + 0.8 * 0.6);
+      expect(t.off).toBeCloseTo(t.on - THUMB_HYSTERESIS);
+      expect(thumbThresholds(0, 0, cal).on).toBeLessThanOrEqual(0.1 + 0.8 * 0.85 + 1e-9);
+      const narrow = { open: Array(10).fill(0.2), closed: Array(10).fill(0.5) };
+      expect(thumbThresholds(0, 0.5, narrow).off).toBeGreaterThanOrEqual(0.2 + 0.3 * 0.15);
     });
 
-    it(`dobrado um só fotograma não dispara; ${THUMB_DWELL} seguidos disparam`, () => {
+    it('encostar dispara com a confirmação e afastar solta', () => {
+      const g = new GestureEngine();
+      const ev = record(g);
+      for (let k = 0; k < 5; k++) g.process(thumbAt(0), 1 / 30, topts);
+      for (const t of [0.4, 0.8, 1, 1, 1, 1]) g.process(thumbAt(t), 1 / 30, topts);
+      expect(ev).toEqual(['on0']);
+      expect(g.fingers[0].curl).toBeGreaterThan(0.95);
+      // a meio caminho de volta ainda não solta (histerese)
+      for (let k = 0; k < 4; k++) g.process(pressAt(0.45), 1 / 30, topts);
+      expect(ev).toEqual(['on0']);
+      for (let k = 0; k < 4; k++) g.process(thumbAt(0), 1 / 30, topts);
+      expect(ev).toEqual(['on0', 'off0']);
+    });
+
+    it(`encostado um só fotograma não dispara; ${THUMB_DWELL} seguidos disparam`, () => {
       const g = new GestureEngine();
       const ev = record(g);
       for (let k = 0; k < 3; k++) g.process(thumbAt(0), 1 / 50, topts);
@@ -237,7 +259,21 @@ describe('gestureEngine', () => {
       expect(ev).toEqual([]);
     });
 
-    it('intensidade do disparo é a do primeiro fotograma acima do limiar', () => {
+    it('intensidade: a do primeiro fotograma acima do limiar, maior a encostar depressa', () => {
+      const velOf = (frames: number) => {
+        const g = new GestureEngine();
+        let vel = 0;
+        g.on('noteOn', (e) => (vel = e.velocity));
+        for (let k = 0; k < 3; k++) g.process(thumbAt(0), 1 / 30, topts);
+        for (let k = 1; k <= frames + 4; k++)
+          g.process(thumbAt(Math.min(1, k / frames)), 1 / 30, topts);
+        return vel;
+      };
+      const fast = velOf(2);
+      const slow = velOf(20);
+      expect(fast).toBeGreaterThan(slow);
+      expect(slow).toBeGreaterThanOrEqual(0.2);
+      expect(fast).toBeLessThanOrEqual(1);
       const g = new GestureEngine();
       let vel = 0;
       g.on('noteOn', (e) => (vel = e.velocity));
@@ -246,24 +282,6 @@ describe('gestureEngine', () => {
       const first = velocityFrom(g.fingers[0].vel);
       for (let k = 1; k < THUMB_DWELL; k++) g.process(thumbAt(1), 1 / 50, topts);
       expect(vel).toBeCloseTo(first);
-    });
-
-    it('a oscilar à volta do limiar antigo não dispara', () => {
-      const g = new GestureEngine();
-      const ev = record(g);
-      const old = onThreshold(opts.sensitivity); // o limiar que os polegares usavam
-      let lo = 1;
-      let hi = 0;
-      for (let k = 0; k < 60; k++) {
-        g.process(thumbAt(k % 2 ? 0.45 : 0.2), 1 / 30, topts);
-        if (k > 10) {
-          lo = Math.min(lo, g.fingers[0].curl);
-          hi = Math.max(hi, g.fingers[0].curl);
-        }
-      }
-      expect(lo).toBeLessThan(old);
-      expect(hi).toBeGreaterThan(old);
-      expect(ev).toEqual([]);
     });
 
     it('os outros dedos disparam logo no primeiro fotograma acima do limiar', () => {
