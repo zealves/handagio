@@ -314,6 +314,18 @@ export class AudioEngine {
     this.voices.delete(key);
   }
 
+  /**
+   * Corta sem som a voz de `key` se ainda não começou (agendada para um passo que ainda não
+   * chegou) e devolve `true`; se já está a soar, não faz nada. Usado ao soltar um arpejo.
+   */
+  cancelPending(key: VoiceKey): boolean {
+    const e = this.voices.get(key);
+    if (!e || this.ctx.currentTime >= e.voice.startAt) return false;
+    e.voice.kill();
+    this.voices.delete(key);
+    return true;
+  }
+
   /** Deslizar o tom de uma nota sustentada. */
   glide(key: VoiceKey, midi: number): void {
     const e = this.voices.get(key);

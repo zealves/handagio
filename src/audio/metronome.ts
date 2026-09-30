@@ -87,6 +87,11 @@ export class Clock extends Emitter<ClockEvents> {
     this.anchor = this.nextTime - this.nextStep * this.stepDur;
   }
 
+  /** Tempo do próximo passo ainda por agendar: os passos antes dele já foram emitidos. */
+  get scheduledUntil(): number {
+    return this.nextTime;
+  }
+
   /** Posição atual em passos (fracionária). */
   positionAt(t: number): number {
     return (t - this.anchor) / this.stepDur;

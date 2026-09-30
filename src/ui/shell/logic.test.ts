@@ -168,17 +168,27 @@ describe('compositeSources', () => {
 });
 
 describe('nextChord', () => {
-  it('roda pelas 7 formas, da mais simples à mais rica, e volta a Uma nota', () => {
+  it('roda pelas 8 formas, da mais simples à mais rica, e volta a Uma nota', () => {
     const seen = ['off'];
-    for (let k = 0; k < 7; k++) seen.push(nextChord(seen[k] as Parameters<typeof nextChord>[0]));
-    expect(seen).toEqual(['off', 'octave', 'power', 'triad', 'sus4', 'seventh', 'ninth', 'off']);
+    for (let k = 0; k < 8; k++) seen.push(nextChord(seen[k] as Parameters<typeof nextChord>[0]));
+    expect(seen).toEqual([
+      'off',
+      'octave',
+      'power',
+      'triad',
+      'sus4',
+      'seventh',
+      'ninth',
+      'arp',
+      'off',
+    ]);
   });
 });
 
 describe('sanitizePrefs', () => {
   it('forma de tocar desconhecida passa a Uma nota; as outras ficam', () => {
     expect(sanitizePrefs({ chord: 'eleventh', bpm: 90 })).toEqual({ chord: 'off', bpm: 90 });
-    expect(sanitizePrefs({ chord: 'ninth' })).toEqual({ chord: 'ninth' });
+    expect(sanitizePrefs({ chord: 'arp' })).toEqual({ chord: 'arp' });
     expect(sanitizePrefs({ bpm: 90 })).toEqual({ bpm: 90 });
   });
 });

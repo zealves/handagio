@@ -24,6 +24,8 @@ import { MotionDetector } from '../vision/motionFallback';
 import type { Pt } from '../vision/types';
 import { FINGER_COLORS } from '../ui/theme';
 import { isTypingTarget } from '../lib/keys';
+import { DEBUG } from '../lib/debug';
+import { ARP_GATE, ARP_KEYS, arpCatchUp, arpNote, arpStepDue } from './arp';
 import { fingerChordOf, fingerMidiOf } from './notes';
 
 const NO_RESULT_MS = 6000;
@@ -39,8 +41,31 @@ const KEY_CONT_LEVEL = Math.sqrt(0.16 / 0.18);
 const fingerPan = (i: number) => (i - 4.5) / 6;
 /** Chave da voz: o dedo (nota única ou fundamental) ou `dedo:k` para as outras notas do acorde. */
 const voiceKey = (i: number, k: number): number | string => (k ? `${i}:${k}` : i);
+/** Chave da voz `k` (em rotação) de um arpejo. */
+const arpKey = (i: number, k: number): string => `${i}:a${k}`;
 /** Nos acordes, as vozes extra soam mais baixo para não saturar; na Nona (5 vozes) ainda mais. */
 const extraVoiceGain = (n: number): number => (n >= 5 ? 0.55 : 0.7);
+/** Diagnóstico: quantas notas de arpejo recentes se guardam em `arpLog`. */
+const ARP_LOG_MAX = 64;
+
+/** Arpejo ativo num dedo dobrado. */
+interface Arp {
+  /** Notas do acorde (sem o arrastar). */
+  notes: number[];
+  /** Posição seguinte no padrão. */
+  idx: number;
+  /** Arrastar atual em meios-tons (somado às notas seguintes). */
+  pitch: number;
+  vel: number;
+  /** Tempo (AudioContext) da primeira nota. */
+  start: number;
+  /** Notas já tocadas (escolhe a chave em rotação). */
+  count: number;
+  /** Nota a soar (sem o arrastar) e a sua chave, para o arrastar a mover. */
+  cur: number;
+  key: string;
+  sustain: boolean;
+}
 
 class Session {
   video: HTMLVideoElement | null = null;
@@ -65,6 +90,10 @@ class Session {
   private keysDown = new Set<string>();
   /** Nota MIDI a soar em cada dedo (para apagar a tecla certa no noteOff). */
   private fingerNote: (number[] | null)[] = new Array(10).fill(null);
+  /** Arpejos ativos, por dedo; o `onStep` toca a nota seguinte de cada um. */
+  private arps = new Map<number, Arp>();
+  /** Diagnóstico (só com ?debug): últimas notas de arpejo que soaram, por ordem. */
+  readonly arpLog: { finger: number; midi: number; time: number }[] = [];
   readonly clock = new Clock({
     now: () => audio.now,
     setInterval: (fn, ms) => setInterval(fn, ms),
@@ -85,6 +114,13 @@ class Session {
     this.gesture.on('noteOff', ({ finger }) => this.fingerOff(finger));
     this.gesture.on('glide', ({ finger, pitch }) => {
       // `pitch` é o desvio em meios-tons em relação à nota tocada (já com a altura e o acorde)
+      const a = this.arps.get(finger);
+      if (a) {
+        // no arpejo, desloca a nota atual e as seguintes
+        a.pitch = pitch;
+        audio.glide(a.key, a.cur + pitch);
+        return;
+      }
       this.fingerNote[finger]?.forEach((m, k) => audio.glide(voiceKey(finger, k), m + pitch));
     });
     this.gesture.on('continuous', ({ finger, level, pitch }) =>
@@ -171,6 +207,27 @@ class Session {
     fx.midi = midi;
     fx.label = midis.length > 1 ? chordName(midis, s.chord) : noteName(midi);
     this.releaseFingerNote(i);
+    this.stopArp(i);
+    if (s.chord === 'arp') {
+      const a: Arp = {
+        notes: midis,
+        idx: 0,
+        pitch: 0,
+        vel: velocity,
+        start: when,
+        count: 0,
+        cur: midi,
+        key: arpKey(i, 0),
+        sustain: info.sustain,
+      };
+      this.arps.set(i, a);
+      this.arpPlay(i, a, when);
+      const c = this.clock;
+      for (const t of arpCatchUp(when, c.anchor, c.stepDur, c.scheduledUntil))
+        this.arpPlay(i, a, t);
+      this.burst(i, velocity);
+      return;
+    }
     this.fingerNote[i] = midis;
     const extra = extraVoiceGain(midis.length);
     midis.forEach((m, k) =>
@@ -185,6 +242,10 @@ class Session {
       ),
     );
     if (midis.length > 1) setState({ lastNote: fx.label });
+    this.burst(i, velocity);
+  }
+
+  private burst(i: number, velocity: number): void {
     const tip = live.fingers[i].tip;
     pushBurst({
       x: tip?.x ?? (i + 0.5) / 10,
@@ -194,7 +255,76 @@ class Session {
     });
   }
 
+  /**
+   * Toca a nota seguinte de um arpejo em `time`. Grava-a no looper quando soa (se o dedo largar
+   * antes disso, a nota agendada é cortada e não fica no loop). Nos sustentados larga ao fim de
+   * `ARP_GATE` do passo; beliscados e percutidos soam naturalmente.
+   */
+  private arpPlay(i: number, a: Arp, time: number): void {
+    const n = a.count++;
+    const key = arpKey(i, n % ARP_KEYS);
+    const base = arpNote(a.notes, a.idx++);
+    const midi = base + a.pitch;
+    a.cur = base;
+    a.key = key;
+    const s = getState();
+    const pan = fingerPan(i);
+    const instrument = s.instrument;
+    audio.noteOn(key, instrument, midi, a.vel, pan, time);
+    this.at(time, () => {
+      // o dedo largou antes de a nota soar: foi cortada, não acende nem entra no loop
+      if (this.arps.get(i) !== a) return;
+      live.notes.set(midi, {
+        level: 1,
+        color: FINGER_COLORS[i],
+        held: a.sustain && audio.hasVoice(key),
+      });
+      setState({ lastNote: noteName(midi) });
+      if (DEBUG) {
+        this.arpLog.push({ finger: i, midi, time });
+        if (this.arpLog.length > ARP_LOG_MAX) this.arpLog.shift();
+      }
+      this.looper.record(this.clock.positionAt(time), {
+        kind: 'note',
+        midi,
+        vel: a.vel,
+        pan,
+        dur: 2,
+        instrument,
+        key,
+      });
+    });
+    if (!a.sustain) return;
+    const end = time + ARP_GATE * this.clock.stepDur;
+    this.at(end, () => {
+      // o dedo largou (já foi tudo solto) ou a chave já tem outra nota
+      if (this.arps.get(i) !== a || a.count - n > ARP_KEYS) return;
+      audio.noteOff(key);
+      this.looper.release(this.clock.positionAt(end), key);
+      const l = live.notes.get(midi);
+      if (l) l.held = false;
+    });
+  }
+
+  /** Pára o arpejo de um dedo: a nota a soar larga como uma nota normal e as agendadas calam-se. */
+  private stopArp(i: number): void {
+    const a = this.arps.get(i);
+    if (!a) return;
+    this.arps.delete(i);
+    const pos = this.clock.positionAt(audio.now);
+    for (let k = 0; k < ARP_KEYS; k++) {
+      const key = arpKey(i, k);
+      if (!audio.cancelPending(key)) audio.noteOff(key);
+      this.looper.release(pos, key);
+    }
+    for (const m of a.notes) {
+      const l = live.notes.get(m + a.pitch);
+      if (l) l.held = false;
+    }
+  }
+
   fingerOff(i: number): void {
+    this.stopArp(i);
     const n = this.fingerNote[i]?.length ?? 1;
     for (let k = 0; k < n; k++) {
       audio.noteOff(voiceKey(i, k));
@@ -361,6 +491,10 @@ class Session {
     const stepDur = this.clock.stepDur;
     for (const { ev, offset } of lp.eventsAt(step))
       this.playLoopEvent(ev, time + offset * stepDur, stepDur);
+    // arpejos: todos no mesmo relógio, cada um na sua posição do padrão
+    this.arps.forEach((a, i) => {
+      if (arpStepDue(a.start, time, stepDur)) this.arpPlay(i, a, time);
+    });
     // estado visual (atrasado até ao momento real do passo)
     this.at(time, () => {
       live.step = step;
@@ -564,6 +698,8 @@ class Session {
 
   releaseAll(): void {
     this.gesture.releaseAll();
+    // o teclado e o modo movimento também passam pelo gestureEngine; isto é só por segurança
+    for (const i of [...this.arps.keys()]) this.stopArp(i);
     audio.releaseAll();
     for (let i = 0; i < 10; i++) this.releaseFingerNote(i);
     live.notes.forEach((n) => (n.held = false));
@@ -809,6 +945,7 @@ class Session {
     stopStream(this.stream);
     this.stream = null;
     this.clock.stop();
+    for (const i of [...this.arps.keys()]) this.stopArp(i);
     this.timers.forEach(clearTimeout);
     this.timers.clear();
     this.hands.close();
