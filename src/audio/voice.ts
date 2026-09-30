@@ -108,6 +108,16 @@ export function makeKit(deps: VoiceDeps, t: number, out: GainNode) {
   return { K, sources, all, gainLfos };
 }
 
+/**
+ * Largar tudo (mudança de instrumento, escala, forma de tocar…): uma voz que ainda não começou
+ * (quantização, antecipação do looper) é cortada sem som, porque tocaria com as definições antigas;
+ * as que já soam largam normalmente. Só o `noteOff` de um dedo usa o toque curto (`PENDING_HOLD`).
+ */
+export function releaseOrCancel(voice: Voice, now: number): void {
+  if (now < voice.startAt) voice.kill();
+  else voice.release();
+}
+
 /** Uma voz largada antes de começar (quantização) ainda soa este tempo (s) antes de largar. */
 export const PENDING_HOLD = 0.12;
 

@@ -24,7 +24,7 @@ import {
   type SampleVoice,
 } from './samples/sampler';
 import { freqToMidi, midiToFreq } from './theory';
-import { playVoice, type Voice, type VoiceDeps } from './voice';
+import { playVoice, releaseOrCancel, type Voice, type VoiceDeps } from './voice';
 import type { MouthFxId } from '../state/types';
 
 export interface EngineParams {
@@ -353,7 +353,11 @@ export class AudioEngine {
     // sem isto, uma nota beliscada tocava ~3 s inteiros depois da mudança
     this.sampleTails.forEach(({ voice }) => voice.cancelIfPending());
     this.fadingTails.forEach((voice) => voice.cancelIfPending());
-    this.voices.forEach(({ voice }) => voice.release());
+    // o mesmo para as vozes sintetizadas (senão o toque curto de `PENDING_HOLD` soava ~120 ms
+    // com as definições antigas); as amostras agendadas cortam-se da mesma forma
+    // (antes do primeiro gesto não há contexto nem vozes)
+    const now = this.ready ? this.ctx.currentTime : 0;
+    this.voices.forEach(({ voice }) => releaseOrCancel(voice, now));
     this.voices.clear();
     this.silenceContinuous();
   }
