@@ -34,6 +34,8 @@ const NO_RESULT_MS = 6000;
  */
 const FACE_EVERY = 2;
 const FACE_MAX_GAP = 3;
+/** Intervalo mínimo (ms) entre gravações dos intervalos aprendidos nas preferências. */
+const LEARN_SAVE_MS = 5000;
 const LOAD_TIMEOUT_MS = 20000;
 /** Espera depois de escolher um instrumento antes de carregar as amostras. */
 const SAMPLE_LOAD_DELAY_MS = 300;
@@ -63,6 +65,11 @@ class Session {
   private detections = 0;
   /** Diagnóstico (`__vsc.session.stats`): chamadas ao detetor das mãos e ao da face. */
   readonly stats = { handDetects: 0, faceDetects: 0 };
+  /** Aprendizagem: versão do `adaptive` já gravada e quando. */
+  private learnSaved = 0;
+  private learnSavedT = 0;
+  /** Último `learnedRanges` escrito pela sessão (para distinguir de um "Repor"). */
+  private learnWritten: unknown = undefined;
   private raf = 0;
   private lastT = 0;
   private lastProcT = 0;
@@ -121,6 +128,7 @@ class Session {
       glide: s.glide,
       continuous: instrumentInfo(s.instrument).kind === 'continuous',
       calibration: s.calibration,
+      learn: s.learnHand,
     };
   }
 
@@ -508,6 +516,8 @@ class Session {
   // ---------- reações ao store ----------
   installStoreSync(): () => void {
     samples.setCurrent(getState().instrument);
+    this.gesture.adaptive.load(getState().learnedRanges);
+    this.learnSaved = this.gesture.adaptive.version;
     const offSamples = samples.on('status', ({ id, status }) => {
       const next = { ...getState().sampleStatus };
       // `idle`: os buffers saíram da memória (instrumento usado há mais tempo)
@@ -560,6 +570,11 @@ class Session {
       )
         this.releaseAll();
       if (s.bpm !== prev.bpm) this.clock.setBpm(s.bpm);
+      // intervalos aprendidos mudados por fora da sessão ("Repor as preferências", outro separador)
+      if (s.learnedRanges !== prev.learnedRanges && s.learnedRanges !== this.learnWritten) {
+        this.gesture.adaptive.load(s.learnedRanges);
+        this.learnSaved = this.gesture.adaptive.version;
+      }
       if ((s.cameraId !== prev.cameraId || s.lowRes !== prev.lowRes) && this.stream)
         void this.restartCamera();
     });
@@ -761,7 +776,33 @@ class Session {
       const c = assigned.flatMap((lm) => (lm ? curls(lm) : [null, null, null, null, null]));
       this.cal.collector.add(this.cal.phase, c);
     }
-    this.gesture.process(assigned, pdt, this.gestureOptions());
+    // confiança da lateralidade de cada lado (a aprendizagem ignora mãos pouco confiáveis)
+    const scores = assigned.map((lm) => {
+      const k = lm ? hands.indexOf(lm) : -1;
+      return k >= 0 ? (handedness[k]?.score ?? null) : null;
+    });
+    this.gesture.process(assigned, pdt, this.gestureOptions(), scores);
+    this.saveLearned(now);
+  }
+
+  /** Guarda os intervalos aprendidos nas preferências, no máximo a cada `LEARN_SAVE_MS`. */
+  private saveLearned(now: number): void {
+    const a = this.gesture.adaptive;
+    if (a.version === this.learnSaved || now - this.learnSavedT < LEARN_SAVE_MS) return;
+    this.learnSaved = a.version;
+    this.learnSavedT = now;
+    const snap = a.snapshot();
+    if (JSON.stringify(snap) === JSON.stringify(getState().learnedRanges)) return;
+    this.learnWritten = snap;
+    setState({ learnedRanges: snap });
+  }
+
+  /** Esquece o que a app aprendeu da mão (o botão "Repor calibração" também o faz). */
+  forgetLearned(): void {
+    this.gesture.adaptive.reset();
+    this.learnSaved = this.gesture.adaptive.version;
+    this.learnWritten = null;
+    setState({ learnedRanges: null });
   }
 
   /**

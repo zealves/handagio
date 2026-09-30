@@ -1,10 +1,17 @@
 // Transforma dobras de dedos em eventos de notas: histerese, velocidade, disparo e libertação.
 // Partiu de processHands() no protótipo; desde a v2.1 a deteção dos dedos (suavização,
-// limiares por dedo, disparo antecipado e período refratário) foi afinada para
+// limiares por dedo, disparo antecipado, período refratário e aprendizagem) foi afinada para
 // ser mais rápida e mais fácil (docs/DECISIONS.md, 60). Os polegares mantêm as regras antigas.
 import { clamp } from '../audio/theory';
 import { Emitter } from '../lib/emitter';
 import type { Calibration } from '../state/types';
+import {
+  AdaptiveRanges,
+  LEARN_MIN_SCORE,
+  LEARN_SKIP_FRAMES,
+  usableRange,
+  type LearnedRange,
+} from './adaptive';
 import { curls } from './fingerCurl';
 import { isActive, TIP_IDS } from './fingerMap';
 import type { AssignedHands } from './types';
@@ -28,6 +35,8 @@ export interface GestureOptions {
   glide: boolean;
   continuous: boolean;
   calibration?: Calibration | null;
+  /** Aprender o intervalo de cada dedo enquanto se toca e usá-lo nos limiares (por defeito não). */
+  learn?: boolean;
 }
 
 export interface FingerLive {
@@ -75,7 +84,7 @@ export const THUMB_VEL_SMOOTH_PREV = 0.5;
  * Desconto no limiar de disparo por dedo (índice j: 0 polegar, 1 indicador, 2 médio, 3 anelar,
  * 4 mindinho). O anelar e o mindinho dobram menos (movimento acoplado aos vizinhos), por isso o
  * `on` baixa este valor; o `off` baixa metade, para a histerese continuar a soltar a nota com o
- * dedo esticado.
+ * dedo esticado. Nos limiares aprendidos o desconto é uma fração do intervalo aprendido.
  */
 export const FINGER_ON_DISCOUNT = [0, 0, 0, 0.06, 0.12] as const;
 /** Limiar de disparo mínimo sem calibração (sensibilidade no máximo com o desconto do mindinho). */
@@ -87,7 +96,7 @@ export const ON_MIN = 0.2;
  * - velocidade (declive da dobra crua nos 2 últimos fotogramas) acima de `EARLY_VEL` (/s), com a
  *   dobra crua a subir nos dois (um salto isolado da deteção não chega);
  * - dobra crua já a `EARLY_FRACTION` do caminho entre o repouso (0, ou o esticado
- *   calibrado) e o `on` SEM o desconto do dedo: o desconto do anelar e do mindinho não se
+ *   calibrado/aprendido) e o `on` SEM o desconto do dedo: o desconto do anelar e do mindinho não se
  *   soma ao antecipado, para o ruído de um dedo parado continuar abaixo deste nível;
  * - este dedo a mexer-se pelo menos `EARLY_DOMINANCE` × o dedo mais rápido da mesma mão (quando
  *   se dobra o anelar, o mindinho e o médio vão atrás mais devagar e não disparam antecipados).
@@ -105,6 +114,20 @@ export const EARLY_DOMINANCE = 0.6;
 export const COUPLED_DOMINANCE = 0.6;
 /** Período refratário (s) depois de um noteOff: o tremor ao esticar não volta a disparar. */
 export const REFRACTORY_S = 0.06;
+
+/**
+ * Limiares aprendidos: o `on` fica a `LEARN_ON_FRAC` do caminho entre `lo` e `hi` (menos o
+ * desconto do dedo, como fração do caminho) e a sensibilidade desloca-o como na calibração; o
+ * `off` fica a `LEARN_OFF_FRAC` do caminho, e sempre pelo menos `LEARN_MIN_HYST` abaixo do `on`.
+ * O `on` fica em [`LEARN_ON_MIN`, `LEARN_ON_MAX`] e nunca mais de `LEARN_MAX_DROP` abaixo do `on`
+ * sem aprendizagem: a aprendizagem pode facilitar, mas pouco de cada vez.
+ */
+export const LEARN_ON_FRAC = 0.55;
+export const LEARN_OFF_FRAC = 0.25;
+export const LEARN_MIN_HYST = 0.08;
+export const LEARN_ON_MIN = 0.2;
+export const LEARN_ON_MAX = 0.9;
+export const LEARN_MAX_DROP = 0.1;
 
 /**
  * Altura da mão escolhe a nota: graus da escala por unidade de altura do pulso (0..1), à volta
@@ -174,7 +197,7 @@ const earlyLevel = (rest: number, full: number): number => rest + (full - rest) 
 const calibrated = (i: number, cal?: Calibration | null): cal is Calibration =>
   !!cal && cal.closed[i] - cal.open[i] > 0.2;
 
-/** Limiares sem calibração: a sensibilidade menos o desconto do dedo. */
+/** Limiares sem calibração nem aprendizagem: a sensibilidade menos o desconto do dedo. */
 export function defaultThresholds(i: number, sens: number): Thresholds {
   const d = FINGER_ON_DISCOUNT[i % 5];
   const base = onThreshold(sens);
@@ -183,8 +206,36 @@ export function defaultThresholds(i: number, sens: number): Thresholds {
   return { on, off: on - (HYSTERESIS - d / 2), full, early: earlyLevel(0, full) };
 }
 
-/** Limiares de um dedo: calibração manual válida para o dedo, ou sensibilidade com desconto. */
-export function thresholds(i: number, sens: number, cal?: Calibration | null): Thresholds {
+/** Limiares a partir do intervalo aprendido de um dedo (ver `LEARN_ON_FRAC`). */
+export function learnedThresholds(i: number, sens: number, r: LearnedRange): Thresholds {
+  const span = r.hi - r.lo;
+  const d = FINGER_ON_DISCOUNT[i % 5];
+  const shift = (sens - 0.55) * 0.45;
+  const floor = defaultThresholds(i, sens).on - LEARN_MAX_DROP;
+  const on = clamp(
+    Math.max(floor, r.lo + span * (LEARN_ON_FRAC - d) - shift),
+    LEARN_ON_MIN,
+    LEARN_ON_MAX,
+  );
+  const full = Math.max(on, clamp(r.lo + span * LEARN_ON_FRAC - shift, LEARN_ON_MIN, LEARN_ON_MAX));
+  return {
+    on,
+    off: Math.min(r.lo + span * LEARN_OFF_FRAC, on - LEARN_MIN_HYST),
+    full,
+    early: earlyLevel(r.lo, full),
+  };
+}
+
+/**
+ * Limiares de um dedo. Prioridade: calibração manual válida para o dedo > intervalo aprendido
+ * utilizável > sensibilidade com o desconto do dedo.
+ */
+export function thresholds(
+  i: number,
+  sens: number,
+  cal?: Calibration | null,
+  learned?: LearnedRange | null,
+): Thresholds {
   if (calibrated(i, cal)) {
     // Calibração: o limiar fica a 60% do caminho entre esticado e dobrado; a sensibilidade
     // continua a deslocá-lo como no modo normal (0.55 é o ponto neutro).
@@ -193,6 +244,7 @@ export function thresholds(i: number, sens: number, cal?: Calibration | null): T
     const off = Math.max(cal.open[i] + span * 0.15, on - HYSTERESIS);
     return { on, off, full: on, early: earlyLevel(cal.open[i], on) };
   }
+  if (usableRange(learned)) return learnedThresholds(i, sens, learned);
   return defaultThresholds(i, sens);
 }
 
@@ -242,6 +294,8 @@ export const newFinger = (): FingerLive => ({
 });
 
 export class GestureEngine extends Emitter<GestureEvents> {
+  /** Intervalos aprendidos de cada dedo (usados com `learn`). */
+  readonly adaptive = new AdaptiveRanges();
   /** Fotogramas seguidos com cada mão visível (0 = acabou de aparecer ou não está). */
   private handFrames = [0, 0];
   /** Velocidade crua do fotograma anterior e o seu `dt` (declive em 2 fotogramas). */
@@ -260,8 +314,17 @@ export class GestureEngine extends Emitter<GestureEvents> {
     this.emit('noteOff', { finger: i });
   }
 
-  /** dt em segundos, já limitado a [0.008, 0.1] pelo chamador. */
-  process(hands: AssignedHands, dt: number, o: GestureOptions): void {
+  /**
+   * dt em segundos, já limitado a [0.008, 0.1] pelo chamador. `scores`: confiança da
+   * lateralidade de cada mão (null/ausente = desconhecida); abaixo de `LEARN_MIN_SCORE` a mão
+   * não ensina nada.
+   */
+  process(
+    hands: AssignedHands,
+    dt: number,
+    o: GestureOptions,
+    scores: readonly (number | null | undefined)[] = [],
+  ): void {
     for (let h = 0; h < 2; h++) {
       const lm = hands[h];
       if (!lm) {
@@ -285,6 +348,12 @@ export class GestureEngine extends Emitter<GestureEvents> {
       // mão acabou de aparecer: a dobra parte do valor atual, sem velocidade (não dispara)
       const appeared = this.handFrames[h] === 0;
       this.handFrames[h]++;
+      const score = scores[h];
+      const learnHere =
+        !!o.learn &&
+        !o.continuous &&
+        this.handFrames[h] > LEARN_SKIP_FRAMES &&
+        (score === null || score === undefined || score >= LEARN_MIN_SCORE);
       const prevDt = this.prevDt[h];
       this.prevDt[h] = dt;
 
@@ -337,10 +406,11 @@ export class GestureEngine extends Emitter<GestureEvents> {
         }
         const tip = lm[TIP_IDS[j]];
         f.tip = { x: tip.x, y: tip.y };
+        if (learnHere && j > 0) this.adaptive.observe(i, f.raw, dt);
         const { on, off, full, early } =
           j === 0
             ? thumbThresholds(i, o.thumbSensitivity ?? THUMB_SENS_NEUTRAL, o.calibration)
-            : thresholds(i, o.sensitivity, o.calibration);
+            : thresholds(i, o.sensitivity, o.calibration, o.learn ? this.adaptive.ranges[i] : null);
 
         if (o.continuous) {
           const lvl = clamp((f.curl - off * 0.6) / (1 - off * 0.6), 0, 1);

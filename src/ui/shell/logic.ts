@@ -5,6 +5,7 @@ import { INSTRUMENTS, type InstrumentInfo } from '../../audio/instruments';
 import { FAMILIES, type Family } from '../../audio/patches/types';
 import { CHORD_MODES, validChord, type ChordMode } from '../../audio/theory';
 import type { DrawerId } from '../../state/types';
+import { normalizeRanges } from '../../vision/adaptive';
 
 export const normalize = (s: string): string =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
@@ -85,6 +86,7 @@ export const DRAWER_TITLES: Record<DrawerId, string> = {
  * A v4 acrescenta os modos de notas (`tonicAt`, `noteMode`, `customNotes`) e a sensibilidade
  * dos polegares, com os valores por defeito quando faltam. A v6 desliga uma vez a altura da mão
  * (`heightPitch`), que passou a só escolher a nota e começa desligada; o arrastar (`glide`) fica.
+ * A v8 liga a aprendizagem da mão (`learnHand`) sem nada aprendido (`learnedRanges`).
  */
 export function migratePrefs(old: unknown, version: number): Record<string, unknown> {
   const o: Record<string, unknown> = { ...((old as Record<string, unknown> | null) ?? {}) };
@@ -125,6 +127,11 @@ export function migratePrefs(old: unknown, version: number): Record<string, unkn
   if (version < 6) o.heightPitch = false;
   // v7: sem a lista de instrumentos recentes.
   if (version < 7) delete o.recentInstruments;
+  // v8: aprendizagem da mão, ligada por defeito, ainda sem nada aprendido.
+  if (version < 8) {
+    o.learnHand = true;
+    o.learnedRanges = null;
+  }
   return o;
 }
 
@@ -133,8 +140,12 @@ export function migratePrefs(old: unknown, version: number): Record<string, unkn
  * muda): uma forma de tocar desconhecida (de outra versão da app) passa a "Uma nota".
  */
 export function sanitizePrefs<T extends Record<string, unknown>>(p: T): T {
-  if (!('chord' in p)) return p;
-  return { ...p, chord: validChord(p.chord) };
+  const out: Record<string, unknown> = { ...p };
+  if ('chord' in p) out.chord = validChord(p.chord);
+  // intervalos aprendidos estragados (ou de outra versão) são esquecidos
+  if ('learnedRanges' in p) out.learnedRanges = normalizeRanges(p.learnedRanges);
+  if ('learnHand' in p && typeof p.learnHand !== 'boolean') out.learnHand = true;
+  return out as T;
 }
 
 /** O que entra no vídeo gravado: nunca a imagem da câmara, só as partículas e as mãos. */

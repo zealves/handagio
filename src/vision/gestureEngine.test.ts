@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { usableRange } from './adaptive';
 import { curls } from './fingerCurl';
 import {
   COUPLED_DOMINANCE,
@@ -12,6 +13,10 @@ import {
   FINGER_ON_DISCOUNT,
   GestureEngine,
   HYSTERESIS,
+  LEARN_MAX_DROP,
+  LEARN_OFF_FRAC,
+  LEARN_ON_FRAC,
+  learnedThresholds,
   heightShiftOf,
   onThreshold,
   THUMB_DWELL,
@@ -482,6 +487,84 @@ describe('gestureEngine', () => {
       expect(REFRACTORY_S).toBeLessThan(6 * dt);
       g.process(handWith([0, 0.9, 0, 0, 0]), dt, opts);
       expect(ev).toEqual(['on1', 'off1', 'on1']);
+    });
+
+    it('limiares aprendidos: 55% do caminho, off a 25%, limitados', () => {
+      const r = { lo: 0.1, hi: 0.7 };
+      const t = learnedThresholds(1, 0.55, r);
+      expect(t.on).toBeCloseTo(0.1 + 0.6 * LEARN_ON_FRAC);
+      expect(t.off).toBeCloseTo(0.1 + 0.6 * LEARN_OFF_FRAC);
+      expect(t.early).toBeCloseTo(0.1 + (t.full - 0.1) * EARLY_FRACTION);
+      // mindinho: desconto como fração do caminho
+      expect(learnedThresholds(4, 0.55, r).on).toBeCloseTo(0.1 + 0.6 * (LEARN_ON_FRAC - 0.12));
+      // nunca mais de LEARN_MAX_DROP abaixo do limiar sem aprendizagem
+      const low = learnedThresholds(4, 0.55, { lo: 0, hi: 0.3 });
+      expect(low.on).toBeCloseTo(defaultThresholds(4, 0.55).on - LEARN_MAX_DROP);
+      // entre 0.2 e 0.9
+      expect(learnedThresholds(1, 0, { lo: 0.8, hi: 1 }).on).toBeLessThanOrEqual(0.9);
+      expect(learnedThresholds(1, 1, { lo: 0, hi: 0.3 }).on).toBeGreaterThanOrEqual(0.2);
+    });
+
+    it('prioridade: calibração > aprendido > defeito', () => {
+      const cal = { open: Array(10).fill(0.2), closed: Array(10).fill(0.8) };
+      const learned = { lo: 0.05, hi: 0.5 };
+      const withCal = thresholds(3, 0.55, cal, learned);
+      expect(withCal.on).toBeCloseTo(0.2 + 0.6 * 0.6);
+      expect(thresholds(3, 0.55, null, learned).on).toBeCloseTo(
+        learnedThresholds(3, 0.55, learned).on,
+      );
+      // calibração inválida para este dedo: usa o aprendido
+      const bad = { open: Array(10).fill(0), closed: Array(10).fill(0) };
+      expect(thresholds(3, 0.55, bad, learned).on).toBeCloseTo(
+        learnedThresholds(3, 0.55, learned).on,
+      );
+      // aprendido demasiado estreito: defeito com desconto
+      const narrow = { lo: 0.1, hi: 0.3 };
+      expect(usableRange(narrow)).toBe(false);
+      expect(thresholds(3, 0.55, null, narrow).on).toBeCloseTo(defaultThresholds(3, 0.55).on);
+    });
+
+    it('com aprender ligado, um mindinho que só chega a 0.35 passa a tocar', () => {
+      const lo = { ...opts, learn: true };
+      expect(fireFrame(4, 0.35, 200, 30, lo)).toBeNull();
+      const g = new GestureEngine();
+      // 30 s a tocar: o mindinho dobra até 0.35 uma vez por segundo
+      for (let k = 0; k < 900; k++) {
+        const ph = (k % 30) / 30;
+        const b = ph < 0.3 ? Math.sin((ph / 0.3) * Math.PI) : 0;
+        g.process(handWith([0, 0.9 * b, 0, 0.45 * b, 0.35 * b]), 1 / 30, lo);
+      }
+      expect(usableRange(g.adaptive.ranges[4])).toBe(true);
+      const ev = record(g);
+      for (let k = 0; k < 10; k++) g.process(handWith([0, 0, 0, 0, 0]), 1 / 30, lo);
+      for (let k = 1; k <= 10; k++)
+        g.process(handWith([0, 0, 0, 0, 0.35 * smooth(Math.min(1, k / 6))]), 1 / 30, lo);
+      expect(ev).toContain('on4');
+      // sem `learn` o aprendido não conta
+      const g2 = new GestureEngine();
+      g2.adaptive.load(g.adaptive.snapshot());
+      const ev2 = record(g2);
+      for (let k = 0; k < 10; k++) g2.process(handWith([0, 0, 0, 0, 0]), 1 / 30, opts);
+      for (let k = 1; k <= 10; k++)
+        g2.process(handWith([0, 0, 0, 0, 0.35 * smooth(Math.min(1, k / 6))]), 1 / 30, opts);
+      expect(ev2).toEqual([]);
+    });
+
+    it('não aprende com mãos pouco confiáveis nem nos primeiros fotogramas', () => {
+      const lo = { ...opts, learn: true };
+      const g = new GestureEngine();
+      for (let k = 0; k < 200; k++)
+        g.process(handWith([0, (k % 10) / 10, 0, 0, 0]), 1 / 30, lo, [0.5, 0.99]);
+      expect(g.adaptive.samples(1)).toBe(0);
+      const g2 = new GestureEngine();
+      for (let k = 0; k < 8; k++) g2.process(handWith([0, 0, 0, 0, 0]), 1 / 30, lo, [0.95, 0.95]);
+      expect(g2.adaptive.samples(1)).toBe(3);
+      // a mão desaparece e volta: recomeça a contar
+      g2.process([null, null], 1 / 30, lo);
+      for (let k = 0; k < 5; k++) g2.process(handWith([0, 0, 0, 0, 0]), 1 / 30, lo, [0.95, 0.95]);
+      expect(g2.adaptive.samples(1)).toBe(3);
+      // polegares nunca aprendem
+      expect(g2.adaptive.samples(0)).toBe(0);
     });
   });
 });

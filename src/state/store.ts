@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import type { ChordMode, ScaleName } from '../audio/theory';
 import { DEFAULT_CUSTOM_NOTES, type NoteMode } from '../app/notes';
 import { migratePrefs, sanitizePrefs } from '../ui/shell/logic';
+import type { LearnedRange } from '../vision/adaptive';
 import type { TonicAt } from '../vision/fingerMap';
 import type { RecordingMeta } from './recordingsDb';
 import type {
@@ -55,6 +56,10 @@ export interface Prefs extends SoundSettings {
   loopBars: LoopBars;
   loopFreeze: boolean;
   calibration: Calibration | null;
+  /** Aprender o intervalo de cada dedo enquanto se toca (e usá-lo nos limiares). */
+  learnHand: boolean;
+  /** Intervalos de dobra aprendidos por dedo (10; null = nada aprendido). Fora dos presets. */
+  learnedRanges: (LearnedRange | null)[] | null;
   userPresets: Record<string, SoundSettings>;
 }
 
@@ -120,6 +125,8 @@ export const DEFAULT_PREFS: Prefs = {
   loopBars: 2,
   loopFreeze: false,
   calibration: null,
+  learnHand: true,
+  learnedRanges: null,
   userPresets: {},
 };
 
@@ -150,7 +157,7 @@ export const useStore = create<Store>()(
     }),
     {
       name: 'handagio:prefs',
-      version: 7,
+      version: 8,
       migrate: (old, version) => migratePrefs(old, version) as unknown as Store,
       merge: (persisted, current) => ({
         ...current,

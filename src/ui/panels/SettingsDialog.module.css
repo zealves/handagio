@@ -99,3 +99,30 @@
   outline: 2px solid var(--cyan);
   outline-offset: 2px;
 }
+
+/* Intervalo aprendido de cada dedo (8 barrinhas, sem polegares) */
+.bars {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  height: 28px;
+}
+.bar {
+  position: relative;
+  width: 10px;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.bar:nth-child(4) {
+  margin-right: 10px;
+}
+.barFill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-radius: 2px;
+  opacity: 0.85;
+}

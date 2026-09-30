@@ -389,6 +389,48 @@ test('deteção leve: câmara a 640×360, overlay a 1280 e a face só com o efei
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
+test('aprender a mão: toggle nas Definições e Repor calibração esquece o aprendido', async ({
+  page,
+}) => {
+  const errors = watchConsole(page);
+  await page.goto('/?debug');
+  type Dbg = {
+    __vsc: {
+      store: {
+        getState(): {
+          learnHand: boolean;
+          learnedRanges: unknown;
+          set(p: Record<string, unknown>): void;
+        };
+      };
+    };
+  };
+  const learned = [null, { lo: 0.1, hi: 0.7 }, null, { lo: 0.05, hi: 0.5 }];
+  await page.evaluate(
+    (l) =>
+      (window as unknown as Dbg).__vsc.store
+        .getState()
+        .set({ learnedRanges: l, settingsOpen: true }),
+    learned,
+  );
+  const settings = page.getByTestId('settings');
+  await expect(settings).toBeVisible();
+  const toggle = settings.getByTestId('learn-hand');
+  await expect(toggle).toBeChecked();
+  await expect(settings.getByTestId('learned-bars').locator('span[role="img"]')).toHaveCount(8);
+  await settings.getByTestId('reset-calibration').click();
+  expect(
+    await page.evaluate(() => (window as unknown as Dbg).__vsc.store.getState().learnedRanges),
+  ).toBeNull();
+  await expect(settings.getByTestId('learned-bars')).toHaveCount(0);
+  await expect(settings.getByTestId('reset-calibration')).toBeDisabled();
+  await toggle.click({ force: true });
+  expect(
+    await page.evaluate(() => (window as unknown as Dbg).__vsc.store.getState().learnHand),
+  ).toBe(false);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
 test('esconder interface com I e voltar com Esc', async ({ page }) => {
   const errors = watchConsole(page);
   await page.goto('/?debug');

@@ -6,6 +6,9 @@ import { DEFAULT_PREFS, getState, useStore } from '../../state/store';
 import { IconButton } from '../controls/IconButton';
 import { Slider } from '../controls/Slider';
 import { Toggle } from '../controls/Toggle';
+import type { LearnedRange } from '../../vision/adaptive';
+import { fingerLabel } from '../../vision/fingerMap';
+import { FINGER_COLORS } from '../theme';
 import { IconClose } from '../icons/UiIcons';
 import p from './panels.module.css';
 import s from './SettingsDialog.module.css';
@@ -19,6 +22,8 @@ export function SettingsDialog() {
       volume: x.volume,
       theme: x.theme,
       calibration: x.calibration,
+      learnHand: x.learnHand,
+      learnedRanges: x.learnedRanges,
       calibrating: x.calibrating,
       engine: x.engine,
       userPresets: x.userPresets,
@@ -187,8 +192,12 @@ export function SettingsDialog() {
             <button
               type="button"
               className={p.btn}
-              onClick={() => st.set({ calibration: null })}
-              disabled={!st.calibration}
+              onClick={() => {
+                st.set({ calibration: null });
+                session.forgetLearned();
+              }}
+              disabled={!st.calibration && !st.learnedRanges}
+              data-testid="reset-calibration"
             >
               Repor calibração
             </button>
@@ -200,6 +209,17 @@ export function SettingsDialog() {
                 ? 'Limiares calibrados para ti. Estica e dobra os dedos durante 3 s cada para recalibrar.'
                 : 'Estica os dedos durante 3 s e depois dobra-os durante 3 s; os limiares ajustam-se à tua mão.'}
           </p>
+          <Toggle
+            label="Aprender a minha mão enquanto toco"
+            checked={st.learnHand}
+            onChange={(v) => st.set({ learnHand: v })}
+            testId="learn-hand"
+          />
+          <p className={s.hint}>
+            A app vai vendo até onde cada dedo estica e dobra e ajusta-se sozinha, para o anelar e o
+            mindinho tocarem com menos esforço. A calibração, se a fizeres, tem prioridade.
+          </p>
+          {st.learnHand && st.learnedRanges && <LearnedBars ranges={st.learnedRanges} />}
           {st.thumbs && (
             <>
               <Slider
@@ -349,5 +369,40 @@ export function SettingsDialog() {
         </section>
       </div>
     </dialog>
+  );
+}
+
+/** Dedos no ecrã sem polegares (os polegares não aprendem). */
+const LEARN_ORDER = [4, 3, 2, 1, 6, 7, 8, 9];
+
+/** Barrinhas com o intervalo aprendido de cada dedo (0 = esticado, em baixo; 1 = dobrado). */
+function LearnedBars({ ranges }: { ranges: (LearnedRange | null)[] }) {
+  return (
+    <div
+      className={s.bars}
+      data-testid="learned-bars"
+      aria-label="Intervalo aprendido de cada dedo"
+    >
+      {LEARN_ORDER.map((i) => {
+        const r = ranges[i];
+        const title = r
+          ? `${fingerLabel(i)}: ${Math.round(r.lo * 100)}–${Math.round(r.hi * 100)}%`
+          : `${fingerLabel(i)}: ainda a aprender`;
+        return (
+          <span key={i} className={s.bar} title={title} role="img" aria-label={title}>
+            {r && (
+              <span
+                className={s.barFill}
+                style={{
+                  bottom: `${r.lo * 100}%`,
+                  height: `${(r.hi - r.lo) * 100}%`,
+                  background: FINGER_COLORS[i],
+                }}
+              />
+            )}
+          </span>
+        );
+      })}
+    </div>
   );
 }
