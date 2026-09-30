@@ -2,6 +2,11 @@
 
 Versões segundo [SemVer](https://semver.org/lang/pt-BR/). A mais recente fica no topo.
 
+## [2.1.0] — 2026-09-30
+
+- Nome Handagio, com "Vision Sound Cam" como descritivo. As preferências e gravações guardadas com o nome antigo não passam para a versão nova.
+- O palco ocupa todo o ecrã (também em tablet em paisagem), com margens mínimas; as mãos enchem-no sem deformar, seja qual for a proporção da câmara.
+
 ## [2.0.0] — 2026-09-30
 
 Interface redesenhada para pôr o foco em tocar, e instrumentos acústicos gravados. A deteção dos dedos não muda; a mão esquerda e a direita passam a reconhecer-se pela lateralidade do MediaPipe.
@@ -34,5 +39,6 @@ Primeira versão completa, com layout de três colunas e separadores Som / Músi
 - Presets, calibração, definições, tema claro, PWA e testes e2e.
 - Deploy automático por FTP para handagio.com; desbloqueio de áudio no iOS.
 
+[2.1.0]: https://github.com/zealves/handagio/releases/tag/v2.1.0
 [2.0.0]: https://github.com/zealves/handagio/releases/tag/v2.0.0
 [1.0.0]: https://github.com/zealves/handagio/releases/tag/v1.0.0
