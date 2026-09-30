@@ -13,7 +13,8 @@ Interface redesenhada para pôr o foco em tocar, e instrumentos acústicos grava
 - Seletor de instrumentos com pesquisa, recentes e grupos por família; `,` e `.` mudam de instrumento.
 - Efeitos em cartões (reverb, eco/delay, pitch, filtro, drive, boca), com reverb e eco à mão na barra.
 - Layout para telemóvel (folha inferior), tablet, desktop e paisagem baixa.
-- Oitava, sensibilidade, altura da mão e deslizar passam para as Definições, com a lista de atalhos.
+- Oitava, sensibilidade, altura da mão e arrastar passam para as Definições, com a lista de atalhos.
+- Altura da mão e arrastar são duas opções independentes: "A altura da mão escolhe a nota" (desligada por defeito) e "Arrastar a nota depois de tocar", que dobra o tom a partir da nota tocada, também no modo Personalizado.
 - Notas dos dedos em modo Escala (por defeito Dó Maior com a tónica no mindinho esquerdo, `Dó4 … Dó5`; ou tónica no indicador direito) ou Personalizado (a nota de cada dedo escolhida à mão); polegares mais difíceis de disparar sem querer, com sensibilidade própria.
 - Instrumentos acústicos com gravações reais e 9 novos (contrabaixo, clarinete, fagote, trompa, trombone, tuba, guitarra acústica, guitarra elétrica, xilofone), cada um no seu registo.
 

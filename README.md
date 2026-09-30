@@ -1,6 +1,6 @@
 # Vision Sound Cam
 
-Um instrumento musical que se toca com as mãos à frente da webcam. Cada dedo toca uma nota ou um som de percussão; a rapidez com que dobras o dedo define a intensidade, a altura da mão muda o tom e abrir a boca aplica um efeito ao som.
+Um instrumento musical que se toca com as mãos à frente da webcam. Cada dedo toca uma nota ou um som de percussão; a rapidez com que dobras o dedo define a intensidade, subir ou descer a mão depois de tocar dobra o tom e abrir a boca aplica um efeito ao som.
 
 ![Demonstração da Vision Sound Cam](docs/demo.gif)
 
@@ -26,8 +26,11 @@ Na gaveta **Escala e acordes** escolhes como cada dedo sabe que nota tocar. A fi
   - Por defeito (Dó Maior, tónica no mindinho esquerdo), os 8 dedos tocam `Dó4 Ré4 Mi4 Fá4 | Sol4 Lá4 Si4 Dó5` (mão esquerda | mão direita), do mindinho esquerdo ao mindinho direito.
   - Exemplo, Dó Pentatónica com a tónica no indicador direito: `Ré3 Mi3 Sol3 Lá3 | Dó4 Ré4 Mi4 Sol4`. Com a tónica no mindinho esquerdo: `Dó4 Ré4 Mi4 Sol4 | Lá4 Dó5 Ré5 Mi5`.
   - A mão esquerda e a direita reconhecem-se pela forma da mão, não pelo lado do ecrã: com uma só mão à vista, o mindinho esquerdo continua a tocar a nota do mindinho esquerdo.
-  - A **oitava base** (nas definições) sobe ou desce tudo, e a altura da mão desloca as notas pela escala enquanto tocas.
-- **Personalizado**: escolhes a nota exata de cada dedo. Toca num dedo da fila, escolhe a nota (Dó a Si) e a oitava, e ouves logo como soa; Por defeito, as notas são as mesmas do modo Escala por defeito (`Dó4 … Dó5`); **Copiar da escala** começa pelas notas que o modo Escala está a tocar. Aqui a altura da mão e o deslizar não mudam o tom, e os acordes são sempre maiores (Tríade: a nota e as que ficam 4 e 7 meios-tons acima).
+  - A **oitava base** (nas definições) sobe ou desce tudo.
+- **Altura da mão e arrastar** (nas definições, secção Tocar), duas opções independentes:
+  - **A altura da mão escolhe a nota** (desligada por defeito, só no modo Escala): a altura do pulso quando dobras o dedo sobe ou desce a nota pela escala, cerca de um grau por cada 10% do ecrã acima ou abaixo do meio.
+  - **Arrastar a nota depois de tocar** (ligada por defeito): com o dedo dobrado, sobe ou desce a mão para dobrar o tom a partir da nota que tocaste, cerca de 2 meios-tons por cada 10% do ecrã, até uma oitava para cada lado. Um tremor pequeno não conta. Só se ouve nos instrumentos de nota longa (violino, flauta, órgão, sopros…), e funciona também no modo Personalizado.
+- **Personalizado**: escolhes a nota exata de cada dedo. Toca num dedo da fila, escolhe a nota (Dó a Si) e a oitava, e ouves logo como soa; Por defeito, as notas são as mesmas do modo Escala por defeito (`Dó4 … Dó5`); **Copiar da escala** começa pelas notas que o modo Escala está a tocar. Aqui a altura da mão não escolhe a nota (arrastar depois de tocar continua a funcionar), e os acordes são sempre maiores (Tríade: a nota e as que ficam 4 e 7 meios-tons acima).
 - **Polegares**: com **Usar também os polegares**, tocam 10 dedos em vez de 8. O polegar mexe-se sem querer quando dobras os outros dedos, por isso só toca se ficar bem dobrado durante um instante; se tocar sem querer ou custar a tocar, ajusta **Sensibilidade dos polegares** nas definições (secção Mãos).
 
 ### Interface

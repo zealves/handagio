@@ -15,7 +15,7 @@ teclado A S D F / J K L Ç ─────────────────�
 
 ## Camadas
 
-- **`src/vision`** e **`src/audio`**: TypeScript puro, sem React. Comunicam por eventos tipados (`lib/emitter.ts`). O `GestureEngine` emite `noteOn(finger, velocity, shift)`, `noteOff(finger)`, `continuous(finger, level, pitch)` e `glide(finger, pitch)`.
+- **`src/vision`** e **`src/audio`**: TypeScript puro, sem React. Comunicam por eventos tipados (`lib/emitter.ts`). O `GestureEngine` emite `noteOn(finger, velocity, shift)`, `noteOff(finger)`, `continuous(finger, level, pitch)` e `glide(finger, pitch)` (desvio em meios-tons em relação à nota tocada).
 - **`src/app/session.ts`**: o orquestrador. Liga a câmara, carrega os modelos (timeout de 20 s; sem resultados em 6 s passa ao modo movimento), corre o ciclo de deteção num `requestAnimationFrame` próprio, traduz eventos de gestos em notas (escala, tónica, oitava, polegares), aplica a quantização, grava no looper e gere a calibração e o modo teclado.
 - **`src/state`**:
   - `store.ts` (Zustand + `persist`): preferências (guardadas em `localStorage`) e estado de baixa frequência (gaveta aberta, interface escondida, estado da câmara, gravação, looper).
