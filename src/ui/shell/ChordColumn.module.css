@@ -3,7 +3,7 @@
 .col {
   display: grid;
   gap: 2px;
-  /* ~120 px: o título dita a largura */
+  /* a opção mais larga dita a largura; o título quebra em duas linhas dentro dela */
   width: max-content;
   padding: 8px 6px 6px;
   border-radius: var(--radius-sm);
@@ -12,11 +12,17 @@
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
 }
 .title {
+  /* não conta para a largura da coluna (min-width a 100% ocupa-a toda) e quebra, nunca corta */
+  width: 0;
+  min-width: 100%;
+  box-sizing: border-box;
   padding: 0 4px 4px;
   font-size: 11px;
+  line-height: 1.3;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: break-word;
   color: var(--muted);
 }
 .item {
@@ -111,9 +117,9 @@
   }
 }
 
-/* Sem altura para os rótulos (o App dá à coluna o espaço livre como contentor; com os 8 modos
-   e os rótulos a coluna tem ~340 px): só desenhos, em duas colunas de 4. */
-@container chords (max-height: 343px) {
+/* Sem altura para os rótulos (o App dá à coluna o espaço livre como contentor; com os 7 modos,
+   os rótulos e o título em duas linhas a coluna tem ~315 px): só desenhos, em duas colunas. */
+@container chords (max-height: 319px) {
   .col {
     grid-template-columns: repeat(2, 40px);
     padding: 6px;
