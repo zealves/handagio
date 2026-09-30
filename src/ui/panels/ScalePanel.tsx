@@ -55,7 +55,6 @@ const CUSTOM_CHORD_HINT: Record<Exclude<ChordMode, 'off'>, string> = {
     'Sem escala, a Sétima é sempre um acorde maior com sétima: a nota do dedo e as que ficam 4, 7 e 10 meios-tons acima.',
   ninth:
     'Sem escala, a Nona junta à Sétima a nona: a nota do dedo e as que ficam 4, 7, 10 e 14 meios-tons acima.',
-  arp: 'O Arpejo toca o acorde maior (a nota do dedo e as que ficam 4 e 7 meios-tons acima) uma nota de cada vez, a subir e a descer.',
 };
 
 export function ScalePanel() {

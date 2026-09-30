@@ -35,7 +35,7 @@ export function ChordColumn() {
     setTip(null);
   };
 
-  // radiogroup: ↓/→ passam à seguinte e ↑/← à anterior (também na grelha compacta de 2×4, pela
+  // radiogroup: ↓/→ passam à seguinte e ↑/← à anterior (também na grelha compacta de 2 colunas, pela
   // ordem de leitura), Home/End à primeira e à última; escolhem-na logo (o Espaço fica para a boca,
   // decisão 14)
   const onKey = (e: KeyboardEvent) => {

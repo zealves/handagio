@@ -369,7 +369,7 @@ test('forma de tocar: coluna à esquerda do palco, dica, tecla C e menu ⋯', as
   const column = page.getByRole('radiogroup', { name: 'Cada dedo toca' });
   await expect(column).toBeVisible();
   await expect(column).toContainText('Cada dedo toca…');
-  // as 8 opções estão à vista, com os rótulos, da mais simples à mais rica
+  // as 7 opções estão à vista, com os rótulos, da mais simples à mais rica
   await expect(column.getByRole('radio')).toHaveText([
     'Uma nota',
     'Oitava',
@@ -378,7 +378,6 @@ test('forma de tocar: coluna à esquerda do palco, dica, tecla C e menu ⋯', as
     'Suspenso',
     'Sétima',
     'Nona',
-    'Arpejo',
   ]);
   await expect(column).toBeInViewport({ ratio: 1 });
   // à esquerda do palco, sem tapar a barra nem os chips do HUD
@@ -414,7 +413,7 @@ test('forma de tocar: coluna à esquerda do palco, dica, tecla C e menu ⋯', as
   await expect(page.getByTestId('chord-power')).toHaveAttribute('tabindex', '-1');
   // C passa ao seguinte, pela mesma ordem, e volta ao início
   await page.locator('body').click({ position: { x: 5, y: 5 } });
-  for (const id of ['sus4', 'seventh', 'ninth', 'arp', 'off', 'octave']) {
+  for (const id of ['sus4', 'seventh', 'ninth', 'off', 'octave']) {
     await page.keyboard.press('c');
     await checked(id);
   }
@@ -438,7 +437,7 @@ test('forma de tocar no telemóvel: sem coluna, no menu ⋯', async ({ page }) =
   await markStarted(page);
   await expect(page.getByTestId('chord-column')).toBeHidden();
   await page.getByTestId('more').click();
-  for (const id of ['off', 'octave', 'power', 'triad', 'sus4', 'seventh', 'ninth', 'arp']) {
+  for (const id of ['off', 'octave', 'power', 'triad', 'sus4', 'seventh', 'ninth']) {
     await page.getByTestId(`menu-chord-${id}`).scrollIntoViewIfNeeded();
     await expect(page.getByTestId(`menu-chord-${id}`)).toBeInViewport({ ratio: 1 });
   }
@@ -464,7 +463,7 @@ test('forma de tocar em paisagem baixa: coluna compacta, dentro do ecrã', async
   for (const chip of await page.getByTestId('hud').locator('span').all())
     expect(overlaps(bar, (await chip.boundingBox())!)).toBe(false);
   // só os desenhos, em duas colunas: o rótulo passa para a dica
-  await expect(column.getByRole('radio')).toHaveCount(8);
+  await expect(column.getByRole('radio')).toHaveCount(7);
   for (const r of await column.getByRole('radio').all())
     await expect(r).toBeInViewport({ ratio: 1 });
   await expect(page.getByTestId('chord-power').getByText('Quinta')).toBeHidden();
@@ -472,21 +471,21 @@ test('forma de tocar em paisagem baixa: coluna compacta, dentro do ecrã', async
   await expect(page.getByRole('tooltip')).toContainText('Quinta');
   await page.getByTestId('chord-power').click();
   await expect(page.getByTestId('chord-power')).toHaveAttribute('aria-checked', 'true');
-  // na grelha 2×4, ←/→ também mudam de opção (pela ordem de leitura); Home e End vão aos extremos
+  // na grelha de 2 colunas, ←/→ também mudam de opção (pela ordem de leitura); Home e End vão aos extremos
   await page.keyboard.press('ArrowRight');
   await expect(page.getByTestId('chord-triad')).toHaveAttribute('aria-checked', 'true');
   await expect(page.getByTestId('chord-triad')).toBeFocused();
   await page.keyboard.press('ArrowLeft');
   await expect(page.getByTestId('chord-power')).toHaveAttribute('aria-checked', 'true');
   await page.keyboard.press('End');
-  await expect(page.getByTestId('chord-arp')).toHaveAttribute('aria-checked', 'true');
-  await expect(page.getByTestId('chord-arp')).toBeFocused();
+  await expect(page.getByTestId('chord-ninth')).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByTestId('chord-ninth')).toBeFocused();
   await page.keyboard.press('Home');
   await expect(page.getByTestId('chord-off')).toHaveAttribute('aria-checked', 'true');
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
-test('forma de tocar a 1024×768: os 8 modos cabem sem tapar o HUD nem a barra', async ({
+test('forma de tocar a 1024×768: os 7 modos cabem sem tapar o HUD nem a barra', async ({
   page,
 }) => {
   const errors = watchConsole(page);
@@ -495,7 +494,7 @@ test('forma de tocar a 1024×768: os 8 modos cabem sem tapar o HUD nem a barra',
   await markStarted(page);
   const column = page.getByTestId('chord-column');
   await expect(column).toBeInViewport({ ratio: 1 });
-  await expect(column.getByRole('radio')).toHaveCount(8);
+  await expect(column.getByRole('radio')).toHaveCount(7);
   const col = (await column.boundingBox())!;
   const stage = (await page.getByTestId('stage').boundingBox())!;
   expect(col.y).toBeGreaterThanOrEqual(stage.y);
@@ -506,12 +505,9 @@ test('forma de tocar a 1024×768: os 8 modos cabem sem tapar o HUD nem a barra',
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
-type ArpVsc = Vsc & {
-  session: { arpLog: { finger: number; midi: number; time: number }[] };
-  audio: { activeVoices: number };
-};
+type VoicesVsc = Vsc & { audio: { activeVoices: number } };
 
-test('Arpejo: as notas do acorde uma a uma, ao ritmo do tempo, e param ao soltar', async ({
+test('Uma nota com quantização: um toque mais curto do que um passo ainda soa', async ({
   page,
 }) => {
   const errors = watchConsole(page);
@@ -520,76 +516,15 @@ test('Arpejo: as notas do acorde uma a uma, ao ritmo do tempo, e param ao soltar
   await pinNotes(page, {
     started: true,
     instrument: 'synth',
-    bpm: 120,
-    quantize: 'off',
-    noteMode: 'scale',
-    root: 0,
-    scale: 'Maior',
-    octave: 4,
-  });
-  await page.getByTestId('chord-arp').click();
-  await expect(page.getByTestId('chord-arp')).toHaveAttribute('aria-checked', 'true');
-  const r = await page.evaluate(async () => {
-    const v = (window as unknown as { __vsc: ArpVsc }).__vsc;
-    const wait = () => new Promise((res) => setTimeout(res, 33));
-    const open = [v.syntheticHand(false, 0.3), v.syntheticHand(false, 0.7)];
-    const bent = [
-      v.syntheticHand([false, false, true, false, false], 0.3),
-      v.syntheticHand(false, 0.7),
-    ];
-    for (let k = 0; k < 4; k++) {
-      v.session.feedHands(open);
-      await wait();
-    }
-    v.session.arpLog.length = 0;
-    // ~1,1 s dobrado a 120 BPM: 8 semicolcheias por segundo
-    const t0 = performance.now();
-    while (performance.now() - t0 < 1100) {
-      v.session.feedHands(bent);
-      await wait();
-    }
-    const held = v.session.arpLog.map((e) => ({ ...e }));
-    for (let k = 0; k < 4; k++) {
-      v.session.feedHands(open);
-      await wait();
-    }
-    const atRelease = v.session.arpLog.length;
-    await new Promise((res) => setTimeout(res, 600));
-    return { held, atRelease, after: v.session.arpLog.length, voices: v.audio.activeVoices };
-  });
-  const midis = r.held.map((e) => e.midi);
-  // várias notas, de um só dedo, pelo padrão sobe e desce: n0 n1 n2 n1 n0 …
-  expect(midis.length).toBeGreaterThanOrEqual(6);
-  expect(new Set(r.held.map((e) => e.finger)).size).toBe(1);
-  expect(midis[0]).toBeLessThan(midis[1]);
-  expect(midis[1]).toBeLessThan(midis[2]);
-  midis.forEach((m, k) => expect(m).toBe(midis[[0, 1, 2, 1][k % 4]]));
-  // depois da 1.ª, uma nota por semicolcheia (125 ms a 120 BPM)
-  for (let k = 2; k < r.held.length; k++)
-    expect(r.held[k].time - r.held[k - 1].time).toBeCloseTo(0.125, 3);
-  // ao soltar, param: nenhuma nota nova e nenhuma voz presa
-  expect(r.after).toBe(r.atRelease);
-  expect(r.voices).toBe(0);
-  expect(errors, errors.join('\n')).toEqual([]);
-});
-
-test('Arpejo com quantização: um toque mais curto do que um passo ainda soa', async ({ page }) => {
-  const errors = watchConsole(page);
-  await page.goto('/?debug');
-  await page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.session.ensureAudio());
-  await pinNotes(page, {
-    started: true,
-    instrument: 'synth',
-    chord: 'arp',
+    chord: 'off',
     bpm: 60,
     quantize: '1/16',
     noteMode: 'scale',
   });
   const r = await page.evaluate(async () => {
-    const v = (window as unknown as { __vsc: ArpVsc }).__vsc;
+    const v = (window as unknown as { __vsc: VoicesVsc }).__vsc;
     const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
     await sleep(300);
-    v.session.arpLog.length = 0;
     // tecla S (um dedo) premida ~30 ms: a 60 BPM uma semicolcheia dura 250 ms
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }));
     const voices = v.audio.activeVoices;
@@ -601,11 +536,10 @@ test('Arpejo com quantização: um toque mais curto do que um passo ainda soa', 
       level = Math.max(level, v.audio.analyser.level());
       await sleep(5);
     }
-    return { voices, log: v.session.arpLog.length, level, after: v.audio.activeVoices };
+    return { voices, level, after: v.audio.activeVoices };
   });
-  // a 1.ª nota (agendada para o passo seguinte) não é cortada ao soltar: soa, uma só vez
+  // a nota, agendada para o passo seguinte, não é cortada ao soltar (PENDING_HOLD, decisão 57)
   expect(r.voices).toBe(1);
-  expect(r.log).toBe(1);
   expect(r.level).toBeGreaterThan(0.01);
   expect(r.after).toBe(0);
   expect(errors, errors.join('\n')).toEqual([]);
@@ -618,7 +552,7 @@ test('Nona: um dedo toca 5 vozes', async ({ page }) => {
   await pinNotes(page, { started: true, instrument: 'synth', chord: 'ninth', noteMode: 'scale' });
   await expect(page.getByTestId('chord-ninth')).toHaveAttribute('aria-checked', 'true');
   const r = await page.evaluate(async () => {
-    const v = (window as unknown as { __vsc: ArpVsc }).__vsc;
+    const v = (window as unknown as { __vsc: VoicesVsc }).__vsc;
     const wait = () => new Promise((res) => setTimeout(res, 33));
     const open = [v.syntheticHand(false, 0.3), v.syntheticHand(false, 0.7)];
     const bent = [

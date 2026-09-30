@@ -91,7 +91,6 @@ describe('formas de tocar novas', () => {
       'sus4',
       'seventh',
       'ninth',
-      'arp',
     ]);
     expect(CHORD_MODES.map((m) => m.label)).toEqual([
       'Uma nota',
@@ -101,7 +100,6 @@ describe('formas de tocar novas', () => {
       'Suspenso',
       'Sétima',
       'Nona',
-      'Arpejo',
     ]);
   });
   it('Oitava: a nota e a mesma 12 meios-tons acima', () => {
@@ -119,11 +117,6 @@ describe('formas de tocar novas', () => {
     expect(chordMidis(FA, t, 'ninth')).toEqual([65, 69, 72, 76, 79]); // Fá 7M(9)
     expect(chordMidis(4, t, 'ninth')).toEqual([67, 71, 74, 77, 81]); // Sol 9
     expect(customChord(60, 'ninth')).toEqual([60, 64, 67, 70, 74]);
-  });
-  it('Arpejo: as notas da tríade', () => {
-    expect(chordMidis(DO, t, 'arp')).toEqual(chordMidis(DO, t, 'triad'));
-    expect(chordMidis(FA, t, 'arp')).toEqual([65, 69, 72]);
-    expect(customChord(62, 'arp')).toEqual(customChord(62, 'triad'));
   });
   it('nomes', () => {
     expect(chordName([60, 72], 'octave')).toBe('Dó');
@@ -143,7 +136,6 @@ describe('formas de tocar novas', () => {
     expect(chordName(chordMidis(1, t, 'ninth'))).toBe('Ré m9');
     expect(chordName(chordMidis(DO, t, 'ninth'))).toBe('Dó 7M(9)');
     expect(chordName(chordMidis(2, t, 'ninth'))).toBe('Mi m7(♭9)');
-    expect(chordName(chordMidis(DO, t, 'arp'), 'arp')).toBe('Dó');
   });
   it('um id desconhecido passa a Uma nota', () => {
     expect(validChord('ninth')).toBe('ninth');

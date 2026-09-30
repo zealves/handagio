@@ -32,6 +32,10 @@ describe('presets', () => {
     expect(completePreset(p).chord).toBe('off');
     expect(completePreset({ chord: 'ninth' }).chord).toBe('ninth');
   });
+  it('preset guardado com o Arpejo (retirado) volta a Uma nota', () => {
+    const p = { chord: 'arp' } as unknown as Partial<typeof DEFAULT_SOUND>;
+    expect(completePreset(p).chord).toBe('off');
+  });
   it('as notas dos dedos entram nos presets', () => {
     const notes = [60, 61, 62, 63, 64, 65, 66, 67, 68, 69];
     const s = pickSound({

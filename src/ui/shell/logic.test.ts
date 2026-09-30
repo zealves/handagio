@@ -169,41 +169,33 @@ describe('compositeSources', () => {
 });
 
 describe('nextChord', () => {
-  it('roda pelas 8 formas, da mais simples à mais rica, e volta a Uma nota', () => {
+  it('roda pelas 7 formas, da mais simples à mais rica, e volta a Uma nota', () => {
     const seen = ['off'];
-    for (let k = 0; k < 8; k++) seen.push(nextChord(seen[k] as Parameters<typeof nextChord>[0]));
-    expect(seen).toEqual([
-      'off',
-      'octave',
-      'power',
-      'triad',
-      'sus4',
-      'seventh',
-      'ninth',
-      'arp',
-      'off',
-    ]);
+    for (let k = 0; k < 7; k++) seen.push(nextChord(seen[k] as Parameters<typeof nextChord>[0]));
+    expect(seen).toEqual(['off', 'octave', 'power', 'triad', 'sus4', 'seventh', 'ninth', 'off']);
   });
 });
 
 describe('sanitizePrefs', () => {
   it('forma de tocar desconhecida passa a Uma nota; as outras ficam', () => {
     expect(sanitizePrefs({ chord: 'eleventh', bpm: 90 })).toEqual({ chord: 'off', bpm: 90 });
-    expect(sanitizePrefs({ chord: 'arp' })).toEqual({ chord: 'arp' });
+    expect(sanitizePrefs({ chord: 'ninth' })).toEqual({ chord: 'ninth' });
+    // o Arpejo foi retirado: quem o tinha guardado volta a Uma nota
+    expect(sanitizePrefs({ chord: 'arp' })).toEqual({ chord: 'off' });
     expect(sanitizePrefs({ bpm: 90 })).toEqual({ bpm: 90 });
   });
 });
 
 describe('keyTarget', () => {
   it('setas nos dois eixos, com volta, e Home/End', () => {
-    expect(keyTarget('ArrowDown', 0, 8)).toBe(1);
-    expect(keyTarget('ArrowRight', 0, 8)).toBe(1);
-    expect(keyTarget('ArrowUp', 0, 8)).toBe(7);
-    expect(keyTarget('ArrowLeft', 3, 8)).toBe(2);
-    expect(keyTarget('ArrowRight', 7, 8)).toBe(0);
-    expect(keyTarget('Home', 5, 8)).toBe(0);
-    expect(keyTarget('End', 2, 8)).toBe(7);
-    expect(keyTarget('Enter', 2, 8)).toBeNull();
-    expect(keyTarget(' ', 2, 8)).toBeNull();
+    expect(keyTarget('ArrowDown', 0, 7)).toBe(1);
+    expect(keyTarget('ArrowRight', 0, 7)).toBe(1);
+    expect(keyTarget('ArrowUp', 0, 7)).toBe(6);
+    expect(keyTarget('ArrowLeft', 3, 7)).toBe(2);
+    expect(keyTarget('ArrowRight', 6, 7)).toBe(0);
+    expect(keyTarget('Home', 5, 7)).toBe(0);
+    expect(keyTarget('End', 2, 7)).toBe(6);
+    expect(keyTarget('Enter', 2, 7)).toBeNull();
+    expect(keyTarget(' ', 2, 7)).toBeNull();
   });
 });

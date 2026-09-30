@@ -7,8 +7,6 @@ interface Glyph {
   dots: [number, number][];
   /** Raio dos pontos (por defeito 2,4). */
   r?: number;
-  /** Setinha (arpejo: as notas soam uma a uma, a subir). */
-  arrow?: boolean;
 }
 
 /**
@@ -62,15 +60,6 @@ const GLYPHS: Record<ChordMode, Glyph> = {
       [19, 3],
     ],
   },
-  arp: {
-    r: 1.8,
-    arrow: true,
-    dots: [
-      [3.5, 18.5],
-      [8, 14],
-      [12.5, 9.5],
-    ],
-  },
 };
 
 export function ChordGlyph({ mode, ...rest }: { mode: ChordMode } & SVGProps<SVGSVGElement>) {
@@ -80,16 +69,6 @@ export function ChordGlyph({ mode, ...rest }: { mode: ChordMode } & SVGProps<SVG
       {g.dots.map(([x, y]) => (
         <circle key={`${x}-${y}`} cx={x} cy={y} r={g.r ?? 2.4} />
       ))}
-      {g.arrow && (
-        <path
-          d="M15.5 6.5 L19.5 2.5 M15 2.5 H19.5 V7"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={1.6}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      )}
     </svg>
   );
 }

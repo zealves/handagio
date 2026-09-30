@@ -79,22 +79,13 @@ export const SCALE_GROUPS: { label: string; scales: ScaleName[] }[] = [
   { label: 'Outras', scales: ['Árabe', 'Japonesa', 'Tons inteiros', 'Cromática'] },
 ];
 
-export type ChordMode =
-  | 'off'
-  | 'octave'
-  | 'power'
-  | 'triad'
-  | 'sus4'
-  | 'seventh'
-  | 'ninth'
-  | 'arp';
+export type ChordMode = 'off' | 'octave' | 'power' | 'triad' | 'sus4' | 'seventh' | 'ninth';
 
 /**
  * Formas de tocar, da mais simples à mais rica (é a ordem da coluna, do menu e da tecla C).
  * No modo Escala os acordes constroem-se sobre o grau de cada dedo, dentro da escala (acordes
  * diatónicos): tríade = graus +0 +2 +4; suspenso = +0 +3 +4; sétima = +0 +2 +4 +6; nona = +0 +2
- * +4 +6 +8. A oitava e a quinta (power chord) usam meios-tons fixos. O arpejo toca as notas da
- * tríade uma a uma, ao ritmo do relógio (src/app/arp.ts).
+ * +4 +6 +8. A oitava e a quinta (power chord) usam meios-tons fixos.
  */
 export const CHORD_MODES: { id: ChordMode; label: string; desc: string }[] = [
   { id: 'off', label: 'Uma nota', desc: 'A melodia: cada dedo toca a sua nota.' },
@@ -104,7 +95,6 @@ export const CHORD_MODES: { id: ChordMode; label: string; desc: string }[] = [
   { id: 'sus4', label: 'Suspenso', desc: 'Aberto e sem maior nem menor (sus4).' },
   { id: 'seventh', label: 'Sétima', desc: '4 notas, com a 7.ª: jazz e blues.' },
   { id: 'ninth', label: 'Nona', desc: '5 notas, com a 7.ª e a 9.ª: rico, R&B.' },
-  { id: 'arp', label: 'Arpejo', desc: 'As notas do acorde uma a uma, ao ritmo do tempo.' },
 ];
 
 const CHORD_IDS = new Set<string>(CHORD_MODES.map((m) => m.id));
@@ -120,7 +110,6 @@ const DEGREE_STEPS: Record<Exclude<ChordMode, 'octave' | 'power'>, number[]> = {
   sus4: [0, 3, 4],
   seventh: [0, 2, 4, 6],
   ninth: [0, 2, 4, 6, 8],
-  arp: [0, 2, 4],
 };
 
 /** Notas MIDI do acorde de um grau (a primeira é a fundamental). */
@@ -140,13 +129,12 @@ const CUSTOM_STEPS: Record<ChordMode, number[]> = {
   sus4: [0, 5, 7],
   seventh: [0, 4, 7, 10],
   ninth: [0, 4, 7, 10, 14],
-  arp: [0, 4, 7],
 };
 
 /**
  * Acorde sobre uma nota exata (modo Personalizado, sem escala): intervalos fixos em meios-tons.
  * Oitava, quinta (nota + quinta + oitava, como no modo Escala), tríade maior, sus4, sétima
- * dominante e nona dominante; o arpejo usa a tríade maior.
+ * dominante e nona dominante.
  */
 export function customChord(midi: number, mode: ChordMode): number[] {
   return CUSTOM_STEPS[mode].map((k) => midi + k);
