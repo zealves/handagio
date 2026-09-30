@@ -10,7 +10,7 @@ import { live, pushBurst } from '../state/live';
 import { getState, setState, useStore, type Store } from '../state/store';
 import { CAMERA_SIZE, CameraError, listCameras, openCamera, stopStream } from '../vision/camera';
 import { isActive, KEYMAP, slotOf } from '../vision/fingerMap';
-import { GestureEngine, type GestureOptions } from '../vision/gestureEngine';
+import { aspectOf, GestureEngine, type GestureOptions } from '../vision/gestureEngine';
 import { CalibrationCollector, type CalPhase } from '../vision/calibration';
 import { curls } from '../vision/fingerCurl';
 import { FaceTracker, mouthOpenness } from '../vision/faceTracker';
@@ -129,6 +129,9 @@ class Session {
       continuous: instrumentInfo(s.instrument).kind === 'continuous',
       calibration: s.calibration,
       learn: s.learnHand,
+      // o polegar mede-se em unidades quadradas (ver `thumbGap`)
+      videoW: live.videoW,
+      videoH: live.videoH,
     };
   }
 
@@ -773,7 +776,8 @@ class Session {
     // A calibração recolhe as dobras de todos os dedos, polegares incluídos, mesmo com os
     // polegares desligados (o gestureEngine não calcula a dobra dos dedos inativos).
     if (this.cal) {
-      const c = assigned.flatMap((lm) => (lm ? curls(lm) : [null, null, null, null, null]));
+      const aspect = aspectOf({ videoW: live.videoW, videoH: live.videoH });
+      const c = assigned.flatMap((lm) => (lm ? curls(lm, aspect) : [null, null, null, null, null]));
       this.cal.collector.add(this.cal.phase, c);
     }
     // confiança da lateralidade de cada lado (a aprendizagem ignora mãos pouco confiáveis)

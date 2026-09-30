@@ -22,16 +22,27 @@ const FINGERS: [number, number, number, number][] = [
 ];
 
 /**
- * Polegar: distância da ponta (4) ao segmento entre o MCP (5) e o PIP (6) do indicador, a dividir
- * pelo tamanho da palma (`dist3(0, 9)`), com o z atenuado como em `dist3`. O polegar não dobra
- * como os outros dedos: anda para o lado e toca ao encostar ao lado do indicador. Tudo é relativo
- * à própria mão, por isso a medida não muda com a rotação, a inclinação nem a escala.
+ * Ponto em unidades quadradas: o MediaPipe normaliza o x pela largura e o y pela altura do vídeo;
+ * `aspect` = largura / altura (640×360: 16/9). O x e o z (que o MediaPipe dá na escala do x) passam
+ * para a escala do y. Só o polegar usa isto; os dedos 1–4 continuam com as fórmulas do protótipo.
  */
-export function thumbGap(lm: Pt[]): number {
-  const palm = dist3(lm[0], lm[9]) || 1;
-  const p = lm[4];
-  const a = lm[5];
-  const b = lm[6];
+export const squarePt = (p: Pt, aspect: number): Pt =>
+  aspect === 1 ? p : { x: p.x * aspect, y: p.y, z: p.z * aspect };
+
+/**
+ * Polegar: distância da ponta (4) ao segmento entre o MCP (5) e o PIP (6) do indicador, a dividir
+ * pelo tamanho da palma (`dist3(0, 9)`), com o z atenuado como em `dist3`, tudo em unidades
+ * quadradas (ver `squarePt`; `aspect` = largura / altura do vídeo, 1 nas mãos sintéticas). O
+ * polegar não dobra como os outros dedos: anda para o lado e toca ao encostar ao lado do
+ * indicador. Tudo é relativo à própria mão, por isso a medida não muda com a rotação, a
+ * inclinação nem a escala.
+ */
+export function thumbGap(lm: Pt[], aspect = 1): number {
+  const w = squarePt(lm[0], aspect);
+  const palm = dist3(w, squarePt(lm[9], aspect)) || 1;
+  const p = squarePt(lm[4], aspect);
+  const a = squarePt(lm[5], aspect);
+  const b = squarePt(lm[6], aspect);
   const Z = 0.6; // o mesmo peso do z que em `dist3`
   const ab = { x: b.x - a.x, y: b.y - a.y, z: (b.z - a.z) * Z };
   const ap = { x: p.x - a.x, y: p.y - a.y, z: (p.z - a.z) * Z };
@@ -57,10 +68,13 @@ export const GAP_TOUCH = 0.15;
 export const thumbPress = (gap: number): number =>
   clamp((GAP_OPEN - gap) / (GAP_OPEN - GAP_TOUCH), 0, 1);
 
-/** Devolve 5 valores: polegar (a pressão, ver `thumbGap`), indicador, médio, anelar, mindinho. */
-export function curls(lm: Pt[]): number[] {
+/**
+ * Devolve 5 valores: polegar (a pressão, ver `thumbGap`; `aspect` = largura / altura do vídeo),
+ * indicador, médio, anelar, mindinho.
+ */
+export function curls(lm: Pt[], aspect = 1): number[] {
   const palm = dist3(lm[0], lm[9]) || 1;
-  const out: number[] = [thumbPress(thumbGap(lm))];
+  const out: number[] = [thumbPress(thumbGap(lm, aspect))];
   // Restantes: 60% ângulos PIP/DIP + 40% distância ponta–pulso normalizada pela palma.
   for (const [m, p, dd, t] of FINGERS) {
     const a1 = angleAt(lm[m], lm[p], lm[dd]);

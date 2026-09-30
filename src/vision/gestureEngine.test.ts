@@ -27,6 +27,9 @@ import {
   THUMB_DWELL_MIN,
   THUMB_HYSTERESIS,
   THUMB_ON,
+  THUMB_MIN_RISE,
+  THUMB_MIN_RISE_BUSY,
+  THUMB_REST_RELEASE,
   THUMB_SENS_NEUTRAL,
   thresholds,
   thumbThresholds,
@@ -210,10 +213,9 @@ describe('gestureEngine', () => {
       expect(near.on).toBeCloseTo(0.4 + 0.6 * THUMB_ON);
       expect(near.off).toBeLessThanOrEqual(near.on - 0.08 + 1e-9);
       expect(near.off).toBeGreaterThan(0.4);
-      // intervalo estreito em baixo: nunca mais de LEARN_MAX_DROP abaixo do `on` sem aprendizagem
-      expect(thumbThresholds(0, 0.5, null, { lo: 0, hi: 0.4 }).on).toBeCloseTo(
-        def.on - LEARN_MAX_DROP,
-      );
+      // intervalo estreito em baixo: a aprendizagem nunca baixa o `on` dos polegares
+      expect(thumbThresholds(0, 0.5, null, { lo: 0, hi: 0.4 }).on).toBeCloseTo(def.on);
+      expect(thumbThresholds(0, 0.5, null, { lo: 0.1, hi: 0.5 }).on).toBeCloseTo(def.on);
       const cal = { open: Array(10).fill(0.1), closed: Array(10).fill(0.9) };
       expect(thumbThresholds(0, 0.5, cal, { lo: 0.4, hi: 1 })).toEqual(
         thumbThresholds(0, 0.5, cal),
@@ -238,11 +240,14 @@ describe('gestureEngine', () => {
       const g = new GestureEngine();
       const ev = record(g);
       for (let k = 0; k < 3; k++) g.process(thumbAt(0), 1 / 50, topts);
+      // com a suavização, o 1.º fotograma encostado fica ainda no limiar; o 2.º passa-o
+      g.process(thumbAt(1), 1 / 50, topts);
       g.process(thumbAt(1), 1 / 50, topts);
       // o polegar passa o limiar neste fotograma, mas ainda não confirmou
       expect(g.fingers[0].curl).toBeGreaterThan(thumbThresholds(0, 0.5).on);
       for (let k = 0; k < 5; k++) g.process(thumbAt(0), 1 / 50, topts);
       expect(ev).toEqual([]);
+      // a pressão ainda não voltou a 0: agora o 1.º fotograma encostado já passa o limiar
       for (let k = 0; k < THUMB_DWELL - 1; k++) g.process(thumbAt(1), 1 / 50, topts);
       expect(ev).toEqual([]);
       g.process(thumbAt(1), 1 / 50, topts);
@@ -254,9 +259,11 @@ describe('gestureEngine', () => {
       const g = new GestureEngine();
       const ev = record(g);
       for (let k = 0; k < 3; k++) g.process(thumbAt(0), 1 / fps, topts);
+      let first = 0;
       for (let k = 1; k <= 10; k++) {
         g.process(thumbAt(1), 1 / fps, topts);
-        if (ev.length) return k;
+        if (!first && g.fingers[0].curl > thumbThresholds(0, 0.5).on) first = k;
+        if (ev.length) return k - first + 1;
       }
       return -1;
     };
@@ -273,6 +280,7 @@ describe('gestureEngine', () => {
       const g = new GestureEngine();
       const ev = record(g);
       for (let k = 0; k < 3; k++) g.process(thumbAt(0), 1 / 15, topts);
+      g.process(thumbAt(1), 1 / 15, topts);
       g.process(thumbAt(1), 1 / 15, topts);
       for (let k = 0; k < 5; k++) g.process(thumbAt(0), 1 / 15, topts);
       expect(ev).toEqual([]);
@@ -297,7 +305,7 @@ describe('gestureEngine', () => {
       let vel = 0;
       g.on('noteOn', (e) => (vel = e.velocity));
       for (let k = 0; k < 3; k++) g.process(thumbAt(0), 1 / 50, topts);
-      g.process(thumbAt(1), 1 / 50, topts);
+      while (g.fingers[0].curl <= thumbThresholds(0, 0.5).on) g.process(thumbAt(1), 1 / 50, topts);
       const first = velocityFrom(g.fingers[0].vel);
       for (let k = 1; k < THUMB_DWELL; k++) g.process(thumbAt(1), 1 / 50, topts);
       expect(vel).toBeCloseTo(first);
@@ -393,6 +401,95 @@ describe('gestureEngine', () => {
       // o polegar continua "encostado" (o indicador dobrado ao pé dele): parado não toca
       for (let k = 0; k < 30; k++) g.process(indexBend(1), 1 / 30, topts);
       expect(ev).toEqual(['on1']);
+    });
+
+    it('solta ao voltar perto do repouso, mesmo acima do `off`', () => {
+      const g = new GestureEngine();
+      const ev = record(g);
+      const { off } = thumbThresholds(0, 0.5);
+      const rest = off - 0.02;
+      for (let k = 0; k < 40; k++) g.process(pressAt(rest), 1 / 30, topts);
+      for (let k = 0; k < 6; k++) g.process(pressAt(1), 1 / 30, topts);
+      expect(ev).toEqual(['on0']);
+      // de volta a um pouco acima do repouso (acima do `off`, abaixo do repouso + 0.12): solta
+      for (let k = 0; k < 6; k++)
+        g.process(pressAt(rest + THUMB_REST_RELEASE - 0.03), 1 / 30, topts);
+      expect(ev).toEqual(['on0', 'off0']);
+      // repouso baixo: a histerese normal continua (não solta a meio caminho)
+      const g2 = new GestureEngine();
+      const ev2 = record(g2);
+      for (let k = 0; k < 40; k++) g2.process(pressAt(0), 1 / 30, topts);
+      for (let k = 0; k < 6; k++) g2.process(pressAt(1), 1 / 30, topts);
+      for (let k = 0; k < 6; k++) g2.process(pressAt(0.5), 1 / 30, topts);
+      expect(ev2).toEqual(['on0']);
+    });
+
+    it('com o indicador dobrado a tocar, o polegar a derivar devagar não toca', () => {
+      const g = new GestureEngine();
+      const ev = record(g);
+      for (let k = 0; k < 10; k++) g.process(indexBend(0), 1 / 30, topts);
+      for (let k = 1; k <= 30; k++) g.process(indexBend(Math.min(1, k / 6)), 1 / 30, topts);
+      // o polegar afasta-se (volta a estar armado) e aproxima-se devagar, com o indicador em baixo
+      const hand = (t: number): AssignedHands => {
+        const lm = indexBend(1)[0]!;
+        const tip = lm[4];
+        lm[4] = { x: tip.x - (1 - t) * 0.08, y: tip.y, z: tip.z * t };
+        return [lm, syntheticHand(false, 0.7)];
+      };
+      for (let k = 0; k < 10; k++) g.process(hand(0), 1 / 30, topts);
+      for (let k = 0; k <= 120; k++) g.process(hand(k / 120), 1 / 30, topts);
+      expect(ev).toEqual(['on1']);
+      expect(g.fingers[1].down).toBe(true);
+    });
+
+    it('vídeo 16:9: com o tamanho do vídeo nas opções, toca como em quadrado', () => {
+      const wide = { ...topts, videoW: 640, videoH: 360 };
+      const hand = (t: number): AssignedHands => [
+        syntheticHand(false, 0.3, 0.8, { thumb: t, aspect: 640 / 360 }),
+        syntheticHand(false, 0.7, 0.8, { aspect: 640 / 360 }),
+      ];
+      const g = new GestureEngine();
+      const ev = record(g);
+      for (let k = 0; k < 10; k++) g.process(hand(0), 1 / 30, wide);
+      // a meio caminho (pressão ~0.27) não toca; sem a correção pareceria muito mais perto
+      for (let k = 0; k < 30; k++) g.process(hand(0.5), 1 / 30, wide);
+      expect(ev).toEqual([]);
+      for (let k = 0; k < 6; k++) g.process(hand(1), 1 / 30, wide);
+      for (let k = 0; k < 6; k++) g.process(hand(0), 1 / 30, wide);
+      expect(ev).toEqual(['on0', 'off0']);
+      expect(curls(hand(0.5)[0]!)[0]).toBeGreaterThan(curls(hand(0.5)[0]!, 640 / 360)[0] + 0.2);
+    });
+
+    it('arrastado pelos outros dedos, o polegar precisa de subir mais', () => {
+      /** Pressão do polegar `p`, com o médio dobrado `m` (0..1). */
+      const both = (p: number, m: number): AssignedHands => {
+        const lm = pressAt(p)[0]!;
+        const mid = closeIdx(2)[0]!;
+        for (const k of [10, 11, 12])
+          lm[k] = {
+            x: lm[k].x + (mid[k].x - lm[k].x) * m,
+            y: lm[k].y + (mid[k].y - lm[k].y) * m,
+            z: lm[k].z + (mid[k].z - lm[k].z) * m,
+          };
+        return [lm, syntheticHand(false, 0.7)];
+      };
+      const play = (withMiddle: boolean) => {
+        const g = new GestureEngine();
+        const ev = record(g);
+        for (let k = 0; k < 40; k++) g.process(both(0.3, 0), 1 / 30, topts);
+        // o polegar sobe 0.45 (acima de THUMB_MIN_RISE, abaixo de THUMB_MIN_RISE_BUSY)
+        for (let k = 1; k <= 8; k++)
+          g.process(
+            both(0.3 + 0.45 * Math.min(1, k / 4), withMiddle ? Math.min(1, k / 3) : 0),
+            1 / 30,
+            topts,
+          );
+        return ev.filter((e) => e === 'on0').length;
+      };
+      expect(THUMB_MIN_RISE).toBeLessThan(0.45);
+      expect(THUMB_MIN_RISE_BUSY).toBeGreaterThan(0.45);
+      expect(play(false)).toBe(1);
+      expect(play(true)).toBe(0);
     });
 
     it('a mão a entrar com o polegar encostado não toca até o afastar', () => {

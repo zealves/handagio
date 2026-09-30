@@ -86,6 +86,25 @@ describe('fingerCurl', () => {
       }
     });
 
+    it('vídeo 16:9: em unidades quadradas dá a mesma pressão a 0/45/90°', () => {
+      const A = 640 / 360;
+      for (const thumb of [0, 0.3, 0.5, 0.7, 0.9, 1])
+        for (const rot of [0, 45, 90]) {
+          const sq = syntheticHand(false, 0.5, 0.5, { thumb, rot });
+          const wide = syntheticHand(false, 0.5, 0.5, { thumb, rot, aspect: A });
+          expect(thumbGap(wide, A)).toBeCloseTo(thumbGap(sq), 6);
+          expect(curls(wide, A)[0]).toBeCloseTo(curls(sq)[0], 6);
+        }
+      // sem a correção, o mesmo polegar afastado parecia muito mais perto do indicador
+      const apart = syntheticHand(false, 0.5, 0.5, { thumb: 0.5, aspect: A });
+      expect(thumbGap(apart)).toBeLessThan(thumbGap(apart, A) * 0.7);
+    });
+
+    it('a correção do vídeo só mexe no polegar', () => {
+      const lm = syntheticHand([false, true, false, true, false], 0.4, 0.6, { aspect: 16 / 9 });
+      expect(curls(lm, 16 / 9).slice(1)).toEqual(curls(lm).slice(1));
+    });
+
     it('a pose (rotação, inclinação e escala) não mexe nas dobras dos outros dedos', () => {
       const ref = curls(syntheticHand([false, true, false, false, true], 0.5, 0.5));
       const c = curls(

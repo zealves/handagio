@@ -80,6 +80,9 @@ export const DRAWER_TITLES: Record<DrawerId, string> = {
   rato: 'Tocar com o rato',
 };
 
+/** Índices dos polegares (mão esquerda e direita). */
+const THUMB_IDS = [0, 5] as const;
+
 /**
  * Migração do `persist`: a v1 tinha `showVideo` e a v2 `stageBg` e `showWaves`. Desde a v3 o
  * palco mostra sempre só as mãos e as ondas estão sempre por baixo: as chaves antigas saem.
@@ -90,9 +93,6 @@ export const DRAWER_TITLES: Record<DrawerId, string> = {
  * A v9 mede o polegar de outra forma (encostar ao lado do indicador): a calibração e o aprendido
  * dos polegares (índices 0 e 5) eram da medida antiga e voltam aos valores neutros.
  */
-/** Índices dos polegares (mão esquerda e direita). */
-const THUMB_IDS = [0, 5] as const;
-
 export function migratePrefs(old: unknown, version: number): Record<string, unknown> {
   const o: Record<string, unknown> = { ...((old as Record<string, unknown> | null) ?? {}) };
   if (version < 3) {

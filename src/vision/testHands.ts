@@ -27,6 +27,12 @@ export interface HandPose {
   tilt?: number;
   /** Escala à volta do pulso (mão mais perto ou mais longe da câmara). */
   scale?: number;
+  /**
+   * Vídeo não quadrado (largura / altura; 16/9 num vídeo 640×360): os pontos saem normalizados
+   * como os do MediaPipe, com o x (e o z, na escala do x) a dividir por este valor à volta do
+   * pulso. A mão continua com a mesma forma no ecrã.
+   */
+  aspect?: number;
 }
 
 export function syntheticHand(
@@ -60,8 +66,11 @@ export function syntheticHand(
       lm[b + 3] = P(x, wristY - 0.38);
     }
   }
-  const { rot = 0, tilt = 0, scale = 1 } = pose;
-  return rot || tilt || scale !== 1 ? transform(lm, rot, tilt, scale) : lm;
+  const { rot = 0, tilt = 0, scale = 1, aspect = 1 } = pose;
+  const out = rot || tilt || scale !== 1 ? transform(lm, rot, tilt, scale) : lm;
+  return aspect === 1
+    ? out
+    : out.map((p) => P(wristX + (p.x - wristX) / aspect, p.y, p.z / aspect));
 }
 
 /** Inclina, roda e escala a mão à volta do pulso (ver `HandPose`). */
