@@ -136,7 +136,7 @@ export function ScalePanel() {
       </div>
       <p className={s.hint}>
         {custom
-          ? 'Escolhes a nota exata de cada dedo. A altura da mão e o deslizar ficam desligados.'
+          ? 'Escolhes a nota exata de cada dedo. A altura da mão não escolhe a nota; arrastar depois de tocar continua a funcionar.'
           : 'Cada dedo toca uma nota da escala, a subir da esquerda para a direita.'}
       </p>
 

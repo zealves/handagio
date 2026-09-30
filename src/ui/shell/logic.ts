@@ -70,7 +70,8 @@ export const DRAWER_TITLES: Record<DrawerId, string> = {
  * Migração do `persist`: a v1 tinha `showVideo` e a v2 `stageBg` e `showWaves`. Desde a v3 o
  * palco mostra sempre só as mãos e as ondas estão sempre por baixo: as chaves antigas saem.
  * A v4 acrescenta os modos de notas (`tonicAt`, `noteMode`, `customNotes`) e a sensibilidade
- * dos polegares, com os valores por defeito quando faltam.
+ * dos polegares, com os valores por defeito quando faltam. A v6 desliga uma vez a altura da mão
+ * (`heightPitch`), que passou a só escolher a nota e começa desligada; o arrastar (`glide`) fica.
  */
 export function migratePrefs(old: unknown, version: number): Record<string, unknown> {
   const o: Record<string, unknown> = { ...((old as Record<string, unknown> | null) ?? {}) };
@@ -108,6 +109,7 @@ export function migratePrefs(old: unknown, version: number): Record<string, unkn
       );
     }
   }
+  if (version < 6) o.heightPitch = false;
   return o;
 }
 

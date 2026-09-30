@@ -236,20 +236,24 @@ export function SettingsDialog() {
             format={(v) => `${v}%`}
           />
           <Toggle
-            label="Altura da mão muda o tom"
+            label={`A altura da mão escolhe a nota${st.custom ? ' (só no modo Escala)' : ''}`}
             checked={st.heightPitch}
             onChange={(v) => st.set({ heightPitch: v })}
+            testId="height-pitch"
           />
+          <p className={s.hint}>
+            Sobe ou desce a mão antes de dobrar o dedo para tocar uma nota mais aguda ou mais grave.
+          </p>
           <Toggle
-            label="Deslizar o tom enquanto seguras"
+            label="Arrastar a nota depois de tocar"
             checked={st.glide}
             onChange={(v) => st.set({ glide: v })}
+            testId="glide"
           />
-          {st.custom && (
-            <p className={s.hint}>
-              Com as notas personalizadas, a altura da mão e o deslizar não mudam o tom.
-            </p>
-          )}
+          <p className={s.hint}>
+            Depois de tocares, sobe ou desce a mão para dobrar o tom. Funciona nos instrumentos de
+            nota longa (violino, flauta, órgão, sopros…).
+          </p>
         </section>
 
         <section className={s.section}>

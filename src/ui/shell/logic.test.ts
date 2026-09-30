@@ -87,6 +87,8 @@ describe('migratePrefs', () => {
     noteMode: 'scale',
     customNotes: [...DEFAULT_CUSTOM_NOTES],
     thumbSensitivity: 0.5,
+    // a v6 desliga a altura da mão
+    heightPitch: false,
   };
   it('v1 perde showVideo e mantém o resto', () => {
     expect(migratePrefs({ showVideo: false, bpm: 90 }, 1)).toEqual({ ...V4, bpm: 90 });
@@ -125,8 +127,8 @@ describe('migratePrefs', () => {
     expect(migratePrefs({ thumbSensitivity: NaN }, 3).thumbSensitivity).toBe(0.5);
     expect(migratePrefs({ thumbSensitivity: '0.9' }, 3).thumbSensitivity).toBe(0.5);
   });
-  it('v4 fica igual', () => {
-    expect(migratePrefs({ bpm: 90 }, 4)).toEqual({ bpm: 90 });
+  it('v4 só desliga a altura da mão', () => {
+    expect(migratePrefs({ bpm: 90 }, 4)).toEqual({ bpm: 90, heightPitch: false });
   });
   it('v4: as notas personalizadas por defeito antigas passam às novas', () => {
     const legacy = [...LEGACY_CUSTOM_NOTES];
@@ -152,9 +154,22 @@ describe('migratePrefs', () => {
       antigo: { instrument: 'harp', scale: 'Maior', tonicAt: 'right-index' },
       novo: { instrument: 'pad', tonicAt: 'left-pinky' },
     });
-    expect(migratePrefs({ bpm: 90 }, 4)).toEqual({ bpm: 90 });
+    expect(migratePrefs({ bpm: 90 }, 4)).toEqual({ bpm: 90, heightPitch: false });
   });
-  it('v5 fica igual', () => {
+  it('v5: a altura da mão fica desligada uma vez e o arrastar mantém o valor', () => {
+    expect(migratePrefs({ heightPitch: true, glide: true, bpm: 90 }, 5)).toEqual({
+      heightPitch: false,
+      glide: true,
+      bpm: 90,
+    });
+    expect(migratePrefs({ heightPitch: true, glide: false }, 5)).toEqual({
+      heightPitch: false,
+      glide: false,
+    });
+    // já na v6, quem voltou a ligar a altura fica com ela ligada
+    expect(migratePrefs({ heightPitch: true }, 6)).toEqual({ heightPitch: true });
+  });
+  it('v5 fica igual nas notas personalizadas', () => {
     expect(migratePrefs({ customNotes: [...LEGACY_CUSTOM_NOTES] }, 5).customNotes).toEqual([
       ...LEGACY_CUSTOM_NOTES,
     ]);

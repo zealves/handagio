@@ -98,14 +98,15 @@ class Session {
 
   gestureOptions(): GestureOptions {
     const s = getState();
-    // no modo Personalizado as notas são exatas: sem altura da mão nem deslizar
+    // no modo Personalizado as notas são exatas: a altura da mão não as escolhe (o arrastar
+    // continua, a partir da nota do dedo)
     const custom = s.noteMode === 'custom';
     return {
       sensitivity: s.sensitivity,
       thumbSensitivity: s.thumbSensitivity,
       thumbs: s.thumbs,
       heightPitch: s.heightPitch && !custom,
-      glide: s.glide && !custom,
+      glide: s.glide,
       continuous: instrumentInfo(s.instrument).kind === 'continuous',
       calibration: s.calibration,
     };

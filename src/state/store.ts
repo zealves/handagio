@@ -110,7 +110,7 @@ export const DEFAULT_PREFS: Prefs = {
   sensitivity: 0.55,
   thumbSensitivity: 0.5,
   thumbs: false,
-  heightPitch: true,
+  heightPitch: false,
   glide: true,
   recentInstruments: [],
   volume: 0.75,
@@ -154,7 +154,7 @@ export const useStore = create<Store>()(
     }),
     {
       name: 'vision-sound-cam:prefs',
-      version: 5,
+      version: 6,
       migrate: (old, version) => migratePrefs(old, version) as unknown as Store,
       partialize: (s) => Object.fromEntries(PREF_KEYS.map((k) => [k, s[k]])) as Partial<Store>,
     },
