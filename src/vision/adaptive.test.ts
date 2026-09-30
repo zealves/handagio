@@ -3,6 +3,7 @@ import {
   AdaptiveRanges,
   LEARN_MIN_SAMPLES,
   LEARN_MIN_SPAN,
+  LEARN_START_HI,
   LEARN_TAU_RISKY_S,
   LEARN_TAU_SAFE_S,
   LEARN_WINDOW,
@@ -32,8 +33,12 @@ describe('adaptive', () => {
     feed(a, 2, 1, 0.1, 0.8);
     expect(a.ranges[2]).not.toBeNull();
     expect(a.ranges[2]!.lo).toBeCloseTo(0.1);
-    expect(a.ranges[2]!.hi).toBeCloseTo(0.8);
+    // o primeiro intervalo não salta para a janela: `hi` começa em LEARN_START_HI e desce devagar
+    expect(a.ranges[2]!.hi).toBeCloseTo(LEARN_START_HI);
     expect(usableRange(a.ranges[2])).toBe(true);
+    feed(a, 2, 30, 0.1, 0.8);
+    expect(a.ranges[2]!.hi).toBeLessThan(LEARN_START_HI);
+    expect(a.ranges[2]!.hi).toBeGreaterThan(0.85);
   });
 
   it('janela sem movimento (mão parada) não aprende nem mexe no aprendido', () => {

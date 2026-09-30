@@ -48,6 +48,13 @@ export interface HandAssignState {
   missed: [number, number];
   /** Fotogramas seguidos em que o rótulo contradiz o lado dado pela continuidade. */
   disagree: number;
+  /**
+   * Lados cuja mão mudou no último fotograma (resultado de `assignHands`): o pulso ficou mais perto
+   * do último pulso do OUTRO lado do que do seu. O gestureEngine trata-os como uma mão nova. Uma
+   * mão que muda de lado pelo rótulo chega a um lado que ficou vazio e já conta como nova; um
+   * salto grande no mesmo lado (mão a mexer-se depressa, a arrastar a nota) não conta.
+   */
+  swapped: [boolean, boolean];
 }
 
 export const createHandAssignState = (): HandAssignState => ({
@@ -56,6 +63,7 @@ export const createHandAssignState = (): HandAssignState => ({
   prev: [null, null],
   missed: [0, 0],
   disagree: 0,
+  swapped: [false, false],
 });
 
 /** Converte as categorias do resultado do MediaPipe (a mais provável de cada mão). */
@@ -102,6 +110,7 @@ export function assignHands(
   state: HandAssignState = createHandAssignState(),
 ): AssignedHands {
   const out: AssignedHands = [null, null];
+  const before: [Pt | null, Pt | null] = [state.prev[0], state.prev[1]];
   if (list.length >= 2) {
     const [a, b] = [0, 1].sort((i, j) => list[i][0].x - list[j][0].x);
     out[0] = list[a];
@@ -134,6 +143,12 @@ export function assignHands(
     if (d[1 - side] < CONTINUITY_DIST) state.prev[1 - side] = null;
   }
   if (list.length !== 1) state.disagree = 0;
+  const dist = (a: Pt | null, b: Pt) => (a ? Math.hypot(a.x - b.x, a.y - b.y) : Infinity);
+  for (const k of [0, 1] as const) {
+    const hand = out[k];
+    const own = before[k];
+    state.swapped[k] = !!hand && !!own && dist(before[1 - k], hand[0]) < dist(own, hand[0]);
+  }
   for (const k of [0, 1] as const) {
     const hand = out[k];
     if (hand) {

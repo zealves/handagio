@@ -35,6 +35,13 @@ export const LEARN_TAU_SAFE_S = 3;
  */
 export const LEARN_TAU_RISKY_S = 20;
 
+/**
+ * Primeiro intervalo aprendido: `lo` vem da janela, mas `hi` começa aqui (o dobrado da mão
+ * sintética, onde os limiares ficam perto dos de defeito) e desce devagar até à janela, em vez de
+ * saltar logo para os percentis dos primeiros segundos.
+ */
+export const LEARN_START_HI = 0.9;
+
 const BINS = 101; // 0.00 … 1.00
 
 export interface LearnedRange {
@@ -137,7 +144,7 @@ export class AdaptiveRanges {
     if (hi - lo < LEARN_MIN_SPAN) return;
     const r = this.ranges[i];
     if (!r) {
-      this.ranges[i] = { lo, hi };
+      this.ranges[i] = { lo, hi: Math.max(hi, LEARN_START_HI) };
     } else {
       // lo a descer ou hi a descer baixam o limiar (mais sensível): devagar
       r.lo = follow(r.lo, lo, dt, true);

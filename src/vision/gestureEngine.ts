@@ -76,15 +76,24 @@ export const HYSTERESIS = 0.18;
 export const CURL_SMOOTH_PREV = 0.2;
 /** Velocidade: peso do valor anterior na EMA da derivada da dobra crua. */
 export const VEL_SMOOTH_PREV = 0.3;
-/** Polegares: suavização do protótipo (dobra mais ruidosa; regras próprias, ver THUMB_DWELL). */
+/**
+ * Suavização da v2.1 (a do protótipo): os polegares usam-na (dobra mais ruidosa; regras
+ * próprias, ver THUMB_DWELL) e, nos outros dedos, é a dobra (`slowCurl`) e a velocidade que
+ * passam o `on` sem desconto, exatamente como na v2.1. A dobra leve (`CURL_SMOOTH_PREV`) fica
+ * para o disparo antecipado, o disparo pelo desconto e a libertação: com ela no disparo normal, o
+ * tremor lento de um dedo parado chegava ao `on` mais vezes do que na v2.1.
+ */
 export const THUMB_CURL_SMOOTH_PREV = 0.35;
 export const THUMB_VEL_SMOOTH_PREV = 0.5;
 
 /**
  * Desconto no limiar de disparo por dedo (índice j: 0 polegar, 1 indicador, 2 médio, 3 anelar,
  * 4 mindinho). O anelar e o mindinho dobram menos (movimento acoplado aos vizinhos), por isso o
- * `on` baixa este valor; o `off` baixa metade, para a histerese continuar a soltar a nota com o
- * dedo esticado. Nos limiares aprendidos o desconto é uma fração do intervalo aprendido.
+ * `on` baixa este valor. O `off` NÃO baixa (fica o da v2.1, `on` sem desconto − `HYSTERESIS`):
+ * um mindinho relaxado costuma ficar mais dobrado, e um `off` mais baixo prendia a nota. Para
+ * disparar só pelo desconto (entre o `on` e o `on` sem desconto) o dedo tem de subir de verdade
+ * (ver `BASELINE_S`, `DISCOUNT_MIN_SLOPE`). Nos limiares aprendidos o desconto é uma fração do
+ * intervalo aprendido.
  */
 export const FINGER_ON_DISCOUNT = [0, 0, 0, 0.06, 0.12] as const;
 /** Limiar de disparo mínimo sem calibração (sensibilidade no máximo com o desconto do mindinho). */
@@ -98,6 +107,8 @@ export const ON_MIN = 0.2;
  * - dobra crua já a `EARLY_FRACTION` do caminho entre o repouso (0, ou o esticado
  *   calibrado/aprendido) e o `on` SEM o desconto do dedo: o desconto do anelar e do mindinho não se
  *   soma ao antecipado, para o ruído de um dedo parado continuar abaixo deste nível;
+ * - e a mesma distância percorrida a partir da linha de base (o mínimo da dobra crua nos últimos
+ *   `BASELINE_S`): um dedo que repousa já meio dobrado tem de subir tanto como um esticado;
  * - este dedo a mexer-se pelo menos `EARLY_DOMINANCE` × o dedo mais rápido da mesma mão (quando
  *   se dobra o anelar, o mindinho e o médio vão atrás mais devagar e não disparam antecipados).
  * Só dedos, nunca polegares.
@@ -112,6 +123,37 @@ export const EARLY_DOMINANCE = 0.6;
  * mais devagar: esse arrasto não toca; o mindinho dobrado de propósito (é o mais rápido) toca.
  */
 export const COUPLED_DOMINANCE = 0.6;
+/**
+ * Linha de base de cada dedo: o mínimo da dobra crua nos últimos `BASELINE_S` segundos (sem o
+ * fotograma atual), ou, se for mais alto, o valor onde começou a subida atual (fotogramas
+ * seguidos a subir). O disparo antecipado e o disparo só pelo desconto medem a subida a partir
+ * daqui, e não de 0: o dedo tem de subir de verdade, de seguida e depressa. O tremor lento
+ * (correlacionado) de um dedo parado sobe e desce e não chega; uma dobra sobe sem parar.
+ */
+export const BASELINE_S = 0.3;
+/**
+ * Disparo só pelo desconto: a dobra crua tem de ter subido nos dois últimos fotogramas, com um
+ * declive médio acima disto (/s).
+ */
+export const DISCOUNT_MIN_SLOPE = 1.5;
+/**
+ * Disparo só pelo desconto: fotogramas seguidos com a dobra crua a subir. Uma dobra de verdade
+ * sobe sem parar; o tremor lento sobe e desce.
+ */
+export const DISCOUNT_MIN_RISES = 3;
+/**
+ * Tremor de cada dedo: desvio-padrão da dobra crua à volta de uma média lenta (constante de tempo
+ * `JITTER_TAU_S`), medido com o dedo solto, sem estar a subir e só `JITTER_HOLD_S` depois de
+ * soltar a nota (o dedo a esticar depois de tocar não é tremor). O disparo antecipado e o disparo
+ * só pelo desconto exigem uma subida de pelo menos `JITTER_K` × esse tremor: com uma deteção
+ * muito tremida, só fica o disparo da v2.1. Começa em `JITTER_START`.
+ */
+export const JITTER_TAU_S = 1;
+export const JITTER_K = 8;
+export const JITTER_START = 0.03;
+export const JITTER_HOLD_S = 0.4;
+/** Fotogramas de uma mão ignorados pela aprendizagem depois de trocar de lado. */
+export const LEARN_SKIP_AFTER_SWAP = 10;
 /** Período refratário (s) depois de um noteOff: o tremor ao esticar não volta a disparar. */
 export const REFRACTORY_S = 0.06;
 
@@ -189,6 +231,8 @@ export interface Thresholds {
   full: number;
   /** Nível do disparo antecipado (ver `EARLY_FRACTION`). */
   early: number;
+  /** Dobra de repouso de referência (0, ou o esticado calibrado/aprendido). */
+  rest: number;
 }
 
 /** Nível do disparo antecipado: `EARLY_FRACTION` do caminho entre o repouso e o `on` sem desconto. */
@@ -203,7 +247,8 @@ export function defaultThresholds(i: number, sens: number): Thresholds {
   const base = onThreshold(sens);
   const on = Math.max(ON_MIN, base - d);
   const full = Math.max(on, base);
-  return { on, off: on - (HYSTERESIS - d / 2), full, early: earlyLevel(0, full) };
+  // o `off` fica o da v2.1 (sem desconto): nunca mais baixo, para a nota não ficar presa
+  return { on, off: base - HYSTERESIS, full, early: earlyLevel(0, full), rest: 0 };
 }
 
 /** Limiares a partir do intervalo aprendido de um dedo (ver `LEARN_ON_FRAC`). */
@@ -223,6 +268,7 @@ export function learnedThresholds(i: number, sens: number, r: LearnedRange): Thr
     off: Math.min(r.lo + span * LEARN_OFF_FRAC, on - LEARN_MIN_HYST),
     full,
     early: earlyLevel(r.lo, full),
+    rest: r.lo,
   };
 }
 
@@ -242,7 +288,7 @@ export function thresholds(
     const span = cal.closed[i] - cal.open[i];
     const on = clamp(cal.open[i] + span * 0.6 - (sens - 0.55) * 0.45, 0.15, 0.95);
     const off = Math.max(cal.open[i] + span * 0.15, on - HYSTERESIS);
-    return { on, off, full: on, early: earlyLevel(cal.open[i], on) };
+    return { on, off, full: on, early: earlyLevel(cal.open[i], on), rest: cal.open[i] };
   }
   if (usableRange(learned)) return learnedThresholds(i, sens, learned);
   return defaultThresholds(i, sens);
@@ -267,10 +313,16 @@ export function thumbThresholds(
       0.15,
       0.95,
     );
-    return { on, off: Math.max(cal.open[i] + span * 0.15, on - HYSTERESIS), full: on, early: on };
+    return {
+      on,
+      off: Math.max(cal.open[i] + span * 0.15, on - HYSTERESIS),
+      full: on,
+      early: on,
+      rest: cal.open[i],
+    };
   }
   const on = onThreshold(thumbSens) + THUMB_ON_EXTRA;
-  return { on, off: on - HYSTERESIS, full: on, early: on };
+  return { on, off: on - HYSTERESIS, full: on, early: on, rest: 0 };
 }
 
 /** Intensidade da nota a partir da velocidade no disparo. */
@@ -293,6 +345,9 @@ export const newFinger = (): FingerLive => ({
   bend: 0,
 });
 
+/** Regra que disparou uma nota: `on` sem desconto (a da v2.1), só pelo desconto, ou antecipada. */
+export type Trigger = 'full' | 'discount' | 'early';
+
 export class GestureEngine extends Emitter<GestureEvents> {
   /** Intervalos aprendidos de cada dedo (usados com `learn`). */
   readonly adaptive = new AdaptiveRanges();
@@ -301,6 +356,32 @@ export class GestureEngine extends Emitter<GestureEvents> {
   /** Velocidade crua do fotograma anterior e o seu `dt` (declive em 2 fotogramas). */
   private prevRawVel = new Array<number>(10).fill(0);
   private prevDt = [0, 0];
+  /**
+   * Portão de cada dedo: depois de a mão aparecer ou trocar de lado, o dedo só pode disparar
+   * depois de ter sido visto esticado (abaixo do `off` e do nível antecipado). Uma mão que entra,
+   * ou que passa para o outro lado, com um dedo dobrado não toca.
+   */
+  private armed = new Array<boolean>(10).fill(false);
+  /** Dobras cruas dos fotogramas anteriores e a sua idade (s), para a linha de base. */
+  private histV: number[][] = Array.from({ length: 10 }, () => []);
+  private histAge: number[][] = Array.from({ length: 10 }, () => []);
+  /** Diagnóstico e testes: a regra do último disparo de cada dedo. */
+  readonly lastTrigger: (Trigger | null)[] = new Array(10).fill(null);
+  /** Fotogramas seguidos com a dobra crua a subir, e a dobra crua antes de começar a subir. */
+  private rises = new Array<number>(10).fill(0);
+  private runStart = new Array<number>(10).fill(0);
+  /** Tremor de cada dedo (ver `JITTER_TAU_S`): média lenta e variância da dobra crua. */
+  private jMean = new Array<number>(10).fill(0);
+  private jVar = new Array<number>(10).fill(JITTER_START ** 2);
+  /** Segundos desde a última nota solta de cada dedo. */
+  private sinceOff = new Array<number>(10).fill(Infinity);
+  /** Dobra e velocidade com a suavização da v2.1 (ver `THUMB_CURL_SMOOTH_PREV`). */
+  private slowCurl = new Array<number>(10).fill(0);
+  private slowVel = new Array<number>(10).fill(0);
+  /** Linha de base de cada dedo (ver `BASELINE_S`). */
+  private base = new Array<number>(10).fill(0);
+  /** Fotogramas que a aprendizagem ainda ignora em cada mão. */
+  private learnSkip = [0, 0];
 
   constructor(readonly fingers: FingerLive[] = Array.from({ length: 10 }, newFinger)) {
     super();
@@ -317,13 +398,15 @@ export class GestureEngine extends Emitter<GestureEvents> {
   /**
    * dt em segundos, já limitado a [0.008, 0.1] pelo chamador. `scores`: confiança da
    * lateralidade de cada mão (null/ausente = desconhecida); abaixo de `LEARN_MIN_SCORE` a mão
-   * não ensina nada.
+   * não ensina nada. `swapped`: lados cuja mão mudou neste fotograma (ver `assignHands`); contam
+   * como uma mão que acabou de aparecer.
    */
   process(
     hands: AssignedHands,
     dt: number,
     o: GestureOptions,
     scores: readonly (number | null | undefined)[] = [],
+    swapped: readonly boolean[] = [],
   ): void {
     for (let h = 0; h < 2; h++) {
       const lm = hands[h];
@@ -345,14 +428,24 @@ export class GestureEngine extends Emitter<GestureEvents> {
       const cs = curls(lm);
       const wristY = lm[0].y;
       const heightShift = o.heightPitch ? heightShiftOf(wristY) : 0;
-      // mão acabou de aparecer: a dobra parte do valor atual, sem velocidade (não dispara)
-      const appeared = this.handFrames[h] === 0;
+      // mão acabou de aparecer (ou trocou de lado): a dobra parte do valor atual, sem velocidade,
+      // e cada dedo só volta a poder disparar depois de visto esticado (ver `armed`)
+      const swap = !!swapped[h] && this.handFrames[h] > 0;
+      const appeared = this.handFrames[h] === 0 || swap;
+      if (appeared) {
+        this.learnSkip[h] = swap ? LEARN_SKIP_AFTER_SWAP : LEARN_SKIP_FRAMES;
+        this.handFrames[h] = 0;
+        // as notas deste lado eram da outra mão
+        if (swap) for (let j = 0; j < 5; j++) this.release(h * 5 + j);
+      }
       this.handFrames[h]++;
       const score = scores[h];
+      const skipping = this.learnSkip[h] > 0;
+      if (skipping) this.learnSkip[h]--;
       const learnHere =
         !!o.learn &&
         !o.continuous &&
-        this.handFrames[h] > LEARN_SKIP_FRAMES &&
+        !skipping &&
         (score === null || score === undefined || score >= LEARN_MIN_SCORE);
       const prevDt = this.prevDt[h];
       this.prevDt[h] = dt;
@@ -367,13 +460,24 @@ export class GestureEngine extends Emitter<GestureEvents> {
         const raw = cs[j];
         f.prevCurl = f.curl;
         this.prevRawVel[i] = f.rawVel;
+        const hv = this.histV[i];
+        const ha = this.histAge[i];
         if (appeared) {
+          this.armed[i] = false;
+          hv.length = 0;
+          ha.length = 0;
+          this.base[i] = raw;
           this.prevRawVel[i] = 0;
           f.raw = raw;
           f.rawVel = 0;
           f.vel = 0;
           f.curl = raw;
           f.prevCurl = raw;
+          this.slowCurl[i] = raw;
+          this.slowVel[i] = 0;
+          this.rises[i] = 0;
+          this.jMean[i] = raw;
+          this.jVar[i] = JITTER_START ** 2;
           continue;
         }
         if (j === 0) {
@@ -387,8 +491,33 @@ export class GestureEngine extends Emitter<GestureEvents> {
           f.rawVel = (raw - f.raw) / dt;
           f.vel = f.vel * VEL_SMOOTH_PREV + f.rawVel * (1 - VEL_SMOOTH_PREV);
           f.curl = f.curl * CURL_SMOOTH_PREV + raw * (1 - CURL_SMOOTH_PREV);
+          const sc = this.slowCurl[i];
+          this.slowCurl[i] = sc * THUMB_CURL_SMOOTH_PREV + raw * (1 - THUMB_CURL_SMOOTH_PREV);
+          this.slowVel[i] =
+            this.slowVel[i] * THUMB_VEL_SMOOTH_PREV +
+            ((this.slowCurl[i] - sc) / dt) * (1 - THUMB_VEL_SMOOTH_PREV);
           maxRawVel = Math.max(maxRawVel, f.rawVel);
+          // início da subida atual: a dobra crua antes do primeiro fotograma a subir
+          if (f.rawVel <= 0) this.rises[i] = 0;
+          else if (this.rises[i]++ === 0) this.runStart[i] = f.raw;
         }
+        // linha de base: mínimo das dobras cruas dos últimos BASELINE_S (sem a deste fotograma)
+        hv.push(f.raw);
+        ha.push(0);
+        for (let k = 0; k < ha.length; k++) ha[k] += dt;
+        while (ha.length > 1 && ha[0] > BASELINE_S + 1e-9) {
+          ha.shift();
+          hv.shift();
+        }
+        // a subida conta desde o mais alto de: o mínimo da janela e o início da subida atual
+        // tremor: só com o dedo solto e sem estar a subir (uma dobra não conta como tremor)
+        this.sinceOff[i] = f.down ? 0 : this.sinceOff[i] + dt;
+        if (j > 0 && !f.down && f.rawVel <= 0 && this.sinceOff[i] >= JITTER_HOLD_S) {
+          const a = 1 - Math.exp(-dt / JITTER_TAU_S);
+          this.jMean[i] += (raw - this.jMean[i]) * a;
+          this.jVar[i] += ((raw - this.jMean[i]) ** 2 - this.jVar[i]) * a;
+        }
+        this.base[i] = Math.max(Math.min(...hv), j > 0 && this.rises[i] > 0 ? this.runStart[i] : 0);
         f.raw = raw;
       }
 
@@ -407,10 +536,13 @@ export class GestureEngine extends Emitter<GestureEvents> {
         const tip = lm[TIP_IDS[j]];
         f.tip = { x: tip.x, y: tip.y };
         if (learnHere && j > 0) this.adaptive.observe(i, f.raw, dt);
-        const { on, off, full, early } =
+        const { on, off, full, early, rest } =
           j === 0
             ? thumbThresholds(i, o.thumbSensitivity ?? THUMB_SENS_NEUTRAL, o.calibration)
             : thresholds(i, o.sensitivity, o.calibration, o.learn ? this.adaptive.ranges[i] : null);
+
+        if (!this.armed[i] && (j === 0 ? f.curl < off : f.raw < Math.max(off, early)))
+          this.armed[i] = true;
 
         if (o.continuous) {
           const lvl = clamp((f.curl - off * 0.6) / (1 - off * 0.6), 0, 1);
@@ -424,7 +556,7 @@ export class GestureEngine extends Emitter<GestureEvents> {
           } else if (f.dwell > 0) {
             f.dwell++;
             f.dwellT += dt;
-          } else if (f.vel > VEL_TRIGGER && f.refr <= 0) {
+          } else if (f.vel > VEL_TRIGGER && f.refr <= 0 && this.armed[i]) {
             f.dwell = 1;
             f.dwellT = 0;
             f.dwellVel = f.vel;
@@ -444,10 +576,8 @@ export class GestureEngine extends Emitter<GestureEvents> {
         } else if (
           !f.down &&
           f.refr <= 0 &&
-          ((f.curl > on &&
-            f.vel > VEL_TRIGGER &&
-            (f.curl > full || (f.rawVel > 0 && f.rawVel >= maxRawVel * COUPLED_DOMINANCE))) ||
-            this.early(i, early, dt, prevDt, maxRawVel))
+          this.armed[i] &&
+          (this.lastTrigger[i] = this.trigger(i, on, full, early, rest, dt, prevDt, maxRawVel))
         ) {
           f.down = true;
           f.y0 = wristY;
@@ -464,14 +594,73 @@ export class GestureEngine extends Emitter<GestureEvents> {
     }
   }
 
-  /** Disparo antecipado de um dedo (nunca polegares): ver `EARLY_VEL`. */
-  private early(i: number, level: number, dt: number, prevDt: number, maxRawVel: number): boolean {
+  /** Que regra dispara o dedo i neste fotograma (null = nenhuma). */
+  private trigger(
+    i: number,
+    on: number,
+    full: number,
+    early: number,
+    rest: number,
+    dt: number,
+    prevDt: number,
+    maxRawVel: number,
+  ): Trigger | null {
+    const f = this.fingers[i];
+    // o disparo da v2.1: o `on` sem desconto, com a dobra e a velocidade da v2.1
+    if (this.slowCurl[i] > full && this.slowVel[i] > VEL_TRIGGER) return 'full';
+    if (f.curl > on && f.vel > VEL_TRIGGER && this.discounted(i, on - rest, dt, prevDt, maxRawVel))
+      return 'discount';
+    if (this.early(i, early, early - rest, dt, prevDt, maxRawVel)) return 'early';
+    return null;
+  }
+
+  /** Subida mínima que o tremor do dedo i exige (ver `JITTER_K`). */
+  private jitterRise(i: number): number {
+    return JITTER_K * Math.sqrt(this.jVar[i]);
+  }
+
+  /** Declive médio da dobra crua nos dois últimos fotogramas, ou 0 se não subiu nos dois. */
+  private slope2(i: number, dt: number, prevDt: number): number {
     const f = this.fingers[i];
     const pv = this.prevRawVel[i];
-    if (i % 5 === 0 || prevDt <= 0 || f.rawVel <= 0 || pv <= 0) return false;
-    // declive da dobra crua nos dois últimos fotogramas: um salto isolado (ruído) fica a metade
-    const slope = (f.rawVel * dt + pv * prevDt) / (dt + prevDt);
-    return slope > EARLY_VEL && f.raw >= level && f.rawVel >= maxRawVel * EARLY_DOMINANCE;
+    if (prevDt <= 0 || f.rawVel <= 0 || pv <= 0) return 0;
+    // um salto isolado (ruído) fica a metade
+    return (f.rawVel * dt + pv * prevDt) / (dt + prevDt);
+  }
+
+  /**
+   * Disparo só pelo desconto (anelar e mindinho entre o `on` e o `on` sem desconto): o dedo subiu
+   * pelo menos `rise` desde a linha de base, em `DISCOUNT_MIN_RISES` fotogramas seguidos e com
+   * declive nos dois últimos acima de `DISCOUNT_MIN_SLOPE`, e
+   * não vai arrastado por um vizinho mais rápido (`COUPLED_DOMINANCE`).
+   */
+  private discounted(i: number, rise: number, dt: number, prevDt: number, maxRawVel: number) {
+    const f = this.fingers[i];
+    return (
+      f.raw - this.base[i] >= Math.max(rise, this.jitterRise(i)) &&
+      this.rises[i] >= DISCOUNT_MIN_RISES &&
+      this.slope2(i, dt, prevDt) > DISCOUNT_MIN_SLOPE &&
+      f.rawVel >= maxRawVel * COUPLED_DOMINANCE
+    );
+  }
+
+  /** Disparo antecipado de um dedo (nunca polegares): ver `EARLY_VEL`. */
+  private early(
+    i: number,
+    level: number,
+    rise: number,
+    dt: number,
+    prevDt: number,
+    maxRawVel: number,
+  ): boolean {
+    const f = this.fingers[i];
+    if (i % 5 === 0) return false;
+    return (
+      this.slope2(i, dt, prevDt) > EARLY_VEL &&
+      f.raw >= level &&
+      f.raw - this.base[i] >= Math.max(rise, this.jitterRise(i)) &&
+      f.rawVel >= maxRawVel * EARLY_DOMINANCE
+    );
   }
 
   /** Liberta tudo (mudança de instrumento, polegares, perda da câmara). */
@@ -488,5 +677,6 @@ export class GestureEngine extends Emitter<GestureEvents> {
     this.releaseAll();
     this.fingers.forEach((f) => Object.assign(f, newFinger()));
     this.handFrames = [0, 0];
+    this.armed.fill(false);
   }
 }

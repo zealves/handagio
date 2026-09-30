@@ -144,4 +144,23 @@ describe('handTracker', () => {
     const late = syntheticHand(false, 0.55);
     expect(assignHands([late], [], st)[1]).toBe(late);
   });
+  it('marca os lados cuja mão ficou mais perto do último pulso do outro lado', () => {
+    const st = createHandAssignState();
+    const L = (x: number) => syntheticHand(false, x);
+    assignHands([L(0.3), L(0.7)], [], st);
+    expect(st.swapped).toEqual([false, false]);
+    // mexem-se um pouco: nada muda
+    assignHands([L(0.32), L(0.69)], [], st);
+    expect(st.swapped).toEqual([false, false]);
+    // a mão da esquerda salta para perto da outra
+    assignHands([L(0.6), L(0.69)], [], st);
+    expect(st.swapped).toEqual([true, false]);
+    // uma mão nova num lado vazio não é uma troca (o gestureEngine já a trata como nova)
+    const st2 = createHandAssignState();
+    assignHands([L(0.3)], [], st2);
+    expect(st2.swapped).toEqual([false, false]);
+    // salto grande no mesmo lado (mão a mexer-se depressa) não é uma troca
+    assignHands([L(0.05)], [], st2);
+    expect(st2.swapped).toEqual([false, false]);
+  });
 });

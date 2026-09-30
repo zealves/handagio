@@ -781,7 +781,7 @@ class Session {
       const k = lm ? hands.indexOf(lm) : -1;
       return k >= 0 ? (handedness[k]?.score ?? null) : null;
     });
-    this.gesture.process(assigned, pdt, this.gestureOptions(), scores);
+    this.gesture.process(assigned, pdt, this.gestureOptions(), scores, this.handState.swapped);
     this.saveLearned(now);
   }
 
