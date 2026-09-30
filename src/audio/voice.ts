@@ -108,6 +108,9 @@ export function makeKit(deps: VoiceDeps, t: number, out: GainNode) {
   return { K, sources, all, gainLfos };
 }
 
+/** Uma voz largada antes de começar (quantização) ainda soa este tempo (s) antes de largar. */
+export const PENDING_HOLD = 0.12;
+
 /** Toca uma voz melódica. `when` permite agendar (quantização, looper). */
 export function playVoice(
   deps: VoiceDeps,
@@ -144,6 +147,16 @@ export function playVoice(
       if (patch.ring) return;
       const n = ctx.currentTime;
       const r = patch.rel || 0.2;
+      if (n < t) {
+        // largada antes de começar (quantização): em vez de cancelar o ataque e ficar muda, soa
+        // um toque curto, como nas amostras (decisão 57)
+        const at = t + PENDING_HOLD;
+        out.gain.cancelScheduledValues(at);
+        out.gain.setTargetAtTime(0, at, r);
+        silenceLfos(at, r / 2, false);
+        end(at + r * 6 + 0.05);
+        return;
+      }
       out.gain.cancelScheduledValues(n);
       out.gain.setValueAtTime(out.gain.value, n);
       out.gain.setTargetAtTime(0, n, r);
@@ -162,10 +175,10 @@ export function playVoice(
   };
   // Desvio consciente do protótipo: lá, o LFO ligado a `out.gain` (copos de cristal, piano
   // elétrico) continuava a modular depois do largar e a nota soava até ~5 s, com tremolo.
-  function silenceLfos(n: number, tau: number) {
+  function silenceLfos(n: number, tau: number, fromNow = true) {
     for (const g of gainLfos) {
       g.gain.cancelScheduledValues(n);
-      g.gain.setValueAtTime(g.gain.value, n);
+      if (fromNow) g.gain.setValueAtTime(g.gain.value, n);
       g.gain.setTargetAtTime(0, n, tau);
     }
   }

@@ -25,7 +25,15 @@ import type { Pt } from '../vision/types';
 import { FINGER_COLORS } from '../ui/theme';
 import { isTypingTarget } from '../lib/keys';
 import { DEBUG } from '../lib/debug';
-import { ARP_GATE, ARP_KEYS, arpCatchUp, arpNote, arpStepDue } from './arp';
+import {
+  ARP_GATE,
+  ARP_KEYS,
+  arpCatchUp,
+  arpKeysToCancel,
+  arpNote,
+  arpNoteSounds,
+  arpStepDue,
+} from './arp';
 import { fingerChordOf, fingerMidiOf } from './notes';
 
 const NO_RESULT_MS = 6000;
@@ -61,9 +69,11 @@ interface Arp {
   start: number;
   /** Notas já tocadas (escolhe a chave em rotação). */
   count: number;
-  /** Nota a soar (sem o arrastar) e a sua chave, para o arrastar a mover. */
-  cur: number;
-  key: string;
+  /** Chave da nota que está de facto a soar e a sua nota sem o arrastar (para o arrastar). */
+  sounding: string | null;
+  soundingBase: number;
+  /** Nota acesa por cada chave em rotação (para as apagar ao soltar, mesmo depois de arrastar). */
+  lit: (number | null)[];
   sustain: boolean;
 }
 
@@ -116,9 +126,9 @@ class Session {
       // `pitch` é o desvio em meios-tons em relação à nota tocada (já com a altura e o acorde)
       const a = this.arps.get(finger);
       if (a) {
-        // no arpejo, desloca a nota atual e as seguintes
+        // no arpejo, desloca a nota que soa e as seguintes (nunca uma que ainda não começou)
         a.pitch = pitch;
-        audio.glide(a.key, a.cur + pitch);
+        if (a.sounding) audio.glide(a.sounding, a.soundingBase + pitch);
         return;
       }
       this.fingerNote[finger]?.forEach((m, k) => audio.glide(voiceKey(finger, k), m + pitch));
@@ -216,8 +226,9 @@ class Session {
         vel: velocity,
         start: when,
         count: 0,
-        cur: midi,
-        key: arpKey(i, 0),
+        sounding: null,
+        soundingBase: midi,
+        lit: new Array<number | null>(ARP_KEYS).fill(null),
         sustain: info.sustain,
       };
       this.arps.set(i, a);
@@ -256,42 +267,48 @@ class Session {
   }
 
   /**
-   * Toca a nota seguinte de um arpejo em `time`. Grava-a no looper quando soa (se o dedo largar
-   * antes disso, a nota agendada é cortada e não fica no loop). Nos sustentados larga ao fim de
-   * `ARP_GATE` do passo; beliscados e percutidos soam naturalmente.
+   * Toca a nota seguinte de um arpejo em `time`. Grava-a no looper quando soa. Se o dedo largar
+   * antes disso, as notas agendadas são cortadas e não ficam no loop, exceto a 1.ª, que soa como
+   * um toque curto de "Uma nota". Nos sustentados larga ao fim de `ARP_GATE` do passo; beliscados e
+   * percutidos soam naturalmente.
    */
   private arpPlay(i: number, a: Arp, time: number): void {
     const n = a.count++;
-    const key = arpKey(i, n % ARP_KEYS);
+    const k = n % ARP_KEYS;
+    const key = arpKey(i, k);
     const base = arpNote(a.notes, a.idx++);
     const midi = base + a.pitch;
-    a.cur = base;
-    a.key = key;
     const s = getState();
     const pan = fingerPan(i);
     const instrument = s.instrument;
     audio.noteOn(key, instrument, midi, a.vel, pan, time);
     this.at(time, () => {
-      // o dedo largou antes de a nota soar: foi cortada, não acende nem entra no loop
-      if (this.arps.get(i) !== a) return;
+      const down = this.arps.get(i) === a;
+      if (!arpNoteSounds(n, down)) return;
+      if (down) {
+        a.sounding = key;
+        a.soundingBase = base;
+      }
+      a.lit[k] = midi;
       live.notes.set(midi, {
         level: 1,
         color: FINGER_COLORS[i],
-        held: a.sustain && audio.hasVoice(key),
+        held: down && a.sustain && audio.hasVoice(key),
       });
       setState({ lastNote: noteName(midi) });
       if (DEBUG) {
         this.arpLog.push({ finger: i, midi, time });
         if (this.arpLog.length > ARP_LOG_MAX) this.arpLog.shift();
       }
+      // já solta (1.ª nota de um toque curto): sem chave, com a duração de uma nota do arpejo
       this.looper.record(this.clock.positionAt(time), {
         kind: 'note',
         midi,
         vel: a.vel,
         pan,
-        dur: 2,
+        dur: a.sustain ? ARP_GATE : 2,
         instrument,
-        key,
+        ...(down && { key }),
       });
     });
     if (!a.sustain) return;
@@ -306,19 +323,23 @@ class Session {
     });
   }
 
-  /** Pára o arpejo de um dedo: a nota a soar larga como uma nota normal e as agendadas calam-se. */
+  /**
+   * Pára o arpejo de um dedo: a nota a soar larga como uma nota normal e as agendadas calam-se,
+   * exceto a 1.ª (um toque curto com a quantização ainda soa, como em "Uma nota").
+   */
   private stopArp(i: number): void {
     const a = this.arps.get(i);
     if (!a) return;
     this.arps.delete(i);
     const pos = this.clock.positionAt(audio.now);
+    const cancel = arpKeysToCancel(a.count);
     for (let k = 0; k < ARP_KEYS; k++) {
       const key = arpKey(i, k);
-      if (!audio.cancelPending(key)) audio.noteOff(key);
+      if (!(cancel.includes(k) && audio.cancelPending(key))) audio.noteOff(key);
       this.looper.release(pos, key);
     }
-    for (const m of a.notes) {
-      const l = live.notes.get(m + a.pitch);
+    for (const m of a.lit) {
+      const l = m === null ? undefined : live.notes.get(m);
       if (l) l.held = false;
     }
   }

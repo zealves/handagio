@@ -50,3 +50,22 @@ export function arpCatchUp(
   }
   return out;
 }
+
+/**
+ * A nota `n` do arpejo (0 = a do disparo) soa quando chega o seu tempo? A 1.ª soa sempre, como
+ * em "Uma nota": um toque curto com a quantização ainda se ouve. As seguintes só se o dedo
+ * continuar dobrado.
+ */
+export const arpNoteSounds = (n: number, fingerDown: boolean): boolean => n === 0 || fingerDown;
+
+/**
+ * Chaves (0..ARP_KEYS−1) cujas notas agendadas se cortam sem som ao soltar, depois de `count`
+ * notas: todas menos a que ainda guarda a 1.ª nota (essa larga como uma nota normal).
+ */
+export function arpKeysToCancel(count: number): number[] {
+  const out: number[] = [];
+  // a última nota de cada chave: as das últimas ARP_KEYS notas (n % ARP_KEYS é a chave)
+  for (let n = Math.max(0, count - ARP_KEYS); n < count; n++) if (n > 0) out.push(n % ARP_KEYS);
+  out.sort((x, y) => x - y);
+  return out;
+}
