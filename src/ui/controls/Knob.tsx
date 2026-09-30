@@ -20,6 +20,8 @@ interface Props {
   format?: (v: number) => string;
   size?: number;
   testId?: string;
+  /** Compacto (rodapé): o valor só aparece no lugar do rótulo com o rato por cima ou o foco. */
+  compact?: boolean;
 }
 
 const START = -135;
@@ -47,6 +49,7 @@ export function Knob({
   format,
   size = 64,
   testId,
+  compact = false,
 }: Props) {
   const id = useId();
   const ref = useRef<HTMLDivElement>(null);
@@ -124,7 +127,11 @@ export function Knob({
   const text = format ? format(value) : value.toFixed(2);
   const gid = `${id}-g`;
   return (
-    <div className={s.knob} style={size < 64 ? { gap: 2 } : undefined}>
+    <div
+      className={s.knob}
+      style={size < 64 ? { gap: 2 } : undefined}
+      data-compact={compact || undefined}
+    >
       <div
         ref={ref}
         className={s.dial}

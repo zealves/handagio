@@ -1,0 +1,58 @@
+/* Faixa discreta por baixo do palco (a largura e quando aparece vêm do App). Vidro leve, sem
+   sombra: não deve parecer uma segunda barra. */
+/* o título à esquerda e os controlos ao centro (a 3.ª coluna equilibra a 1.ª) */
+.footer {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  height: 68px;
+  padding: 0 20px;
+  border-radius: var(--radius-sm);
+  background: var(--glass);
+  border: 1px solid var(--line);
+}
+.title {
+  justify-self: start;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+.knobs {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+/* cada knob com a mesma largura, para o espaço entre eles ser regular */
+.knobs > * {
+  width: 52px;
+}
+.sep {
+  align-self: stretch;
+  width: 1px;
+  margin: 14px 0;
+  background: var(--line);
+}
+/* janelas estreitas: sem o título (fica no aria-label) e com menos espaço entre os controlos */
+@media (max-width: 759px) {
+  .footer {
+    display: flex;
+    justify-content: center;
+    padding: 0 12px;
+  }
+  .title {
+    display: none;
+  }
+  .controls {
+    gap: 14px;
+  }
+  .knobs {
+    gap: 8px;
+  }
+}

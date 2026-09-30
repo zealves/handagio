@@ -1,4 +1,5 @@
-// Barra de controlo sobre o palco: só o essencial à vista; o resto abre gavetas.
+// Barra de controlo sobre o palco: só o essencial à vista; o resto abre gavetas. Os efeitos
+// ficam no rodapé por baixo do palco (EffectsFooter) e na gaveta Efeitos, pelo menu ⋯.
 import { useShallow } from 'zustand/react/shallow';
 import { toggleRecording } from '../../app/recording';
 import { session } from '../../app/session';
@@ -7,8 +8,7 @@ import { NOTE_NAMES } from '../../audio/theory';
 import { useStore } from '../../state/store';
 import type { DrawerId } from '../../state/types';
 import { instrumentIcon } from '../icons/InstrumentIcons';
-import { IconChevron, IconLoop, IconMetronome, IconMusic, IconSliders } from '../icons/UiIcons';
-import { EFFECTS } from './effects';
+import { IconChevron, IconLoop, IconMetronome, IconMusic } from '../icons/UiIcons';
 import { MoreMenu } from './MoreMenu';
 import s from './ControlBar.module.css';
 
@@ -78,22 +78,6 @@ export function ControlBar() {
             <span className={s.long}> · {st.scale}</span>
           </span>
         )}
-      </button>
-      <div className={`${s.quick} ${s.wide}`}>
-        {EFFECTS.filter((e) => e.quick).map(({ id, Control }) => (
-          <Control key={id} size={30} testId={`quick-${id}`} />
-        ))}
-      </div>
-      <button
-        type="button"
-        className={`${s.chip} ${s.mid}`}
-        aria-haspopup="dialog"
-        onClick={() => open('efeitos')}
-        data-testid="chip-effects"
-        aria-label="Efeitos"
-      >
-        <IconSliders />
-        <span className={s.label}>Efeitos</span>
       </button>
       <button
         type="button"

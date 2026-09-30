@@ -5,6 +5,7 @@ import { SettingsDialog } from '../ui/panels/SettingsDialog';
 import { ChordColumn } from '../ui/shell/ChordColumn';
 import { ControlBar } from '../ui/shell/ControlBar';
 import { DrawerHost } from '../ui/shell/DrawerHost';
+import { EffectsFooter } from '../ui/shell/EffectsFooter';
 import { installShortcuts } from '../ui/shell/shortcuts';
 import { useAutoHide } from '../ui/shell/useAutoHide';
 import { WaveViz } from '../ui/shell/WaveViz';
@@ -30,11 +31,12 @@ export function App() {
   return (
     <div className={s.app} data-ui={uiHidden ? (peek ? 'peek' : 'hidden') : 'shown'}>
       <TopBar />
-      <main className={s.main} id="conteudo">
-        <div
-          className={s.stageBox}
-          style={size ? { ['--ar' as string]: size.w / size.h } : undefined}
-        >
+      <main
+        className={s.main}
+        id="conteudo"
+        style={size ? { ['--ar' as string]: size.w / size.h } : undefined}
+      >
+        <div className={s.stageBox}>
           <CameraStage onStart={() => void session.start()} />
           <div className={s.chordSlot} data-testid="chord-slot">
             <ChordColumn />
@@ -43,6 +45,7 @@ export function App() {
             <ControlBar />
           </div>
         </div>
+        <EffectsFooter className={s.footer} />
         <WaveViz className={s.strip} />
       </main>
       <DrawerHost />

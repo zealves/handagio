@@ -9,16 +9,21 @@
   margin: 0 auto;
   overflow: hidden;
 }
+/* Contentor: o rodapé calcula a largura do palco a partir da altura que lhe sobra. */
 .main {
+  --ar: 1.7778;
+  --gap: 10px;
+  --foot-h: 68px;
+  --strip-h: 60px;
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--gap);
+  container-type: size;
 }
 /* O palco ocupa o espaço livre, na proporção da câmara (--ar), sem nunca transbordar. */
 .stageBox {
-  --ar: 1.7778;
   --sw: min(100cqw, 100cqh * var(--ar));
   --sh: min(100cqh, 100cqw / var(--ar));
   position: relative;
@@ -65,11 +70,21 @@
 .chordSlot > * {
   pointer-events: auto;
 }
+/* Rodapé dos efeitos: com a largura do palco (a altura do stageBox é a de .main menos o
+   rodapé, a faixa e os dois intervalos), mas nunca mais estreito do que o conteúdo. */
+.footer {
+  flex: none;
+  align-self: center;
+  box-sizing: border-box;
+  width: min(100cqw, (100cqh - var(--foot-h) - var(--strip-h) - 2 * var(--gap)) * var(--ar));
+  min-width: fit-content;
+  height: var(--foot-h);
+}
 .strip {
   flex: none;
   display: block;
   width: 100%;
-  height: 60px;
+  height: var(--strip-h);
   border-radius: var(--radius-sm);
   background: var(--canvas-bg);
 }
@@ -78,7 +93,9 @@
 .app[data-ui='hidden'] > header,
 .app[data-ui='peek'] > header,
 .app[data-ui='hidden'] .strip,
-.app[data-ui='peek'] .strip {
+.app[data-ui='peek'] .strip,
+.app[data-ui='hidden'] .footer,
+.app[data-ui='peek'] .footer {
   display: none;
 }
 /* visibility tira a barra escondida da ordem do Tab; só muda no fim do fade */
@@ -101,6 +118,10 @@
     min-height: 100dvh;
     overflow: visible;
   }
+  /* a página desliza: a altura já não é fixa, por isso deixa de ser contentor */
+  .main {
+    container-type: normal;
+  }
   .stageBox {
     flex: none;
     container-type: normal;
@@ -118,8 +139,9 @@
   .app[data-ui='hidden'] .barSlot {
     display: none;
   }
-  /* no telemóvel as formas de tocar ficam no menu ⋯ */
-  .chordSlot {
+  /* no telemóvel as formas de tocar e os efeitos ficam no menu ⋯ */
+  .chordSlot,
+  .footer {
     display: none;
   }
   .strip {
@@ -153,6 +175,13 @@
     height: 32px;
   }
 }
+/* janelas baixas (também a paisagem baixa): com o rodapé, o palco ficava pequeno demais para a
+   coluna "Cada dedo toca…" e a barra; os efeitos ficam na gaveta, pelo menu ⋯ */
+@media (max-height: 599px) {
+  .footer {
+    display: none;
+  }
+}
 /* sem unidades de contentor (Safari < 16): palco à largura e barra a 12px do fundo */
 @supports not (width: 1cqw) {
   .barSlot {
@@ -162,5 +191,8 @@
     left: 12px;
     top: 88px;
     bottom: 116px;
+  }
+  .footer {
+    width: 100%;
   }
 }

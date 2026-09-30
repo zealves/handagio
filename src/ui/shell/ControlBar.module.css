@@ -101,15 +101,6 @@
   background: var(--cyan);
   box-shadow: var(--glow);
 }
-.quick {
-  display: flex;
-  gap: 2px;
-  padding: 0 4px;
-}
-/* no mini-knob só se vê o dial; o rótulo vai no title/aria */
-.quick > div > span {
-  display: none;
-}
 .recGroup {
   display: inline-flex;
   align-items: center;
@@ -212,9 +203,8 @@
   color: var(--cyan);
 }
 
-/* 600–1099: sem mini-knobs e sem o nome longo da escala */
+/* 600–1099: sem o nome longo da escala */
 @media (max-width: 1099px) {
-  .wide,
   .long {
     display: none;
   }
@@ -222,7 +212,7 @@
     width: 40px;
   }
 }
-/* telemóvel: só ícones; Efeitos, Tempo e Fundo vão para o ⋯ */
+/* telemóvel: só ícones; o Tempo vai para o ⋯ */
 @media (max-width: 599px) {
   .bar {
     border-radius: var(--radius-sm);
@@ -252,9 +242,8 @@
     width: var(--vbar-w);
     border-radius: var(--radius-sm);
   }
-  /* sem altura para tudo: Efeitos, Tempo e Fundo vão para o ⋯, como no telemóvel */
+  /* sem altura para tudo: o Tempo vai para o ⋯, como no telemóvel */
   .label,
-  .wide,
   .mid {
     display: none;
   }

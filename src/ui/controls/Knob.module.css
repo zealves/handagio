@@ -32,3 +32,25 @@
   font-variant-numeric: tabular-nums;
   min-height: 1.2em;
 }
+/* Compacto (rodapé): rótulo pequeno e o valor no mesmo lugar, só com o rato por cima ou o foco. */
+.knob[data-compact] .label,
+.knob[data-compact] .value {
+  grid-area: 2 / 1;
+  min-height: 0;
+  line-height: 14px;
+}
+.knob[data-compact] .label {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+.knob[data-compact] .value {
+  visibility: hidden;
+}
+.knob[data-compact]:hover .value,
+.knob[data-compact]:focus-within .value {
+  visibility: visible;
+}
+.knob[data-compact]:hover .label,
+.knob[data-compact]:focus-within .label {
+  visibility: hidden;
+}

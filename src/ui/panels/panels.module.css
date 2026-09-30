@@ -95,6 +95,30 @@
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+/* Boca no rodapé: o seletor por cima e um medidor pequeno por baixo, à altura dos knobs */
+.mouthMini {
+  display: grid;
+  gap: 6px;
+  width: 116px;
+}
+.mouthMiniSel select {
+  height: 30px;
+  padding: 0 6px;
+  font-size: 12px;
+}
+.mouthMiniMeter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  line-height: 14px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.mouthMiniMeter .bar {
+  height: 6px;
+}
 
 /* tempo e looper */
 .tempoRow {
