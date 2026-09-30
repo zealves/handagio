@@ -22,7 +22,7 @@ import {
   sampleSources,
   type SampleVoice,
 } from './samples/sampler';
-import { midiToFreq } from './theory';
+import { freqToMidi, midiToFreq } from './theory';
 import { playVoice, type Voice, type VoiceDeps } from './voice';
 import type { MouthFxId } from '../state/types';
 
@@ -308,6 +308,12 @@ export class AudioEngine {
     // o choke seguinte compara com a nota que está de facto a soar
     const tail = this.sampleTails.get(key);
     if (tail?.voice === e.voice) tail.midi = midi;
+  }
+
+  /** Diagnóstico: nota MIDI (contínua) a que uma voz está a soar, sem o pitch global. */
+  voiceMidi(key: VoiceKey): number | null {
+    const e = this.voices.get(key);
+    return e ? freqToMidi(e.freq) : null;
   }
 
   hasVoice(key: VoiceKey): boolean {

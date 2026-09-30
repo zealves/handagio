@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DRAG_DEADZONE,
+  DRAG_SEMITONES,
+  dragSemitones,
   GestureEngine,
+  heightShiftOf,
   onThreshold,
   THUMB_DWELL,
   THUMB_DWELL_MIN,
@@ -233,6 +237,78 @@ describe('gestureEngine', () => {
       for (let k = 0; k < 3; k++) g.process(open, 1 / 30, topts);
       g.process(closeIdx(1), 1 / 30, topts);
       expect(ev).toEqual(['on1']);
+    });
+  });
+  describe('altura da mão e arrastar', () => {
+    /** Mãos com o indicador esquerdo dobrado (ou não) e o pulso à altura `y`. */
+    const at = (bent: boolean, y: number): AssignedHands => [
+      syntheticHand([false, bent, false, false, false], 0.3, y),
+      syntheticHand(false, 0.7, y),
+    ];
+    function run(o: Partial<GestureOptions>) {
+      const g = new GestureEngine();
+      const shifts: number[] = [];
+      let pitch = NaN;
+      g.on('noteOn', (e) => shifts.push(e.shift));
+      g.on('glide', (e) => {
+        if (e.finger === 1) pitch = e.pitch;
+      });
+      const oo = { ...opts, ...o };
+      const feed = (h: AssignedHands, n = 12) => {
+        for (let k = 0; k < n; k++) g.process(h, 1 / 30, oo);
+        return pitch;
+      };
+      return { g, shifts, feed };
+    }
+
+    it('desvio: zona morta, sem salto, 20 meios-tons por unidade e limite de ±12', () => {
+      expect(dragSemitones(0.7, 0.7)).toBe(0);
+      expect(dragSemitones(0.7, 0.7 - DRAG_DEADZONE)).toBeCloseTo(0);
+      expect(dragSemitones(0.7, 0.6)).toBeCloseTo((0.1 - DRAG_DEADZONE) * DRAG_SEMITONES);
+      expect(dragSemitones(0.6, 0.7)).toBeCloseTo(-(0.1 - DRAG_DEADZONE) * DRAG_SEMITONES);
+      expect(dragSemitones(0.9, 0)).toBe(12);
+      expect(dragSemitones(0, 0.9)).toBe(-12);
+    });
+
+    it('altura escolhe a nota: 10 graus por unidade, centro em 0.55', () => {
+      expect(heightShiftOf(0.55)).toBe(0);
+      expect(heightShiftOf(0.35)).toBe(2);
+      expect(heightShiftOf(0.75)).toBe(-2);
+    });
+
+    it('sem altura: arrastar é relativo ao ponto onde a nota começou', () => {
+      const { shifts, feed } = run({ heightPitch: false, glide: true });
+      feed(at(false, 0.7), 5);
+      expect(feed(at(true, 0.7), 5)).toBeCloseTo(0);
+      expect(shifts).toEqual([0]);
+      expect(feed(at(true, 0.6))).toBeCloseTo(1.6, 2);
+      expect(feed(at(true, 0.7))).toBeCloseTo(0, 2);
+      // dentro da zona morta, nada
+      expect(feed(at(true, 0.7 - DRAG_DEADZONE / 2))).toBeCloseTo(0, 6);
+      expect(feed(at(true, 0.8))).toBeCloseTo(-1.6, 2);
+    });
+
+    it('com altura: a nota vem da altura e o arrastar continua relativo a ela', () => {
+      const { shifts, feed } = run({ heightPitch: true, glide: true });
+      feed(at(false, 0.35), 5);
+      feed(at(true, 0.35), 5);
+      expect(shifts).toEqual([2]);
+      expect(feed(at(true, 0.35))).toBeCloseTo(0, 6);
+      expect(feed(at(true, 0.25))).toBeCloseTo(1.6, 2);
+    });
+
+    it('a suavização não salta logo para o valor final', () => {
+      const { feed } = run({ glide: true });
+      feed(at(false, 0.7), 5);
+      feed(at(true, 0.7), 5);
+      expect(feed(at(true, 0.6), 1)).toBeCloseTo(0.8, 2);
+    });
+
+    it('sem arrastar não há glide', () => {
+      const { feed } = run({ glide: false });
+      feed(at(false, 0.7), 5);
+      feed(at(true, 0.7), 5);
+      expect(feed(at(true, 0.5))).toBeNaN();
     });
   });
 });

@@ -29,6 +29,7 @@ type Vsc = {
     ensureAudio(): void;
   };
   audio: {
+    voiceMidi(key: number | string): number | null;
     noteOn(key: string, id: string, midi: number, vel: number, pan: number): void;
     noteOff(key: string): void;
     analyser: { frequency(): Uint8Array; level(): number };
@@ -818,6 +819,89 @@ test.describe('notas dos dedos', () => {
       return v.store.getState().lastNote;
     });
     expect(note).toBe('Dó4');
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+});
+
+test.describe('altura da mão e arrastar', () => {
+  /**
+   * Dobra o indicador esquerdo com o pulso à altura `y0` e, sem o largar, leva a mão a `y1`.
+   * Devolve a nota tocada e a nota MIDI da voz antes e depois de arrastar (null sem voz).
+   */
+  function bendAt(page: Page, y0: number, y1: number) {
+    return page.evaluate(
+      async ({ y0, y1 }) => {
+        const v = (window as unknown as { __vsc: Vsc }).__vsc;
+        v.store.getState().set({ lastNote: '—' });
+        const hands = (bent: boolean, y: number) => [
+          v.syntheticHand([false, bent, false, false, false], 0.3, y),
+          v.syntheticHand(false, 0.7, y),
+        ];
+        const wait = () => new Promise((r) => setTimeout(r, 33));
+        const feed = async (h: unknown[], n: number) => {
+          for (let k = 0; k < n; k++) {
+            v.session.feedHands(h);
+            await wait();
+          }
+        };
+        await feed(hands(false, y0), 4);
+        await feed(hands(true, y0), 6);
+        const note = v.store.getState().lastNote;
+        const before = v.audio.voiceMidi(1);
+        await feed(hands(true, y1), 12);
+        const after = v.audio.voiceMidi(1);
+        await feed(hands(false, y1), 4);
+        return { note, before, after };
+      },
+      { y0, y1 },
+    );
+  }
+
+  test('por defeito: a altura não muda a nota e arrastar dobra o tom', async ({ page }) => {
+    const errors = watchConsole(page);
+    await page.goto('/?debug');
+    await page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.session.ensureAudio());
+    await pinNotes(page, { instrument: 'organ', scale: 'Maior', tonicAt: 'left-pinky' });
+    await page.evaluate(() =>
+      (window as unknown as { __vsc: Vsc }).__vsc.store.getState().set({ settingsOpen: true }),
+    );
+    await expect(page.getByTestId('height-pitch')).not.toBeChecked();
+    await expect(page.getByTestId('glide')).toBeChecked();
+    await page.keyboard.press('Escape');
+    // indicador esquerdo = Fá4, a qualquer altura
+    const low = await bendAt(page, 0.8, 0.8);
+    const high = await bendAt(page, 0.4, 0.4);
+    expect(low.note).toBe('Fá4');
+    expect(high.note).toBe('Fá4');
+    // arrastar 0.2 para cima: (0.2 − 0.02) × 20 = 3.6 meios-tons acima da nota tocada
+    const up = await bendAt(page, 0.7, 0.5);
+    expect(up.before).toBeCloseTo(65, 1);
+    expect(up.after! - up.before!).toBeGreaterThan(3);
+    expect(up.after! - up.before!).toBeLessThan(3.7);
+    // também no Personalizado, a partir da nota exata do dedo
+    await pinNotes(page, { noteMode: 'custom' });
+    const custom = await bendAt(page, 0.7, 0.5);
+    expect(custom.after! - custom.before!).toBeGreaterThan(3);
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+
+  test('com a altura ligada, a mão mais acima toca mais agudo', async ({ page }) => {
+    const errors = watchConsole(page);
+    await page.goto('/?debug');
+    await page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.session.ensureAudio());
+    await pinNotes(page, {
+      instrument: 'organ',
+      scale: 'Maior',
+      tonicAt: 'left-pinky',
+      heightPitch: true,
+      glide: false,
+    });
+    // 0.55 é o centro (Fá4); 0.35 sobe 2 graus (Lá4)
+    expect((await bendAt(page, 0.55, 0.55)).note).toBe('Fá4');
+    const high = await bendAt(page, 0.35, 0.2);
+    expect(high.note).toBe('Lá4');
+    // sem arrastar, a voz fica na nota tocada
+    expect(high.after).toBeCloseTo(high.before!, 3);
     expect(errors, errors.join('\n')).toEqual([]);
   });
 });
