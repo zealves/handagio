@@ -1,13 +1,9 @@
-// Lógica pura do shell da interface (sem React nem DOM): pesquisa, recentes, rotação de
+// Lógica pura do shell da interface (sem React nem DOM): pesquisa, rotação de
 // instrumentos, migração das preferências e fontes da composição de vídeo.
 import { DEFAULT_CUSTOM_NOTES, LEGACY_CUSTOM_NOTES, normalizeCustomNotes } from '../../app/notes';
-import { INSTRUMENT_BY_ID, INSTRUMENTS, type InstrumentInfo } from '../../audio/instruments';
+import { INSTRUMENTS, type InstrumentInfo } from '../../audio/instruments';
 import { FAMILIES, type Family } from '../../audio/patches/types';
 import type { DrawerId } from '../../state/types';
-
-export function pushRecent(list: string[], id: string, max = 6): string[] {
-  return [id, ...list.filter((x) => x !== id)].slice(0, max);
-}
 
 export const normalize = (s: string): string =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
@@ -37,9 +33,6 @@ export function groupByFamily(
     items: list.filter((i) => i.family === family),
   })).filter((g) => g.items.length > 0);
 }
-
-export const recentInfos = (ids: string[]): InstrumentInfo[] =>
-  ids.map((id) => INSTRUMENT_BY_ID[id]).filter((i): i is InstrumentInfo => !!i);
 
 export function nextInstrument(id: string, dir: 1 | -1, filter = 'Todos'): string {
   const list = filterByFamily(filter);
@@ -110,6 +103,8 @@ export function migratePrefs(old: unknown, version: number): Record<string, unkn
     }
   }
   if (version < 6) o.heightPitch = false;
+  // v7: sem a lista de instrumentos recentes.
+  if (version < 7) delete o.recentInstruments;
   return o;
 }
 

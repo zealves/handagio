@@ -10,7 +10,7 @@ Interface redesenhada para pôr o foco em tocar, e instrumentos acústicos grava
 - Ecrã inteiro (`E`) e esconder interface (`I`), com a barra a espreitar ao mexer o rato.
 - O palco mostra sempre só as mãos (a pessoa não aparece, nem na gravação); ondas sempre por baixo do palco, mais leves.
 - Um só visualizador (ondas sobrepostas); os canvases fora do ecrã deixam de desenhar.
-- Seletor de instrumentos com pesquisa, recentes e grupos por família; `,` e `.` mudam de instrumento.
+- Seletor de instrumentos com pesquisa e grupos por família; `,` e `.` mudam de instrumento.
 - Efeitos em cartões (reverb, eco/delay, pitch, filtro, drive, boca), com reverb e eco à mão na barra.
 - Layout para telemóvel (folha inferior), tablet, desktop e paisagem baixa.
 - Oitava, sensibilidade, altura da mão e arrastar passam para as Definições, com a lista de atalhos.

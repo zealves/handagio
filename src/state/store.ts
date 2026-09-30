@@ -45,7 +45,6 @@ export interface Prefs extends SoundSettings {
   thumbs: boolean;
   heightPitch: boolean;
   glide: boolean;
-  recentInstruments: string[];
   volume: number;
   muted: boolean;
   cameraId: string | null;
@@ -112,7 +111,6 @@ export const DEFAULT_PREFS: Prefs = {
   thumbs: false,
   heightPitch: false,
   glide: true,
-  recentInstruments: [],
   volume: 0.75,
   muted: false,
   cameraId: null,
@@ -154,7 +152,7 @@ export const useStore = create<Store>()(
     }),
     {
       name: 'vision-sound-cam:prefs',
-      version: 6,
+      version: 7,
       migrate: (old, version) => migratePrefs(old, version) as unknown as Store,
       partialize: (s) => Object.fromEntries(PREF_KEYS.map((k) => [k, s[k]])) as Partial<Store>,
     },

@@ -1,4 +1,4 @@
-// Seletor de instrumentos preparado para muitos sons: pesquisa, recentes, chips de família e
+// Seletor de instrumentos preparado para muitos sons: pesquisa, chips de família e
 // filas compactas agrupadas por família.
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { session } from '../../app/session';
@@ -7,7 +7,7 @@ import { FAMILIES } from '../../audio/patches/types';
 import { useStore } from '../../state/store';
 import { instrumentIcon } from '../icons/InstrumentIcons';
 import p from '../panels/panels.module.css';
-import { filterByFamily, groupByFamily, recentInfos, searchInstruments } from './logic';
+import { filterByFamily, groupByFamily, searchInstruments } from './logic';
 import s from './InstrumentPicker.module.css';
 
 const FILTERS = ['Todos', ...FAMILIES];
@@ -60,7 +60,6 @@ function Row({
 export function InstrumentPicker() {
   const instrument = useStore((st) => st.instrument);
   const filter = useStore((st) => st.familyFilter);
-  const recents = useStore((st) => st.recentInstruments);
   const sampleStatus = useStore((st) => st.sampleStatus);
   const set = useStore((st) => st.set);
   const [q, setQ] = useState('');
@@ -79,7 +78,6 @@ export function InstrumentPicker() {
   };
   const found = searchInstruments(q, filterByFamily(filter));
   const groups = groupByFamily(found);
-  const recent = !q.trim() && filter === 'Todos' ? recentInfos(recents) : [];
 
   // ↑/↓ entre filas; ↓ no campo de pesquisa salta para a primeira.
   const onKey = (e: KeyboardEvent) => {
@@ -120,21 +118,6 @@ export function InstrumentPicker() {
         ))}
       </div>
       <div ref={list} className={s.list}>
-        {recent.length > 0 && (
-          <section aria-label="Recentes">
-            <h3 className={s.group}>Recentes</h3>
-            {recent.map((i) => (
-              <Row
-                key={i.id}
-                info={i}
-                active={instrument === i.id}
-                status={sampleStatus[i.id]}
-                onPick={pick}
-                testId={`recent-${i.id}`}
-              />
-            ))}
-          </section>
-        )}
         {groups.map((g) => (
           <section key={g.family} aria-label={g.family}>
             <h3 className={s.group}>

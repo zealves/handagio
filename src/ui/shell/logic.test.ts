@@ -7,23 +7,8 @@ import {
   migratePrefs,
   nextInstrument,
   normalize,
-  pushRecent,
-  recentInfos,
   searchInstruments,
 } from './logic';
-
-describe('pushRecent', () => {
-  it('põe no início, sem duplicados, até ao máximo', () => {
-    expect(pushRecent([], 'piano')).toEqual(['piano']);
-    expect(pushRecent(['a', 'b', 'c'], 'b')).toEqual(['b', 'a', 'c']);
-    expect(pushRecent(['a', 'b', 'c'], 'd', 3)).toEqual(['d', 'a', 'b']);
-  });
-  it('não altera a lista original', () => {
-    const l = ['a'];
-    pushRecent(l, 'b');
-    expect(l).toEqual(['a']);
-  });
-});
 
 describe('pesquisa', () => {
   it('normaliza acentos e maiúsculas', () => {
@@ -52,15 +37,6 @@ describe('groupByFamily', () => {
     expect(g[0].family).toBe('Teclas');
     expect(g.reduce((n, x) => n + x.items.length, 0)).toBe(INSTRUMENTS.length);
     expect(groupByFamily(searchInstruments('marimba')).map((x) => x.family)).toEqual(['Lâminas']);
-  });
-});
-
-describe('recentInfos', () => {
-  it('ignora ids desconhecidos', () => {
-    expect(recentInfos(['piano', 'nao-existe', 'marimba']).map((i) => i.id)).toEqual([
-      'piano',
-      'marimba',
-    ]);
   });
 });
 
@@ -168,6 +144,10 @@ describe('migratePrefs', () => {
     });
     // já na v6, quem voltou a ligar a altura fica com ela ligada
     expect(migratePrefs({ heightPitch: true }, 6)).toEqual({ heightPitch: true });
+  });
+  it('v7 apaga a lista de instrumentos recentes', () => {
+    expect(migratePrefs({ recentInstruments: ['piano'], bpm: 90 }, 6)).toEqual({ bpm: 90 });
+    expect(migratePrefs({ bpm: 90 }, 7)).toEqual({ bpm: 90 });
   });
   it('v5 fica igual nas notas personalizadas', () => {
     expect(migratePrefs({ customNotes: [...LEGACY_CUSTOM_NOTES] }, 5).customNotes).toEqual([

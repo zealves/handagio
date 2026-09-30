@@ -109,3 +109,4 @@ Registo das decisões tomadas quando o pedido era ambíguo. A mais recente fica 
     - **Migração:** o `persist` passa à versão 6 e põe `heightPitch = false` uma vez para toda a gente, porque o significado mudou e o utilizador pediu que comece desligada. O `glide` mantém o valor guardado.
     - **Diagnóstico:** `audio.voiceMidi(voz)` devolve a nota MIDI (contínua) a que uma voz soa, para o e2e confirmar o arrastar.
     - **Sem mãos reais para afinar:** os valores (20 meios-tons, zona morta 0,02, EMA 0,5) foram testados com mãos sintéticas; podem precisar de ajuste com uma webcam real.
+51. **Sem instrumentos recentes.** O utilizador pediu para retirar a secção "Recentes" do seletor, para a lista não mudar sempre que se escolhe um instrumento. Sai a pref `recentInstruments`, a secção e a sua lógica; a migração v7 apaga a chave guardada. *Substitui em parte a 39.*

@@ -4,7 +4,6 @@ import { session } from './session';
 import { SettingsDialog } from '../ui/panels/SettingsDialog';
 import { ControlBar } from '../ui/shell/ControlBar';
 import { DrawerHost } from '../ui/shell/DrawerHost';
-import { installRecents } from '../ui/shell/recents';
 import { installShortcuts } from '../ui/shell/shortcuts';
 import { useAutoHide } from '../ui/shell/useAutoHide';
 import { WaveViz } from '../ui/shell/WaveViz';
@@ -26,7 +25,6 @@ export function App() {
     const offs = [
       session.installKeyboard(),
       session.installStoreSync(),
-      installRecents(),
       installShortcuts(),
     ];
     return () => offs.forEach((off) => off());
