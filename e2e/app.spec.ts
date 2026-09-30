@@ -369,8 +369,18 @@ test('forma de tocar: coluna à esquerda do palco, dica, tecla C e menu ⋯', as
   const column = page.getByRole('radiogroup', { name: 'Cada dedo toca' });
   await expect(column).toBeVisible();
   await expect(column).toContainText('Cada dedo toca…');
-  // as 4 opções estão à vista, da mais simples à mais rica
-  await expect(column.getByRole('radio')).toHaveText(['Uma nota', 'Quinta', 'Acorde', 'Sétima']);
+  // as 8 opções estão à vista, com os rótulos, da mais simples à mais rica
+  await expect(column.getByRole('radio')).toHaveText([
+    'Uma nota',
+    'Oitava',
+    'Quinta',
+    'Acorde',
+    'Suspenso',
+    'Sétima',
+    'Nona',
+    'Arpejo',
+  ]);
+  await expect(column).toBeInViewport({ ratio: 1 });
   // à esquerda do palco, sem tapar a barra nem os chips do HUD
   const stage = (await page.getByTestId('stage').boundingBox())!;
   const col = (await column.boundingBox())!;
@@ -402,12 +412,12 @@ test('forma de tocar: coluna à esquerda do palco, dica, tecla C e menu ⋯', as
   await checked('triad');
   await expect(page.getByTestId('chord-triad')).toBeFocused();
   await expect(page.getByTestId('chord-power')).toHaveAttribute('tabindex', '-1');
-  // C passa ao seguinte
+  // C passa ao seguinte, pela mesma ordem, e volta ao início
   await page.locator('body').click({ position: { x: 5, y: 5 } });
-  await page.keyboard.press('c');
-  await checked('seventh');
-  await page.keyboard.press('c');
-  await checked('off');
+  for (const id of ['sus4', 'seventh', 'ninth', 'arp', 'off', 'octave']) {
+    await page.keyboard.press('c');
+    await checked(id);
+  }
   // e no menu ⋯, com o mesmo título
   await page.getByTestId('more').click();
   await expect(page.getByRole('group', { name: 'Cada dedo toca' })).toBeVisible();
@@ -428,8 +438,10 @@ test('forma de tocar no telemóvel: sem coluna, no menu ⋯', async ({ page }) =
   await markStarted(page);
   await expect(page.getByTestId('chord-column')).toBeHidden();
   await page.getByTestId('more').click();
-  for (const id of ['off', 'power', 'triad', 'seventh'])
-    await expect(page.getByTestId(`menu-chord-${id}`)).toBeVisible();
+  for (const id of ['off', 'octave', 'power', 'triad', 'sus4', 'seventh', 'ninth', 'arp']) {
+    await page.getByTestId(`menu-chord-${id}`).scrollIntoViewIfNeeded();
+    await expect(page.getByTestId(`menu-chord-${id}`)).toBeInViewport({ ratio: 1 });
+  }
   await page.getByTestId('menu-chord-triad').click();
   await expect(page.getByTestId('chord-triad')).toHaveAttribute('aria-checked', 'true');
   expect(errors, errors.join('\n')).toEqual([]);
@@ -447,12 +459,138 @@ test('forma de tocar em paisagem baixa: coluna compacta, dentro do ecrã', async
   expect(overlaps(col, (await page.getByTestId('control-bar').boundingBox())!)).toBe(false);
   for (const chip of await page.getByTestId('hud').locator('span').all())
     expect(overlaps(col, (await chip.boundingBox())!)).toBe(false);
-  // só os desenhos: o rótulo passa para a dica
+  // os chips do HUD da direita ficam à esquerda da barra vertical
+  const bar = (await page.getByTestId('control-bar').boundingBox())!;
+  for (const chip of await page.getByTestId('hud').locator('span').all())
+    expect(overlaps(bar, (await chip.boundingBox())!)).toBe(false);
+  // só os desenhos, em duas colunas: o rótulo passa para a dica
+  await expect(column.getByRole('radio')).toHaveCount(8);
+  for (const r of await column.getByRole('radio').all())
+    await expect(r).toBeInViewport({ ratio: 1 });
   await expect(page.getByTestId('chord-power').getByText('Quinta')).toBeHidden();
   await page.getByTestId('chord-power').hover();
   await expect(page.getByRole('tooltip')).toContainText('Quinta');
   await page.getByTestId('chord-power').click();
   await expect(page.getByTestId('chord-power')).toHaveAttribute('aria-checked', 'true');
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('forma de tocar a 1024×768: os 8 modos cabem sem tapar o HUD nem a barra', async ({
+  page,
+}) => {
+  const errors = watchConsole(page);
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.goto('/?debug');
+  await markStarted(page);
+  const column = page.getByTestId('chord-column');
+  await expect(column).toBeInViewport({ ratio: 1 });
+  await expect(column.getByRole('radio')).toHaveCount(8);
+  const col = (await column.boundingBox())!;
+  const stage = (await page.getByTestId('stage').boundingBox())!;
+  expect(col.y).toBeGreaterThanOrEqual(stage.y);
+  expect(col.y + col.height).toBeLessThanOrEqual(stage.y + stage.height);
+  expect(overlaps(col, (await page.getByTestId('control-bar').boundingBox())!)).toBe(false);
+  for (const chip of await page.getByTestId('hud').locator('span').all())
+    expect(overlaps(col, (await chip.boundingBox())!)).toBe(false);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+type ArpVsc = Vsc & {
+  session: { arpLog: { finger: number; midi: number; time: number }[] };
+  audio: { activeVoices: number };
+};
+
+test('Arpejo: as notas do acorde uma a uma, ao ritmo do tempo, e param ao soltar', async ({
+  page,
+}) => {
+  const errors = watchConsole(page);
+  await page.goto('/?debug');
+  await page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.session.ensureAudio());
+  await pinNotes(page, {
+    started: true,
+    instrument: 'synth',
+    bpm: 120,
+    quantize: 'off',
+    noteMode: 'scale',
+    root: 0,
+    scale: 'Maior',
+    octave: 4,
+  });
+  await page.getByTestId('chord-arp').click();
+  await expect(page.getByTestId('chord-arp')).toHaveAttribute('aria-checked', 'true');
+  const r = await page.evaluate(async () => {
+    const v = (window as unknown as { __vsc: ArpVsc }).__vsc;
+    const wait = () => new Promise((res) => setTimeout(res, 33));
+    const open = [v.syntheticHand(false, 0.3), v.syntheticHand(false, 0.7)];
+    const bent = [
+      v.syntheticHand([false, false, true, false, false], 0.3),
+      v.syntheticHand(false, 0.7),
+    ];
+    for (let k = 0; k < 4; k++) {
+      v.session.feedHands(open);
+      await wait();
+    }
+    v.session.arpLog.length = 0;
+    // ~1,1 s dobrado a 120 BPM: 8 semicolcheias por segundo
+    const t0 = performance.now();
+    while (performance.now() - t0 < 1100) {
+      v.session.feedHands(bent);
+      await wait();
+    }
+    const held = v.session.arpLog.map((e) => ({ ...e }));
+    for (let k = 0; k < 4; k++) {
+      v.session.feedHands(open);
+      await wait();
+    }
+    const atRelease = v.session.arpLog.length;
+    await new Promise((res) => setTimeout(res, 600));
+    return { held, atRelease, after: v.session.arpLog.length, voices: v.audio.activeVoices };
+  });
+  const midis = r.held.map((e) => e.midi);
+  // várias notas, de um só dedo, pelo padrão sobe e desce: n0 n1 n2 n1 n0 …
+  expect(midis.length).toBeGreaterThanOrEqual(6);
+  expect(new Set(r.held.map((e) => e.finger)).size).toBe(1);
+  expect(midis[0]).toBeLessThan(midis[1]);
+  expect(midis[1]).toBeLessThan(midis[2]);
+  midis.forEach((m, k) => expect(m).toBe(midis[[0, 1, 2, 1][k % 4]]));
+  // depois da 1.ª, uma nota por semicolcheia (125 ms a 120 BPM)
+  for (let k = 2; k < r.held.length; k++)
+    expect(r.held[k].time - r.held[k - 1].time).toBeCloseTo(0.125, 3);
+  // ao soltar, param: nenhuma nota nova e nenhuma voz presa
+  expect(r.after).toBe(r.atRelease);
+  expect(r.voices).toBe(0);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('Nona: um dedo toca 5 vozes', async ({ page }) => {
+  const errors = watchConsole(page);
+  await page.goto('/?debug');
+  await page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.session.ensureAudio());
+  await pinNotes(page, { started: true, instrument: 'synth', chord: 'ninth', noteMode: 'scale' });
+  await expect(page.getByTestId('chord-ninth')).toHaveAttribute('aria-checked', 'true');
+  const r = await page.evaluate(async () => {
+    const v = (window as unknown as { __vsc: ArpVsc }).__vsc;
+    const wait = () => new Promise((res) => setTimeout(res, 33));
+    const open = [v.syntheticHand(false, 0.3), v.syntheticHand(false, 0.7)];
+    const bent = [
+      v.syntheticHand([false, false, true, false, false], 0.3),
+      v.syntheticHand(false, 0.7),
+    ];
+    for (const hands of [open, open, open, open, bent, bent, bent, bent]) {
+      v.session.feedHands(hands);
+      await wait();
+    }
+    const held = v.audio.activeVoices;
+    const note = v.store.getState().lastNote;
+    for (let k = 0; k < 4; k++) {
+      v.session.feedHands(open);
+      await wait();
+    }
+    return { held, note, after: v.audio.activeVoices };
+  });
+  expect(r.held).toBe(5);
+  expect(r.note).toMatch(/9/);
+  expect(r.after).toBe(0);
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
