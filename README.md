@@ -37,7 +37,17 @@ Na gaveta **Escala e acordes** escolhes como cada dedo sabe que nota tocar. A fi
 
 O palco da câmara ocupa o espaço livre; por cima fica uma barra de controlo fina com o instrumento, a escala, reverb e eco (só em ecrãs largos), o tempo, gravar, o looper e um menu **⋯** com o resto. O que não cabe na barra fica em gavetas (Instrumentos, Escala e acordes, Efeitos, Tempo e looper, Gravações, Tocar com o rato), abertas uma de cada vez. O palco mostra só as tuas mãos e as partículas (tu não apareces, nem na gravação: a câmara serve só para a deteção) e, por baixo, uma faixa com as ondas do som.
 
-- **Cada dedo toca…** (coluna à esquerda do palco, tecla `C` ou menu ⋯ no telemóvel): **Uma nota**, **Quinta** (nota, quinta e oitava), **Acorde** (3 notas da escala) ou **Sétima** (4 notas). Cada opção tem um desenho com um ponto por nota; a explicação aparece ao passar o rato ou por um instante depois de tocar.
+- **Cada dedo toca…** (coluna à esquerda do palco, tecla `C` ou menu ⋯ no telemóvel), da mais simples à mais rica:
+  - **Uma nota**: a melodia;
+  - **Oitava**: a nota e a mesma uma oitava acima;
+  - **Quinta**: nota, quinta e oitava (o "power chord");
+  - **Acorde**: 3 notas da escala, maior ou menor conforme o dedo;
+  - **Suspenso**: aberto, sem maior nem menor (sus4);
+  - **Sétima**: 4 notas, com a 7.ª;
+  - **Nona**: 5 notas, com a 7.ª e a 9.ª;
+  - **Arpejo**: as notas do acorde uma a uma, a subir e a descer, uma por semicolcheia enquanto o dedo estiver dobrado (o tempo da barra dá a velocidade).
+
+  Cada opção tem um desenho com um ponto por nota; a explicação aparece ao passar o rato ou por um instante depois de tocar. Em ecrãs baixos a coluna mostra só os desenhos, em duas colunas.
 - **⛶ Ecrã inteiro** (tecla `E`) e **esconder a interface** (tecla `I`, ou no menu ⋯): fica só o palco. Mexer o rato ou tocar no ecrã volta a mostrar a barra por 3 segundos.
 - **`,` e `.`** passam ao instrumento anterior ou seguinte sem abrir a gaveta.
 
