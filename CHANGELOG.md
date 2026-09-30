@@ -6,6 +6,7 @@ Versões segundo [SemVer](https://semver.org/lang/pt-BR/). A mais recente fica n
 
 - O polegar toca ao encostar ao lado do indicador (como quem carrega num botão) e solta ao afastar, em vez de dobrar como os outros dedos. A medida é relativa à própria mão, por isso não muda ao rodar, inclinar ou afastar a mão da câmara.
 - O polegar não toca quando é o indicador que dobra e vem ter com ele, nem quando a mão entra já com o polegar encostado.
+- A medida do polegar tem em conta a proporção do vídeo (16:9), e o polegar em repouso não toca sozinho nem fica preso: solta ao voltar perto do repouso, precisa de subir de verdade e a aprendizagem só o torna menos sensível.
 - "Calibrar mãos" pede o polegar afastado e depois encostado ao lado do indicador; a aprendizagem da mão passa a incluir os polegares (10 barrinhas nas Definições com os polegares ligados).
 - A calibração e o aprendido dos polegares guardados eram da medida antiga e são esquecidos (só os dos polegares).
 
