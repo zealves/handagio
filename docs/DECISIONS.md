@@ -235,8 +235,6 @@ Registo das decisões tomadas quando o pedido era ambíguo. A mais recente fica 
       | não      | 0.15                | 250 ms       | 0      | 0 / 19 / 0                  | 200 / 200 / 200             | 200 / 200         |
       | não      | 0.15                | 250 ms       | 1      | 0 / 81 / 0                  | 200 / 200 / 200             | 200 / 200         |
       | não      | 0.15                | 250 ms       | 2      | 0 / — / 0                   | 200 / — / 200               | 200 / 200         |
-      | não      | 0.1 (mindinho 0.1)  | 0 fotogramas | 0      | 0                           | 0                           |
-      | não      | 0.1 (mindinho 0.1)  | 3 fotogramas | 1978   | 895                         | 0                           |
 
       Com o repouso 0.05 e 0.25 e com a aprendizagem ligada, todas as 144 células de S2 ficam iguais às da v2.1. S3, mão a entrar e a sair (notas em 10 × 60 s):
 

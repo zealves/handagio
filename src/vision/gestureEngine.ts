@@ -715,7 +715,6 @@ export class GestureEngine extends Emitter<GestureEvents> {
     this.jSd[i] = (q(JITTER_HI_PCT) - q(JITTER_LO_PCT)) / JITTER_SPREAD;
   }
 
-  /** Velocidade crua mais alta dos outros dedos da mão h nos últimos `COUPLED_HISTORY` fotogramas. */
   /** Subida da dobra crua do dedo i nos últimos n fotogramas (desde o mínimo). */
   private riseOver(i: number, n: number): number {
     const hv = this.histV[i];
@@ -738,6 +737,7 @@ export class GestureEngine extends Emitter<GestureEvents> {
     return this.riseOver(i, n) >= other * COUPLED_RISE_RATIO;
   }
 
+  /** Velocidade crua mais alta dos outros dedos da mão h nos últimos `COUPLED_HISTORY` fotogramas. */
   private fastestOther(h: number, j: number): number {
     let m = 0;
     for (let q = 1; q < 5; q++)
