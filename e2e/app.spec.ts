@@ -472,6 +472,17 @@ test('forma de tocar em paisagem baixa: coluna compacta, dentro do ecrã', async
   await expect(page.getByRole('tooltip')).toContainText('Quinta');
   await page.getByTestId('chord-power').click();
   await expect(page.getByTestId('chord-power')).toHaveAttribute('aria-checked', 'true');
+  // na grelha 2×4, ←/→ também mudam de opção (pela ordem de leitura); Home e End vão aos extremos
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByTestId('chord-triad')).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByTestId('chord-triad')).toBeFocused();
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.getByTestId('chord-power')).toHaveAttribute('aria-checked', 'true');
+  await page.keyboard.press('End');
+  await expect(page.getByTestId('chord-arp')).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByTestId('chord-arp')).toBeFocused();
+  await page.keyboard.press('Home');
+  await expect(page.getByTestId('chord-off')).toHaveAttribute('aria-checked', 'true');
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
@@ -559,6 +570,44 @@ test('Arpejo: as notas do acorde uma a uma, ao ritmo do tempo, e param ao soltar
   // ao soltar, param: nenhuma nota nova e nenhuma voz presa
   expect(r.after).toBe(r.atRelease);
   expect(r.voices).toBe(0);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('Arpejo com quantização: um toque mais curto do que um passo ainda soa', async ({ page }) => {
+  const errors = watchConsole(page);
+  await page.goto('/?debug');
+  await page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.session.ensureAudio());
+  await pinNotes(page, {
+    started: true,
+    instrument: 'synth',
+    chord: 'arp',
+    bpm: 60,
+    quantize: '1/16',
+    noteMode: 'scale',
+  });
+  const r = await page.evaluate(async () => {
+    const v = (window as unknown as { __vsc: ArpVsc }).__vsc;
+    const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+    await sleep(300);
+    v.session.arpLog.length = 0;
+    // tecla S (um dedo) premida ~30 ms: a 60 BPM uma semicolcheia dura 250 ms
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }));
+    const voices = v.audio.activeVoices;
+    await sleep(30);
+    window.dispatchEvent(new KeyboardEvent('keyup', { key: 's' }));
+    let level = 0;
+    const t0 = performance.now();
+    while (performance.now() - t0 < 700) {
+      level = Math.max(level, v.audio.analyser.level());
+      await sleep(5);
+    }
+    return { voices, log: v.session.arpLog.length, level, after: v.audio.activeVoices };
+  });
+  // a 1.ª nota (agendada para o passo seguinte) não é cortada ao soltar: soa, uma só vez
+  expect(r.voices).toBe(1);
+  expect(r.log).toBe(1);
+  expect(r.level).toBeGreaterThan(0.01);
+  expect(r.after).toBe(0);
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
