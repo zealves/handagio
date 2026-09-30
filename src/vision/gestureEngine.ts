@@ -1,5 +1,7 @@
 // Transforma dobras de dedos em eventos de notas: histerese, velocidade, disparo e libertação.
-// Valores e fórmulas copiados de processHands() no protótipo.
+// Partiu de processHands() no protótipo; desde a v2.1 a deteção dos dedos (suavização,
+// limiares por dedo, disparo antecipado e período refratário) foi afinada para
+// ser mais rápida e mais fácil (docs/DECISIONS.md, 60). Os polegares mantêm as regras antigas.
 import { clamp } from '../audio/theory';
 import { Emitter } from '../lib/emitter';
 import type { Calibration } from '../state/types';
@@ -29,9 +31,17 @@ export interface GestureOptions {
 }
 
 export interface FingerLive {
+  /** Dobra suavizada (0..1): é a que passa os limiares e a que os canvas desenham. */
   curl: number;
   prevCurl: number;
+  /** Velocidade da dobra (/s), da dobra crua com uma suavização leve (polegares: da suavizada). */
   vel: number;
+  /** Última dobra crua (sem suavização). */
+  raw: number;
+  /** Velocidade crua (/s) entre os dois últimos fotogramas. */
+  rawVel: number;
+  /** Segundos que ainda faltam do período refratário depois de um noteOff (0 = livre). */
+  refr: number;
   down: boolean;
   /** Polegares: fotogramas seguidos acima do limiar à espera de confirmação (0 = nenhum). */
   dwell: number;
@@ -49,6 +59,52 @@ export interface FingerLive {
 
 export const VEL_TRIGGER = 0.3;
 export const HYSTERESIS = 0.18;
+
+/**
+ * Suavização da dobra: peso do valor anterior na EMA (`curl = prev × k + cru × (1 − k)`).
+ * O protótipo usava 0.35; 0.2 responde mais depressa (~1 fotograma a menos de atraso).
+ */
+export const CURL_SMOOTH_PREV = 0.2;
+/** Velocidade: peso do valor anterior na EMA da derivada da dobra crua. */
+export const VEL_SMOOTH_PREV = 0.3;
+/** Polegares: suavização do protótipo (dobra mais ruidosa; regras próprias, ver THUMB_DWELL). */
+export const THUMB_CURL_SMOOTH_PREV = 0.35;
+export const THUMB_VEL_SMOOTH_PREV = 0.5;
+
+/**
+ * Desconto no limiar de disparo por dedo (índice j: 0 polegar, 1 indicador, 2 médio, 3 anelar,
+ * 4 mindinho). O anelar e o mindinho dobram menos (movimento acoplado aos vizinhos), por isso o
+ * `on` baixa este valor; o `off` baixa metade, para a histerese continuar a soltar a nota com o
+ * dedo esticado.
+ */
+export const FINGER_ON_DISCOUNT = [0, 0, 0, 0.06, 0.12] as const;
+/** Limiar de disparo mínimo sem calibração (sensibilidade no máximo com o desconto do mindinho). */
+export const ON_MIN = 0.2;
+
+/**
+ * Disparo antecipado: com o dedo a dobrar depressa, a nota sai antes de a dobra chegar ao `on`.
+ * Condições (todas):
+ * - velocidade (declive da dobra crua nos 2 últimos fotogramas) acima de `EARLY_VEL` (/s), com a
+ *   dobra crua a subir nos dois (um salto isolado da deteção não chega);
+ * - dobra crua já a `EARLY_FRACTION` do caminho entre o repouso (0, ou o esticado
+ *   calibrado) e o `on` SEM o desconto do dedo: o desconto do anelar e do mindinho não se
+ *   soma ao antecipado, para o ruído de um dedo parado continuar abaixo deste nível;
+ * - este dedo a mexer-se pelo menos `EARLY_DOMINANCE` × o dedo mais rápido da mesma mão (quando
+ *   se dobra o anelar, o mindinho e o médio vão atrás mais devagar e não disparam antecipados).
+ * Só dedos, nunca polegares.
+ */
+export const EARLY_VEL = 3;
+export const EARLY_FRACTION = 0.7;
+export const EARLY_DOMINANCE = 0.6;
+/**
+ * Movimento acoplado: um anelar ou mindinho que só passa o `on` graças ao desconto (entre o `on`
+ * e o `on` sem desconto) só dispara se estiver a mexer-se pelo menos `COUPLED_DOMINANCE` × o dedo
+ * mais rápido da mesma mão, e ainda a subir. Dobrar o anelar arrasta o mindinho (e vice-versa)
+ * mais devagar: esse arrasto não toca; o mindinho dobrado de propósito (é o mais rápido) toca.
+ */
+export const COUPLED_DOMINANCE = 0.6;
+/** Período refratário (s) depois de um noteOff: o tremor ao esticar não volta a disparar. */
+export const REFRACTORY_S = 0.06;
 
 /**
  * Altura da mão escolhe a nota: graus da escala por unidade de altura do pulso (0..1), à volta
@@ -100,21 +156,44 @@ const THUMB_CAL_MAX = 0.85;
 /** limiar = 0.75 − sens × 0.45 */
 export const onThreshold = (sens: number): number => 0.75 - sens * 0.45;
 
-/** Limiares de um dedo, calibrados ou vindos da sensibilidade. */
-export function thresholds(
-  i: number,
-  sens: number,
-  cal?: Calibration | null,
-): { on: number; off: number } {
+/** Limiares de um dedo. */
+export interface Thresholds {
+  /** Disparo. */
+  on: number;
+  /** Libertação. */
+  off: number;
+  /** O `on` sem o desconto do dedo (igual ao `on` no indicador, no médio e com calibração). */
+  full: number;
+  /** Nível do disparo antecipado (ver `EARLY_FRACTION`). */
+  early: number;
+}
+
+/** Nível do disparo antecipado: `EARLY_FRACTION` do caminho entre o repouso e o `on` sem desconto. */
+const earlyLevel = (rest: number, full: number): number => rest + (full - rest) * EARLY_FRACTION;
+
+const calibrated = (i: number, cal?: Calibration | null): cal is Calibration =>
+  !!cal && cal.closed[i] - cal.open[i] > 0.2;
+
+/** Limiares sem calibração: a sensibilidade menos o desconto do dedo. */
+export function defaultThresholds(i: number, sens: number): Thresholds {
+  const d = FINGER_ON_DISCOUNT[i % 5];
   const base = onThreshold(sens);
-  if (cal && cal.closed[i] - cal.open[i] > 0.2) {
+  const on = Math.max(ON_MIN, base - d);
+  const full = Math.max(on, base);
+  return { on, off: on - (HYSTERESIS - d / 2), full, early: earlyLevel(0, full) };
+}
+
+/** Limiares de um dedo: calibração manual válida para o dedo, ou sensibilidade com desconto. */
+export function thresholds(i: number, sens: number, cal?: Calibration | null): Thresholds {
+  if (calibrated(i, cal)) {
     // Calibração: o limiar fica a 60% do caminho entre esticado e dobrado; a sensibilidade
     // continua a deslocá-lo como no modo normal (0.55 é o ponto neutro).
     const span = cal.closed[i] - cal.open[i];
     const on = clamp(cal.open[i] + span * 0.6 - (sens - 0.55) * 0.45, 0.15, 0.95);
-    return { on, off: Math.max(cal.open[i] + span * 0.15, on - HYSTERESIS) };
+    const off = Math.max(cal.open[i] + span * 0.15, on - HYSTERESIS);
+    return { on, off, full: on, early: earlyLevel(cal.open[i], on) };
   }
-  return { on: base, off: base - HYSTERESIS };
+  return defaultThresholds(i, sens);
 }
 
 /**
@@ -126,8 +205,8 @@ export function thumbThresholds(
   i: number,
   thumbSens: number,
   cal?: Calibration | null,
-): { on: number; off: number } {
-  if (cal && cal.closed[i] - cal.open[i] > 0.2) {
+): Thresholds {
+  if (calibrated(i, cal)) {
     const span = cal.closed[i] - cal.open[i];
     // a mesma fórmula da calibração, com o ponto neutro dos polegares (0.5)
     const base = thresholds(i, thumbSens + (0.55 - THUMB_SENS_NEUTRAL), cal);
@@ -136,10 +215,10 @@ export function thumbThresholds(
       0.15,
       0.95,
     );
-    return { on, off: Math.max(cal.open[i] + span * 0.15, on - HYSTERESIS) };
+    return { on, off: Math.max(cal.open[i] + span * 0.15, on - HYSTERESIS), full: on, early: on };
   }
   const on = onThreshold(thumbSens) + THUMB_ON_EXTRA;
-  return { on, off: on - HYSTERESIS };
+  return { on, off: on - HYSTERESIS, full: on, early: on };
 }
 
 /** Intensidade da nota a partir da velocidade no disparo. */
@@ -150,6 +229,9 @@ export const newFinger = (): FingerLive => ({
   curl: 0,
   prevCurl: 0,
   vel: 0,
+  raw: 0,
+  rawVel: 0,
+  refr: 0,
   down: false,
   dwell: 0,
   dwellVel: 0,
@@ -160,8 +242,22 @@ export const newFinger = (): FingerLive => ({
 });
 
 export class GestureEngine extends Emitter<GestureEvents> {
+  /** Fotogramas seguidos com cada mão visível (0 = acabou de aparecer ou não está). */
+  private handFrames = [0, 0];
+  /** Velocidade crua do fotograma anterior e o seu `dt` (declive em 2 fotogramas). */
+  private prevRawVel = new Array<number>(10).fill(0);
+  private prevDt = [0, 0];
+
   constructor(readonly fingers: FingerLive[] = Array.from({ length: 10 }, newFinger)) {
     super();
+  }
+
+  private release(i: number): void {
+    const f = this.fingers[i];
+    if (!f.down) return;
+    f.down = false;
+    f.refr = REFRACTORY_S;
+    this.emit('noteOff', { finger: i });
   }
 
   /** dt em segundos, já limitado a [0.008, 0.1] pelo chamador. */
@@ -169,24 +265,65 @@ export class GestureEngine extends Emitter<GestureEvents> {
     for (let h = 0; h < 2; h++) {
       const lm = hands[h];
       if (!lm) {
+        this.handFrames[h] = 0;
         for (let j = 0; j < 5; j++) {
           const i = h * 5 + j;
           const f = this.fingers[i];
-          if (f.down) {
-            f.down = false;
-            this.emit('noteOff', { finger: i });
-          }
+          this.release(i);
           if (o.continuous) this.emit('continuous', { finger: i, level: 0, pitch: 0 });
           f.curl *= 0.8;
           f.dwell = 0;
           f.dwellT = 0;
           f.tip = null;
+          f.refr = Math.max(0, f.refr - dt);
         }
         continue;
       }
       const cs = curls(lm);
       const wristY = lm[0].y;
       const heightShift = o.heightPitch ? heightShiftOf(wristY) : 0;
+      // mão acabou de aparecer: a dobra parte do valor atual, sem velocidade (não dispara)
+      const appeared = this.handFrames[h] === 0;
+      this.handFrames[h]++;
+      const prevDt = this.prevDt[h];
+      this.prevDt[h] = dt;
+
+      // 1.º passo: dobra crua, velocidades e suavização de todos os dedos da mão
+      let maxRawVel = 0;
+      for (let j = 0; j < 5; j++) {
+        const i = h * 5 + j;
+        const f = this.fingers[i];
+        f.refr = Math.max(0, f.refr - dt);
+        if (!isActive(i, o.thumbs)) continue;
+        const raw = cs[j];
+        f.prevCurl = f.curl;
+        this.prevRawVel[i] = f.rawVel;
+        if (appeared) {
+          this.prevRawVel[i] = 0;
+          f.raw = raw;
+          f.rawVel = 0;
+          f.vel = 0;
+          f.curl = raw;
+          f.prevCurl = raw;
+          continue;
+        }
+        if (j === 0) {
+          // polegares: suavização e velocidade do protótipo
+          f.curl = f.curl * THUMB_CURL_SMOOTH_PREV + raw * (1 - THUMB_CURL_SMOOTH_PREV);
+          f.vel =
+            f.vel * THUMB_VEL_SMOOTH_PREV +
+            ((f.curl - f.prevCurl) / dt) * (1 - THUMB_VEL_SMOOTH_PREV);
+          f.rawVel = (raw - f.raw) / dt;
+        } else {
+          f.rawVel = (raw - f.raw) / dt;
+          f.vel = f.vel * VEL_SMOOTH_PREV + f.rawVel * (1 - VEL_SMOOTH_PREV);
+          f.curl = f.curl * CURL_SMOOTH_PREV + raw * (1 - CURL_SMOOTH_PREV);
+          maxRawVel = Math.max(maxRawVel, f.rawVel);
+        }
+        f.raw = raw;
+      }
+
+      // 2.º passo: limiares e eventos
       for (let j = 0; j < 5; j++) {
         const i = h * 5 + j;
         const f = this.fingers[i];
@@ -195,18 +332,12 @@ export class GestureEngine extends Emitter<GestureEvents> {
           f.dwell = 0;
           f.dwellT = 0;
           f.tip = null;
-          if (f.down) {
-            f.down = false;
-            this.emit('noteOff', { finger: i });
-          }
+          this.release(i);
           continue;
         }
-        f.prevCurl = f.curl;
-        f.curl = f.curl * 0.35 + cs[j] * 0.65;
-        f.vel = f.vel * 0.5 + ((f.curl - f.prevCurl) / dt) * 0.5;
         const tip = lm[TIP_IDS[j]];
         f.tip = { x: tip.x, y: tip.y };
-        const { on, off } =
+        const { on, off, full, early } =
           j === 0
             ? thumbThresholds(i, o.thumbSensitivity ?? THUMB_SENS_NEUTRAL, o.calibration)
             : thresholds(i, o.sensitivity, o.calibration);
@@ -223,7 +354,7 @@ export class GestureEngine extends Emitter<GestureEvents> {
           } else if (f.dwell > 0) {
             f.dwell++;
             f.dwellT += dt;
-          } else if (f.vel > VEL_TRIGGER) {
+          } else if (f.vel > VEL_TRIGGER && f.refr <= 0) {
             f.dwell = 1;
             f.dwellT = 0;
             f.dwellVel = f.vel;
@@ -240,14 +371,20 @@ export class GestureEngine extends Emitter<GestureEvents> {
               shift: heightShift,
             });
           }
-        } else if (!f.down && f.curl > on && f.vel > VEL_TRIGGER) {
+        } else if (
+          !f.down &&
+          f.refr <= 0 &&
+          ((f.curl > on &&
+            f.vel > VEL_TRIGGER &&
+            (f.curl > full || (f.rawVel > 0 && f.rawVel >= maxRawVel * COUPLED_DOMINANCE))) ||
+            this.early(i, early, dt, prevDt, maxRawVel))
+        ) {
           f.down = true;
           f.y0 = wristY;
           f.bend = 0;
           this.emit('noteOn', { finger: i, velocity: velocityFrom(f.vel), shift: heightShift });
         } else if (f.down && f.curl < off) {
-          f.down = false;
-          this.emit('noteOff', { finger: i });
+          this.release(i);
         } else if (f.down && o.glide) {
           // relativo ao ponto de partida: soma-se à nota que foi tocada
           f.bend += (dragSemitones(f.y0, wristY) - f.bend) * DRAG_SMOOTH;
@@ -255,6 +392,16 @@ export class GestureEngine extends Emitter<GestureEvents> {
         }
       }
     }
+  }
+
+  /** Disparo antecipado de um dedo (nunca polegares): ver `EARLY_VEL`. */
+  private early(i: number, level: number, dt: number, prevDt: number, maxRawVel: number): boolean {
+    const f = this.fingers[i];
+    const pv = this.prevRawVel[i];
+    if (i % 5 === 0 || prevDt <= 0 || f.rawVel <= 0 || pv <= 0) return false;
+    // declive da dobra crua nos dois últimos fotogramas: um salto isolado (ruído) fica a metade
+    const slope = (f.rawVel * dt + pv * prevDt) / (dt + prevDt);
+    return slope > EARLY_VEL && f.raw >= level && f.rawVel >= maxRawVel * EARLY_DOMINANCE;
   }
 
   /** Liberta tudo (mudança de instrumento, polegares, perda da câmara). */
@@ -270,5 +417,6 @@ export class GestureEngine extends Emitter<GestureEvents> {
   reset(): void {
     this.releaseAll();
     this.fingers.forEach((f) => Object.assign(f, newFinger()));
+    this.handFrames = [0, 0];
   }
 }

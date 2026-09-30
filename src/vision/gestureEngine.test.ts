@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest';
+import { curls } from './fingerCurl';
 import {
+  COUPLED_DOMINANCE,
+  CURL_SMOOTH_PREV,
+  defaultThresholds,
   DRAG_DEADZONE,
   DRAG_SEMITONES,
   dragSemitones,
+  EARLY_FRACTION,
+  EARLY_VEL,
+  FINGER_ON_DISCOUNT,
   GestureEngine,
+  HYSTERESIS,
   heightShiftOf,
   onThreshold,
   THUMB_DWELL,
@@ -11,6 +19,8 @@ import {
   THUMB_ON_EXTRA,
   thresholds,
   thumbThresholds,
+  REFRACTORY_S,
+  VEL_SMOOTH_PREV,
   velocityFrom,
   type GestureOptions,
 } from './gestureEngine';
@@ -119,12 +129,28 @@ describe('gestureEngine', () => {
     expect(velocityFrom(100)).toBe(1);
   });
 
-  it('velocidade é a derivada suavizada da dobra', () => {
+  it('suavização leve da dobra e velocidade a partir da dobra crua', () => {
     const g = new GestureEngine();
+    g.process(open, 0.1, opts);
     g.process(open, 0.1, opts);
     g.process(closeIdx(1), 0.1, opts);
     const f = g.fingers[1];
-    expect(f.vel).toBeCloseTo(((f.curl - f.prevCurl) / 0.1) * 0.5, 5);
+    const raw = curls(closeIdx(1)[0]!)[1];
+    expect(f.raw).toBeCloseTo(raw, 6);
+    expect(f.rawVel).toBeCloseTo(raw / 0.1, 5);
+    expect(f.curl).toBeCloseTo(raw * (1 - CURL_SMOOTH_PREV), 6);
+    expect(f.vel).toBeCloseTo((raw / 0.1) * (1 - VEL_SMOOTH_PREV), 5);
+    // a velocidade não vem da dobra suavizada
+    expect(f.vel).not.toBeCloseTo(((f.curl - f.prevCurl) / 0.1) * 0.5, 2);
+  });
+
+  it('mão que acabou de aparecer não dispara, mesmo com o dedo dobrado', () => {
+    const g = new GestureEngine();
+    const ev = record(g);
+    g.process(closeIdx(1), 1 / 30, opts);
+    g.process(closeIdx(1), 1 / 30, opts);
+    expect(ev).toEqual([]);
+    expect(g.fingers[1].curl).toBeCloseTo(curls(closeIdx(1)[0]!)[1], 6);
   });
 
   describe('polegares', () => {
@@ -309,6 +335,153 @@ describe('gestureEngine', () => {
       feed(at(false, 0.7), 5);
       feed(at(true, 0.7), 5);
       expect(feed(at(true, 0.5))).toBeNaN();
+    });
+  });
+
+  describe('deteção afinada (v2.1)', () => {
+    const OPEN = syntheticHand(false, 0.3);
+    const CLOSED = syntheticHand(true, 0.3);
+    const RIGHT = syntheticHand(false, 0.7);
+    const PTS = (j: number) => [2, 3, 4].map((k) => 4 * j + k);
+    /** Mão esquerda com a dobra crua de cada dedo (1..4) perto de `c[j]` (bissecção). */
+    function handWith(c: number[]): AssignedHands {
+      const lm = OPEN.map((p) => ({ ...p }));
+      for (let j = 1; j < 5; j++) {
+        const at = (t: number) => {
+          for (const k of PTS(j))
+            lm[k] = {
+              x: OPEN[k].x + (CLOSED[k].x - OPEN[k].x) * t,
+              y: OPEN[k].y + (CLOSED[k].y - OPEN[k].y) * t,
+              z: OPEN[k].z + (CLOSED[k].z - OPEN[k].z) * t,
+            };
+          return curls(lm)[j];
+        };
+        let lo = 0;
+        let hi = 1;
+        for (let k = 0; k < 40; k++) {
+          const m = (lo + hi) / 2;
+          if (at(m) < (c[j] ?? 0)) lo = m;
+          else hi = m;
+        }
+        at((lo + hi) / 2);
+      }
+      return [lm, RIGHT];
+    }
+    const smooth = (x: number) => x * x * (3 - 2 * x);
+    /** Fotograma (1 = o primeiro do movimento) em que o dedo j dispara, ou null. */
+    function fireFrame(j: number, target: number, ms: number, fps: number, o = opts) {
+      const g = new GestureEngine();
+      let k = 0;
+      let fired: number | null = null;
+      g.on('noteOn', (e) => {
+        if (e.finger === j && fired === null) fired = k;
+      });
+      for (k = -10; k <= 0; k++) g.process(handWith([0, 0, 0, 0, 0]), 1 / fps, o);
+      for (k = 1; k < fps && fired === null; k++) {
+        const c = [0, 0, 0, 0, 0];
+        c[j] = target * smooth(Math.min(1, (k * 1000) / fps / ms));
+        g.process(handWith(c), 1 / fps, o);
+      }
+      return fired;
+    }
+
+    it('descontos por dedo: anelar e mindinho mais fáceis, off coerente', () => {
+      expect(FINGER_ON_DISCOUNT).toEqual([0, 0, 0, 0.06, 0.12]);
+      const base = onThreshold(0.55);
+      for (const j of [1, 2]) expect(thresholds(j, 0.55).on).toBeCloseTo(base);
+      expect(thresholds(3, 0.55).on).toBeCloseTo(base - 0.06);
+      expect(thresholds(9, 0.55).on).toBeCloseTo(base - 0.12);
+      for (let j = 1; j < 5; j++) {
+        const t = thresholds(j, 0.55);
+        expect(t.off).toBeCloseTo(t.on - HYSTERESIS + FINGER_ON_DISCOUNT[j] / 2);
+        expect(t.off).toBeLessThan(t.on);
+        expect(t.full).toBeCloseTo(base);
+      }
+      // sensibilidade no máximo: nunca abaixo de 0.2
+      expect(defaultThresholds(4, 1).on).toBeCloseTo(0.2);
+    });
+
+    it('mindinho fraco (0 → 0.45 em 200 ms) dispara; antes não chegava ao limiar', () => {
+      expect(0.45).toBeLessThan(onThreshold(0.55));
+      expect(fireFrame(4, 0.45, 200, 30)).not.toBeNull();
+      expect(fireFrame(4, 0.45, 200, 20)).not.toBeNull();
+    });
+
+    it('disparo antecipado: uma dobra rápida toca ao 2.º fotograma, antes de passar o on', () => {
+      expect(fireFrame(1, 0.9, 150, 30)).toBe(2);
+      expect(fireFrame(1, 0.9, 150, 20)).toBe(2);
+      // no fotograma do disparo a dobra suavizada ainda não chegou ao limiar
+      const g = new GestureEngine();
+      let at = -1;
+      g.on('noteOn', () => (at = g.fingers[1].curl));
+      for (let k = 0; k < 5; k++) g.process(handWith([0, 0, 0, 0, 0]), 1 / 30, opts);
+      for (const v of [0.114, 0.375]) g.process(handWith([0, v, 0, 0, 0]), 1 / 30, opts);
+      expect(at).toBeGreaterThan(0);
+      expect(at).toBeLessThan(thresholds(1, 0.55).on);
+      expect(g.fingers[1].raw).toBeGreaterThanOrEqual(thresholds(1, 0.55).full * EARLY_FRACTION);
+    });
+
+    it('sem disparo antecipado com um salto isolado ou um tremor abaixo do nível', () => {
+      const g = new GestureEngine();
+      const ev = record(g);
+      for (let k = 0; k < 5; k++) g.process(handWith([0, 0, 0, 0, 0]), 1 / 30, opts);
+      // salto de um fotograma até 0.45 (acima do nível antecipado, abaixo do on) e volta
+      g.process(handWith([0, 0.45, 0, 0, 0]), 1 / 30, opts);
+      g.process(handWith([0, 0.05, 0, 0, 0]), 1 / 30, opts);
+      expect(ev).toEqual([]);
+      // tremor rápido (mais de EARLY_VEL/s) mas sempre abaixo do nível antecipado
+      const level = thresholds(4, 0.55).early;
+      for (let k = 0; k < 90; k++) {
+        const v = (k % 3) * (level / 2.2);
+        expect((level / 2.2) * 30).toBeGreaterThan(EARLY_VEL);
+        g.process(handWith([0, v, v, v, v]), 1 / 30, opts);
+      }
+      expect(ev).toEqual([]);
+    });
+
+    it('dobra lenta abaixo do limiar não dispara', () => {
+      const g = new GestureEngine();
+      const ev = record(g);
+      for (let k = 0; k < 300; k++) {
+        const v = 0.05 + 0.25 * (0.5 - 0.5 * Math.cos((2 * Math.PI * k) / 15));
+        g.process(handWith([0, v, v, v, v]), 1 / 30, opts);
+      }
+      expect(ev).toEqual([]);
+    });
+
+    it('movimento acoplado: o mindinho arrastado pelo anelar não toca pelo desconto', () => {
+      const g = new GestureEngine();
+      const ev = record(g);
+      for (let k = 0; k < 5; k++) g.process(handWith([0, 0, 0, 0, 0]), 1 / 30, opts);
+      // o mindinho vai a metade da dobra do anelar: passa o on com desconto, não o sem desconto
+      for (let k = 1; k <= 20; k++) {
+        const t = smooth(Math.min(1, k / 5));
+        g.process(handWith([0, 0, 0, 0.9 * t, 0.45 * t]), 1 / 30, opts);
+      }
+      expect(g.fingers[4].curl).toBeGreaterThan(thresholds(4, 0.55).on);
+      expect(g.fingers[4].curl).toBeLessThan(thresholds(4, 0.55).full);
+      expect(ev).toEqual(['on3']);
+      expect(COUPLED_DOMINANCE).toBeGreaterThan(0.5);
+    });
+
+    it('período refratário: não volta a disparar logo depois de soltar', () => {
+      const g = new GestureEngine();
+      const ev = record(g);
+      const dt = 1 / 60;
+      for (let k = 0; k < 5; k++) g.process(handWith([0, 0, 0, 0, 0]), dt, opts);
+      for (let k = 0; k < 4; k++) g.process(handWith([0, 0.9, 0, 0, 0]), dt, opts);
+      for (let k = 0; k < 2; k++) g.process(handWith([0, 0.05, 0, 0, 0]), dt, opts);
+      expect(ev).toEqual(['on1', 'off1']);
+      // volta a dobrar de imediato (tremor): dentro do período refratário não toca
+      g.process(handWith([0, 0.9, 0, 0, 0]), dt, opts);
+      expect(ev).toEqual(['on1', 'off1']);
+      expect(g.fingers[1].refr).toBeGreaterThan(0);
+      // passado o período, uma dobra nova toca
+      for (let k = 0; k < 6; k++) g.process(handWith([0, 0.05, 0, 0, 0]), dt, opts);
+      expect(g.fingers[1].refr).toBe(0);
+      expect(REFRACTORY_S).toBeLessThan(6 * dt);
+      g.process(handWith([0, 0.9, 0, 0, 0]), dt, opts);
+      expect(ev).toEqual(['on1', 'off1', 'on1']);
     });
   });
 });
