@@ -138,8 +138,8 @@
     left: auto;
     bottom: auto;
     top: 50%;
-    right: 8px;
-    right: calc((100cqw - var(--sw)) / 2 + 8px);
+    right: var(--vbar-inset);
+    right: calc((100cqw - var(--sw)) / 2 + var(--vbar-inset));
     transform: translateY(-50%);
     max-width: none;
     max-height: calc(var(--sh) - 16px);

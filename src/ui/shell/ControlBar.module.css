@@ -249,6 +249,7 @@
 @media (min-width: 600px) and (max-height: 499px) and (orientation: landscape) {
   .bar {
     flex-direction: column;
+    width: var(--vbar-w);
     border-radius: var(--radius-sm);
   }
   /* sem altura para tudo: Efeitos, Tempo e Fundo vão para o ⋯, como no telemóvel */

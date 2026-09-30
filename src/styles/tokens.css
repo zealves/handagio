@@ -18,6 +18,9 @@
   --radius: 18px;
   --radius-sm: 12px;
   --blur: blur(14px);
+  /* barra vertical (paisagem baixa): largura e distância à borda do palco; o HUD usa-as */
+  --vbar-w: 96px;
+  --vbar-inset: 8px;
   --t-fast: 150ms;
   --t-med: 220ms;
   --font-title: 'Sora', 'Space Grotesk', system-ui, sans-serif;
