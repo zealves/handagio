@@ -2,7 +2,7 @@
 
 Versões segundo [SemVer](https://semver.org/lang/pt-BR/). A mais recente fica no topo.
 
-## [2.0.0] — por lançar
+## [2.0.0] — 2026-09-30
 
 Interface redesenhada para pôr o foco em tocar, e instrumentos acústicos gravados. A deteção dos dedos não muda; a mão esquerda e a direita passam a reconhecer-se pela lateralidade do MediaPipe.
 
