@@ -624,7 +624,6 @@ class Session {
     }
     live.videoW = v.videoWidth || 1280;
     live.videoH = v.videoHeight || 720;
-    setState({ videoSize: { w: live.videoW, h: live.videoH } });
   }
 
   /** Troca de câmara ou de resolução com a app a correr. */
@@ -667,6 +666,11 @@ class Session {
     const fresh = !!v && v.readyState >= 2 && v.currentTime !== this.lastVideoTime;
     if (fresh && v) {
       this.lastVideoTime = v.currentTime;
+      // o tablet pode rodar a imagem da câmara sem reabrir o stream: o overlay segue-a
+      if (v.videoWidth && (v.videoWidth !== live.videoW || v.videoHeight !== live.videoH)) {
+        live.videoW = v.videoWidth;
+        live.videoH = v.videoHeight;
+      }
       if (s.engine === 'hands' && !this.detectionPaused) {
         try {
           const r = this.hands.detect(v, now);

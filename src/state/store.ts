@@ -74,7 +74,6 @@ export interface Runtime {
   looper: { state: 'idle' | 'armed' | 'recording' | 'playing'; layers: number; bar: number };
   calibrating: string | null;
   lastRecordingId: string | null;
-  videoSize: { w: number; h: number } | null;
   recordings: RecordingMeta[];
   /** Estado do carregamento das amostras por instrumento (sem `idle`). */
   sampleStatus: Record<string, 'loading' | 'ready' | 'error'>;
@@ -145,7 +144,6 @@ export const useStore = create<Store>()(
       looper: { state: 'idle', layers: 0, bar: 0 },
       calibrating: null,
       lastRecordingId: null,
-      videoSize: null,
       recordings: [],
       sampleStatus: {},
       set: (p) => set(p),

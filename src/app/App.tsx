@@ -16,7 +16,6 @@ import { TopBar } from './TopBar';
 export function App() {
   const theme = useStore((st) => st.theme);
   const uiHidden = useStore((st) => st.uiHidden);
-  const size = useStore((st) => st.videoSize);
   const peek = useAutoHide(uiHidden);
 
   useEffect(() => {
@@ -31,11 +30,7 @@ export function App() {
   return (
     <div className={s.app} data-ui={uiHidden ? (peek ? 'peek' : 'hidden') : 'shown'}>
       <TopBar />
-      <main
-        className={s.main}
-        id="conteudo"
-        style={size ? { ['--ar' as string]: size.w / size.h } : undefined}
-      >
+      <main className={s.main} id="conteudo">
         <div className={s.stageBox}>
           <CameraStage onStart={() => void session.start()} />
           <div className={s.chordSlot} data-testid="chord-slot">

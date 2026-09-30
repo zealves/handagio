@@ -2,6 +2,8 @@
 // também vídeo: um canvas escondido compõe a câmara em espelho e os overlays, e o seu
 // captureStream() junta-se à pista de áudio.
 
+import { containRect } from '../lib/cover';
+
 export type RecordingKind = 'audio' | 'video';
 
 const AUDIO_TYPES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
@@ -75,7 +77,12 @@ class Compositor {
         g.fillStyle = 'rgba(6,10,22,.25)';
         g.fillRect(0, 0, W, H);
       }
-      for (const c of this.src.layers()) if (c && c.width) g.drawImage(c, 0, 0, W, H);
+      // camadas ao tamanho do palco (partículas): ficam no recorte da câmara que o palco mostra
+      for (const c of this.src.layers()) {
+        if (!c || !c.width) continue;
+        const r = containRect(c.width, c.height, W, H);
+        g.drawImage(c, r.x, r.y, r.w, r.h);
+      }
       const hud = this.src.hud?.() ?? [];
       g.font = `600 ${Math.round(H / 32)}px Inter, system-ui, sans-serif`;
       g.textAlign = 'left';

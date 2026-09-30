@@ -35,6 +35,7 @@ type Vsc = {
     analyser: { frequency(): Uint8Array; level(): number };
   };
   syntheticHand(closed: boolean[] | boolean, x?: number, y?: number): unknown;
+  live: { videoW: number; videoH: number };
   store: {
     getState(): {
       instrument: string;
@@ -653,16 +654,25 @@ test('com uma gaveta aberta, I e E não mexem na interface', async ({ page }) =>
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
-test('câmara em retrato no desktop: a barra não passa do palco', async ({ page }) => {
+test('câmara em retrato no desktop: o palco continua panorâmico e a barra não passa dele', async ({
+  page,
+}) => {
   const errors = watchConsole(page);
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto('/?debug');
-  await page.evaluate(() =>
-    (window as unknown as { __vsc: Vsc }).__vsc.store
-      .getState()
-      .set({ videoSize: { w: 720, h: 1280 } }),
-  );
+  await page.evaluate(() => {
+    const live = (window as unknown as { __vsc: Vsc }).__vsc.live;
+    live.videoW = 720;
+    live.videoH = 1280;
+  });
+  await expect
+    .poll(() => page.getByTestId('overlay').evaluate((c: HTMLCanvasElement) => c.height))
+    .toBe(1280);
   const stage = (await page.getByTestId('stage').boundingBox())!;
+  expect(stage.width).toBeGreaterThan(stage.height);
+  expect(stage.width).toBeGreaterThanOrEqual(1024 * 0.9);
+  // o overlay em retrato enche o palco sem deformar
+  await expect(page.getByTestId('overlay')).toHaveCSS('object-fit', 'cover');
   // os chips que não cabem deslizam dentro da barra: o ⋯ chega-se sem sair do palco
   const more = page.getByTestId('more');
   await more.scrollIntoViewIfNeeded();

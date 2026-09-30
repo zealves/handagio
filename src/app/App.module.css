@@ -3,43 +3,34 @@
   height: 100dvh;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 10px 14px 12px;
-  max-width: 1720px;
-  margin: 0 auto;
+  gap: 6px;
+  padding: 6px;
   overflow: hidden;
 }
-/* Contentor: o rodapé calcula a largura do palco a partir da altura que lhe sobra. */
 .main {
-  --ar: 1.7778;
-  --gap: 10px;
   --foot-h: 68px;
   --strip-h: 60px;
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--gap);
-  container-type: size;
+  gap: 6px;
 }
-/* O palco ocupa o espaço livre, na proporção da câmara (--ar), sem nunca transbordar. */
+/* O palco ocupa todo o espaço livre, seja qual for a proporção da câmara: o vídeo não se vê e
+   o overlay das mãos usa object-fit: cover. A barra e a coluna alinham-se pelas bordas dele. */
 .stageBox {
-  --sw: min(100cqw, 100cqh * var(--ar));
-  --sh: min(100cqh, 100cqw / var(--ar));
   position: relative;
   flex: 1;
   min-height: 0;
-  container-type: size;
   display: grid;
-  place-items: center;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
 }
 .barSlot {
   position: absolute;
   left: 50%;
   bottom: 12px;
-  bottom: calc((100cqh - var(--sh)) / 2 + 12px);
   transform: translateX(-50%);
-  max-width: calc(var(--sw) - 24px);
+  max-width: calc(100% - 24px);
   z-index: 4;
   transition:
     opacity var(--t-med),
@@ -49,14 +40,10 @@
    (em cima) e a mensagem de estado, que fica por cima da barra (em baixo). É um contentor: a
    coluna compacta-se (só desenhos) quando não cabe. Fora da coluna não apanha o rato. */
 .chordSlot {
-  --stage-top: calc((100cqh - var(--sh)) / 2);
   position: absolute;
   left: 12px;
-  left: calc((100cqw - var(--sw)) / 2 + 12px);
   top: 88px;
-  top: calc(var(--stage-top) + 88px);
   bottom: 116px;
-  bottom: calc(var(--stage-top) + 116px);
   width: 160px;
   container: chords / size;
   display: flex;
@@ -70,14 +57,11 @@
 .chordSlot > * {
   pointer-events: auto;
 }
-/* Rodapé dos efeitos: com a largura do palco (a altura do stageBox é a de .main menos o
-   rodapé, a faixa e os dois intervalos), mas nunca mais estreito do que o conteúdo. */
+/* Rodapé dos efeitos: com a largura do palco */
 .footer {
   flex: none;
-  align-self: center;
   box-sizing: border-box;
-  width: min(100cqw, (100cqh - var(--foot-h) - var(--strip-h) - 2 * var(--gap)) * var(--ar));
-  min-width: fit-content;
+  width: 100%;
   height: var(--foot-h);
 }
 .strip {
@@ -112,23 +96,18 @@
 /* telemóvel: palco à largura toda e barra por baixo */
 @media (max-width: 599px) {
   .app {
-    padding: 8px 0 12px;
+    padding: 4px 0 8px;
     height: auto;
     min-height: 100vh;
     min-height: 100dvh;
     overflow: visible;
   }
-  /* a página desliza: a altura já não é fixa, por isso deixa de ser contentor */
-  .main {
-    container-type: normal;
-  }
   .stageBox {
-    flex: none;
-    container-type: normal;
+    flex: 1 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 0 8px;
+    gap: 6px;
+    padding: 0 4px;
   }
   .barSlot {
     position: static;
@@ -147,29 +126,30 @@
   .strip {
     width: auto;
     height: 44px;
-    margin: 0 8px;
+    margin: 0 4px;
   }
 }
 /* paisagem baixa: barra vertical à direita do palco */
 @media (min-width: 600px) and (max-height: 499px) and (orientation: landscape) {
   .app {
-    padding: 6px 10px;
-    gap: 6px;
+    padding: 4px 6px;
+    gap: 4px;
+  }
+  .main {
+    gap: 4px;
   }
   .barSlot {
     left: auto;
     bottom: auto;
     top: 50%;
     right: var(--vbar-inset);
-    right: calc((100cqw - var(--sw)) / 2 + var(--vbar-inset));
     transform: translateY(-50%);
     max-width: none;
-    max-height: calc(var(--sh) - 16px);
+    max-height: calc(100% - 16px);
   }
   /* a barra está à direita e o estado passa para a direita da coluna: desce até ao fundo */
   .chordSlot {
     bottom: 12px;
-    bottom: calc(var(--stage-top) + 12px);
   }
   .strip {
     height: 32px;
@@ -180,19 +160,5 @@
 @media (max-height: 599px) {
   .footer {
     display: none;
-  }
-}
-/* sem unidades de contentor (Safari < 16): palco à largura e barra a 12px do fundo */
-@supports not (width: 1cqw) {
-  .barSlot {
-    max-width: calc(100% - 24px);
-  }
-  .chordSlot {
-    left: 12px;
-    top: 88px;
-    bottom: 116px;
-  }
-  .footer {
-    width: 100%;
   }
 }
