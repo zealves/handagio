@@ -775,6 +775,116 @@ for (const vp of VIEWPORTS) {
     const stageBox = (await page.getByTestId('stage').boundingBox())!;
     const wavesBox = (await waves.boundingBox())!;
     expect(wavesBox.y).toBeGreaterThanOrEqual(stageBox.y + stageBox.height - 0.5);
+    // o rodapé dos efeitos só aparece com espaço (≥ 600 px de largura e de altura), entre o
+    // palco e a faixa, e nunca sai do ecrã
+    const footer = page.getByTestId('effects-footer');
+    if (vp.width >= 600 && vp.height >= 600) {
+      await expect(footer).toBeInViewport({ ratio: 1 });
+      const f = (await footer.boundingBox())!;
+      expect(f.y).toBeGreaterThanOrEqual(stageBox.y + stageBox.height);
+      expect(f.y + f.height).toBeLessThanOrEqual(wavesBox.y);
+    } else await expect(footer).toBeHidden();
+    // a barra já não tem os mini-knobs nem o chip Efeitos
+    await expect(page.getByTestId('chip-effects')).toHaveCount(0);
+    await expect(page.getByTestId('quick-reverb')).toHaveCount(0);
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+}
+
+test('rodapé dos efeitos: os 5 knobs com o nome e o efeito da boca', async ({ page }) => {
+  const errors = watchConsole(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/?debug');
+  await markStarted(page);
+  const footer = page.getByTestId('effects-footer');
+  await expect(footer).toBeVisible();
+  await expect(footer).toHaveAccessibleName('Efeitos');
+  const names = { reverb: 'Reverb', echo: 'Eco', filter: 'Filtro', drive: 'Drive', pitch: 'Pitch' };
+  for (const [id, name] of Object.entries(names)) {
+    const knob = page.getByTestId(`footer-${id}`);
+    await expect(knob).toBeInViewport({ ratio: 1 });
+    await expect(knob).toHaveAccessibleName(name);
+    // o nome vê-se por baixo do knob
+    await expect(knob.locator('..').getByText(name, { exact: true })).toBeVisible();
+  }
+  await expect(page.getByTestId('footer-mouth')).toBeVisible();
+  await expect(page.getByTestId('footer-mouth')).toHaveAccessibleName('Efeito da boca');
+  // o knob mexe-se com o teclado e muda o valor no store
+  const reverb = () =>
+    page.evaluate(
+      () =>
+        (
+          window as unknown as { __vsc: { store: { getState(): { reverb: number } } } }
+        ).__vsc.store.getState().reverb,
+    );
+  const before = await reverb();
+  await page.getByTestId('footer-reverb').focus();
+  await page.keyboard.press('ArrowUp');
+  await expect.poll(reverb).toBeCloseTo(before + 0.01, 5);
+  // com o foco, o valor aparece no lugar do nome
+  const cell = page.getByTestId('footer-reverb').locator('..');
+  await expect(cell.getByText(`${Math.round((before + 0.01) * 100)}%`)).toBeVisible();
+  await expect(cell.getByText('Reverb', { exact: true })).toBeHidden();
+  // o seletor da boca muda o efeito
+  await page.getByTestId('footer-mouth').selectOption('vibrato');
+  expect(
+    await page.evaluate(
+      () =>
+        (
+          window as unknown as { __vsc: { store: { getState(): { mouthFx: string } } } }
+        ).__vsc.store.getState().mouthFx,
+    ),
+  ).toBe('vibrato');
+  // esconde-se com a interface
+  await page.locator('body').click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press('i');
+  await expect(footer).toBeHidden();
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+for (const vp of [
+  { width: 390, height: 844 },
+  { width: 844, height: 390 },
+]) {
+  test(`rodapé dos efeitos ${vp.width}×${vp.height}: escondido, os efeitos no menu ⋯`, async ({
+    page,
+  }) => {
+    const errors = watchConsole(page);
+    await page.setViewportSize(vp);
+    await page.goto('/?debug');
+    await markStarted(page);
+    await expect(page.getByTestId('effects-footer')).toBeHidden();
+    await page.getByTestId('more').click();
+    await page.getByTestId('menu-efeitos').click();
+    const drawer = page.getByTestId('drawer');
+    await expect(drawer.getByTestId('effects')).toBeVisible();
+    await expect(drawer.getByTestId('knob-reverb')).toBeVisible();
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+}
+
+for (const vp of [
+  { width: 1440, height: 900 },
+  { width: 1024, height: 768 },
+]) {
+  test(`coluna ${vp.width}×${vp.height}: o título quebra em vez de ser cortado`, async ({
+    page,
+  }) => {
+    const errors = watchConsole(page);
+    await page.setViewportSize(vp);
+    await page.goto('/?debug');
+    await markStarted(page);
+    const title = page.getByTestId('chord-column').getByText('Cada dedo toca…');
+    await expect(title).toBeVisible();
+    const m = await title.evaluate((el) => ({
+      sw: el.scrollWidth,
+      cw: el.clientWidth,
+      ellipsis: getComputedStyle(el).textOverflow,
+    }));
+    expect(m.sw).toBeLessThanOrEqual(m.cw);
+    expect(m.ellipsis).not.toBe('ellipsis');
+    // com o rodapé, os rótulos continuam à vista
+    await expect(page.getByTestId('chord-power').getByText('Quinta')).toBeVisible();
     expect(errors, errors.join('\n')).toEqual([]);
   });
 }
