@@ -86,10 +86,10 @@ export type ChordMode = 'off' | 'triad' | 'seventh' | 'power';
  * tríade = graus +0 +2 +4; sétima = +0 +2 +4 +6. "Quinta" (power chord) usa semitons fixos.
  */
 export const CHORD_MODES: { id: ChordMode; label: string; desc: string }[] = [
-  { id: 'off', label: 'Nota', desc: 'Cada dedo toca uma nota' },
-  { id: 'triad', label: 'Tríade', desc: 'Cada dedo toca um acorde de 3 notas da escala' },
-  { id: 'seventh', label: 'Sétima', desc: 'Acordes de 4 notas da escala (com 7.ª)' },
-  { id: 'power', label: 'Quinta', desc: 'Nota + quinta + oitava (power chord)' },
+  { id: 'off', label: 'Uma nota', desc: 'A melodia: cada dedo toca a sua nota.' },
+  { id: 'power', label: 'Quinta', desc: 'Nota, quinta e oitava: o "power chord" do rock.' },
+  { id: 'triad', label: 'Acorde', desc: '3 notas da escala; maior ou menor conforme o dedo.' },
+  { id: 'seventh', label: 'Sétima', desc: '4 notas, com a 7.ª: jazz e blues.' },
 ];
 
 /** Notas MIDI do acorde de um grau (a primeira é a fundamental). */

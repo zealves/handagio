@@ -35,7 +35,7 @@ export function groupByFamily(
   })).filter((g) => g.items.length > 0);
 }
 
-/** Modo de tocar seguinte (chip da barra e tecla C): Nota → Tríade → Sétima → Quinta → Nota. */
+/** Forma de tocar seguinte (tecla C), da mais simples à mais rica, pela ordem de CHORD_MODES. */
 export function nextChord(c: ChordMode): ChordMode {
   const k = CHORD_MODES.findIndex((m) => m.id === c);
   return CHORD_MODES[(k + 1) % CHORD_MODES.length].id;

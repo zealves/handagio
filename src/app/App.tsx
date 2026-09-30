@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useStore } from '../state/store';
 import { session } from './session';
 import { SettingsDialog } from '../ui/panels/SettingsDialog';
+import { ChordColumn } from '../ui/shell/ChordColumn';
 import { ControlBar } from '../ui/shell/ControlBar';
 import { DrawerHost } from '../ui/shell/DrawerHost';
 import { installShortcuts } from '../ui/shell/shortcuts';
@@ -22,11 +23,7 @@ export function App() {
   }, [theme]);
 
   useEffect(() => {
-    const offs = [
-      session.installKeyboard(),
-      session.installStoreSync(),
-      installShortcuts(),
-    ];
+    const offs = [session.installKeyboard(), session.installStoreSync(), installShortcuts()];
     return () => offs.forEach((off) => off());
   }, []);
 
@@ -39,6 +36,9 @@ export function App() {
           style={size ? { ['--ar' as string]: size.w / size.h } : undefined}
         >
           <CameraStage onStart={() => void session.start()} />
+          <div className={s.chordSlot} data-testid="chord-slot">
+            <ChordColumn />
+          </div>
           <div className={s.barSlot} data-testid="bar-slot">
             <ControlBar />
           </div>

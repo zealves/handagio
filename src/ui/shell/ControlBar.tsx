@@ -3,7 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { toggleRecording } from '../../app/recording';
 import { session } from '../../app/session';
 import { instrumentInfo } from '../../audio/instruments';
-import { CHORD_MODES, NOTE_NAMES, type ChordMode } from '../../audio/theory';
+import { NOTE_NAMES } from '../../audio/theory';
 import { useStore } from '../../state/store';
 import type { DrawerId } from '../../state/types';
 import { instrumentIcon } from '../icons/InstrumentIcons';
@@ -11,14 +11,6 @@ import { IconChevron, IconLoop, IconMetronome, IconMusic, IconSliders } from '..
 import { EFFECTS } from './effects';
 import { MoreMenu } from './MoreMenu';
 import s from './ControlBar.module.css';
-
-/** Nomes curtos para ecrãs médios (o nome completo fica no title e no aria-label). */
-const CHORD_SHORT: Record<ChordMode, string> = {
-  off: 'Nota',
-  triad: '3',
-  seventh: '7',
-  power: '5',
-};
 
 const LOOP_LABEL = {
   idle: 'Gravar loop',
@@ -34,7 +26,6 @@ export function ControlBar() {
       root: x.root,
       scale: x.scale,
       custom: x.noteMode === 'custom',
-      chord: x.chord,
       bpm: x.bpm,
       metronome: x.metronome,
       recording: x.recording,
@@ -88,30 +79,6 @@ export function ControlBar() {
           </span>
         )}
       </button>
-      <div
-        role="radiogroup"
-        aria-label="Forma de tocar (C para mudar)"
-        className={`${s.seg} ${s.mid}`}
-        data-testid="chord-seg"
-      >
-        {CHORD_MODES.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            role="radio"
-            aria-checked={st.chord === m.id}
-            aria-label={m.label}
-            title={`${m.label}: ${m.desc}`}
-            onClick={() => st.set({ chord: m.id })}
-            data-testid={`chord-${m.id}`}
-          >
-            <span className={s.segFull}>{m.label}</span>
-            <span className={s.segShort} aria-hidden>
-              {CHORD_SHORT[m.id]}
-            </span>
-          </button>
-        ))}
-      </div>
       <div className={`${s.quick} ${s.wide}`}>
         {EFFECTS.filter((e) => e.quick).map(({ id, Control }) => (
           <Control key={id} size={30} testId={`quick-${id}`} />

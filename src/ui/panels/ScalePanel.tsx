@@ -24,6 +24,7 @@ import {
 import { useStore } from '../../state/store';
 import { activeScreenOrder, type TonicAt } from '../../vision/fingerMap';
 import { Toggle } from '../controls/Toggle';
+import { ChordGlyph } from '../shell/ChordGlyph';
 import { FINGER_COLORS } from '../theme';
 import { Panel } from './Panel';
 import s from './panels.module.css';
@@ -186,7 +187,7 @@ export function ScalePanel() {
       )}
 
       <div className={s.field} style={{ marginTop: 10 }}>
-        <span id={`${id}-chord`}>Tocar</span>
+        <span id={`${id}-chord`}>Cada dedo toca…</span>
         <div className={`${s.seg} ${s.segFull}`} role="radiogroup" aria-labelledby={`${id}-chord`}>
           {CHORD_MODES.map((c) => (
             <button
@@ -196,7 +197,9 @@ export function ScalePanel() {
               aria-checked={st.chord === c.id}
               title={c.desc}
               onClick={() => st.set({ chord: c.id as ChordMode })}
+              className={s.chordOpt}
             >
+              <ChordGlyph mode={c.id} width={16} height={16} />
               {c.label}
             </button>
           ))}
@@ -208,7 +211,7 @@ export function ScalePanel() {
             ? 'A Quinta junta à nota do dedo a quinta (7 meios-tons acima) e a oitava (12 acima).'
             : st.chord === 'seventh'
               ? 'Sem escala, a Sétima é sempre um acorde maior com sétima: a nota do dedo e as que ficam 4, 7 e 10 meios-tons acima.'
-              : 'Sem escala, a Tríade é sempre um acorde maior: a nota do dedo e as que ficam 4 e 7 meios-tons acima.'}
+              : 'Sem escala, o Acorde é sempre maior: a nota do dedo e as que ficam 4 e 7 meios-tons acima.'}
         </p>
       )}
 

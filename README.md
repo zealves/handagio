@@ -30,14 +30,14 @@ Na gaveta **Escala e acordes** escolhes como cada dedo sabe que nota tocar. A fi
 - **Altura da mão e arrastar** (nas definições, secção Tocar), duas opções independentes:
   - **A altura da mão escolhe a nota** (desligada por defeito, só no modo Escala): a altura do pulso quando dobras o dedo sobe ou desce a nota pela escala, cerca de um grau por cada 10% do ecrã acima ou abaixo do meio.
   - **Arrastar a nota depois de tocar** (ligada por defeito): com o dedo dobrado, sobe ou desce a mão para dobrar o tom a partir da nota que tocaste, cerca de 2 meios-tons por cada 10% do ecrã, até uma oitava para cada lado. Um tremor pequeno não conta. Só se ouve nos instrumentos de nota longa (violino, flauta, órgão, sopros…), e funciona também no modo Personalizado.
-- **Personalizado**: escolhes a nota exata de cada dedo. Toca num dedo da fila, escolhe a nota (Dó a Si) e a oitava, e ouves logo como soa; Por defeito, as notas são as mesmas do modo Escala por defeito (`Dó4 … Dó5`); **Copiar da escala** começa pelas notas que o modo Escala está a tocar. Aqui a altura da mão não escolhe a nota (arrastar depois de tocar continua a funcionar), e os acordes são sempre maiores (Tríade: a nota e as que ficam 4 e 7 meios-tons acima).
+- **Personalizado**: escolhes a nota exata de cada dedo. Toca num dedo da fila, escolhe a nota (Dó a Si) e a oitava, e ouves logo como soa; Por defeito, as notas são as mesmas do modo Escala por defeito (`Dó4 … Dó5`); **Copiar da escala** começa pelas notas que o modo Escala está a tocar. Aqui a altura da mão não escolhe a nota (arrastar depois de tocar continua a funcionar), e os acordes são sempre maiores (Acorde: a nota e as que ficam 4 e 7 meios-tons acima).
 - **Polegares**: com **Usar também os polegares**, tocam 10 dedos em vez de 8. O polegar mexe-se sem querer quando dobras os outros dedos, por isso só toca se ficar bem dobrado durante um instante; se tocar sem querer ou custar a tocar, ajusta **Sensibilidade dos polegares** nas definições (secção Mãos).
 
 ### Interface
 
 O palco da câmara ocupa o espaço livre; por cima fica uma barra de controlo fina com o instrumento, a escala, reverb e eco (só em ecrãs largos), o tempo, gravar, o looper e um menu **⋯** com o resto. O que não cabe na barra fica em gavetas (Instrumentos, Escala e acordes, Efeitos, Tempo e looper, Gravações, Tocar com o rato), abertas uma de cada vez. O palco mostra só as tuas mãos e as partículas (tu não apareces, nem na gravação: a câmara serve só para a deteção) e, por baixo, uma faixa com as ondas do som.
 
-- **Forma de tocar** (seletor na barra com as 4 opções, tecla `C` ou menu ⋯): cada dedo toca uma nota, uma tríade, uma sétima ou uma quinta.
+- **Cada dedo toca…** (coluna à esquerda do palco, tecla `C` ou menu ⋯ no telemóvel): **Uma nota**, **Quinta** (nota, quinta e oitava), **Acorde** (3 notas da escala) ou **Sétima** (4 notas). Cada opção tem um desenho com um ponto por nota; a explicação aparece ao passar o rato ou por um instante depois de tocar.
 - **⛶ Ecrã inteiro** (tecla `E`) e **esconder a interface** (tecla `I`, ou no menu ⋯): fica só o palco. Mexer o rato ou tocar no ecrã volta a mostrar a barra por 3 segundos.
 - **`,` e `.`** passam ao instrumento anterior ou seguinte sem abrir a gaveta.
 

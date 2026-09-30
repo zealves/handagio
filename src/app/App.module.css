@@ -40,6 +40,31 @@
     opacity var(--t-med),
     visibility 0s;
 }
+/* Coluna "Cada dedo toca…": à esquerda do palco, centrada no espaço entre os chips do HUD
+   (em cima) e a mensagem de estado, que fica por cima da barra (em baixo). É um contentor: a
+   coluna compacta-se (só desenhos) quando não cabe. Fora da coluna não apanha o rato. */
+.chordSlot {
+  --stage-top: calc((100cqh - var(--sh)) / 2);
+  position: absolute;
+  left: 12px;
+  left: calc((100cqw - var(--sw)) / 2 + 12px);
+  top: 88px;
+  top: calc(var(--stage-top) + 88px);
+  bottom: 116px;
+  bottom: calc(var(--stage-top) + 116px);
+  width: 160px;
+  container: chords / size;
+  display: flex;
+  align-items: center;
+  z-index: 4;
+  pointer-events: none;
+  transition:
+    opacity var(--t-med),
+    visibility 0s;
+}
+.chordSlot > * {
+  pointer-events: auto;
+}
 .strip {
   flex: none;
   display: block;
@@ -57,7 +82,8 @@
   display: none;
 }
 /* visibility tira a barra escondida da ordem do Tab; só muda no fim do fade */
-.app[data-ui='hidden'] .barSlot {
+.app[data-ui='hidden'] .barSlot,
+.app[data-ui='hidden'] .chordSlot {
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
@@ -92,6 +118,10 @@
   .app[data-ui='hidden'] .barSlot {
     display: none;
   }
+  /* no telemóvel as formas de tocar ficam no menu ⋯ */
+  .chordSlot {
+    display: none;
+  }
   .strip {
     width: auto;
     height: 44px;
@@ -114,6 +144,11 @@
     max-width: none;
     max-height: calc(var(--sh) - 16px);
   }
+  /* a barra está à direita e o estado passa para a direita da coluna: desce até ao fundo */
+  .chordSlot {
+    bottom: 12px;
+    bottom: calc(var(--stage-top) + 12px);
+  }
   .strip {
     height: 32px;
   }
@@ -122,5 +157,10 @@
 @supports not (width: 1cqw) {
   .barSlot {
     max-width: calc(100% - 24px);
+  }
+  .chordSlot {
+    left: 12px;
+    top: 88px;
+    bottom: 116px;
   }
 }

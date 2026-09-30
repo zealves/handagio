@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import { useStore, type Prefs, type Runtime } from '../../state/store';
 import { IconMore } from '../icons/UiIcons';
 import { CHORD_MODES } from '../../audio/theory';
+import { ChordGlyph } from './ChordGlyph';
 import { DRAWER_IDS, DRAWER_TITLES } from './logic';
 import s from './ControlBar.module.css';
 
@@ -104,8 +105,8 @@ export function MoreMenu() {
                 {DRAWER_TITLES[d]}
               </button>
             ))}
-            <div role="group" aria-label="Forma de tocar" className={s.menuGroup}>
-              <span aria-hidden>Tocar</span>
+            <div role="group" aria-label="Cada dedo toca" className={s.menuGroup}>
+              <span aria-hidden>Cada dedo toca…</span>
               {CHORD_MODES.map((m) => (
                 <button
                   key={m.id}
@@ -116,7 +117,10 @@ export function MoreMenu() {
                   onClick={() => pick({ chord: m.id })}
                   data-testid={`menu-chord-${m.id}`}
                 >
-                  {m.label}
+                  <span className={s.menuChord}>
+                    <ChordGlyph mode={m.id} width={16} height={16} />
+                    {m.label}
+                  </span>
                 </button>
               ))}
             </div>

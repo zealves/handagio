@@ -57,11 +57,13 @@
     bottom: 80px;
   }
 }
-/* paisagem baixa: a barra está à direita, o estado volta ao fundo sem lhe passar por baixo */
+/* paisagem baixa: a barra está à direita, o estado volta ao fundo sem lhe passar por baixo,
+   à direita da coluna "Cada dedo toca…" (compacta) */
 @media (min-width: 600px) and (max-height: 499px) and (orientation: landscape) {
   .status {
     bottom: 14px;
-    max-width: calc(100% - 128px);
+    left: 76px;
+    max-width: calc(100% - 190px);
   }
 }
 @media (max-width: 599px) {

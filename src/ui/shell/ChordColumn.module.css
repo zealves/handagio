@@ -1,0 +1,139 @@
+/* Coluna das formas de tocar. Vidro opaco q.b., sem backdrop-filter: fica sempre por cima do
+   palco, que redesenha a 60 fps, e o desfoque custaria GPU a cada fotograma. */
+.col {
+  display: grid;
+  gap: 2px;
+  /* ~120 px: o título dita a largura */
+  width: max-content;
+  padding: 8px 6px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--glass-strong);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+}
+.title {
+  padding: 0 4px 4px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.item {
+  position: relative;
+}
+.opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 38px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: left;
+  white-space: nowrap;
+}
+.opt:hover {
+  color: var(--ink);
+}
+.opt[aria-checked='true'] {
+  background: rgba(53, 224, 255, 0.14);
+  color: var(--cyan);
+}
+.opt:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 1px;
+}
+.glyph {
+  flex: none;
+  display: block;
+}
+
+/* Dica à direita da opção, com seta; o JS decide quando aparece (data-show). */
+.tip {
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  z-index: 1;
+  width: max-content;
+  max-width: 220px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: var(--glass-strong);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  color: var(--ink);
+  font-size: 12.5px;
+  line-height: 1.35;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-4px, -50%);
+  transition:
+    opacity var(--t-fast),
+    transform var(--t-fast),
+    visibility 0s var(--t-fast);
+}
+.tip::before {
+  content: '';
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  margin-top: -6px;
+  border: 6px solid transparent;
+  border-right-color: var(--line-strong);
+}
+.tip[data-show='true'] {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(0, -50%);
+  transition:
+    opacity var(--t-fast),
+    transform var(--t-fast),
+    visibility 0s;
+}
+/* o rótulo só entra na dica quando a coluna o esconde */
+.tipLabel {
+  display: none;
+  margin-right: 6px;
+  color: var(--cyan);
+  font-weight: 600;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tip,
+  .tip[data-show='true'] {
+    transition: none;
+    transform: translate(0, -50%);
+  }
+}
+
+/* Sem altura para os rótulos (o App dá à coluna o espaço livre como contentor): só desenhos. */
+@container chords (max-height: 199px) {
+  .col {
+    padding: 6px;
+  }
+  .title,
+  .label {
+    display: none;
+  }
+  .opt {
+    justify-content: center;
+    width: 40px;
+    min-height: 36px;
+    padding: 0;
+  }
+  .tipLabel {
+    display: inline;
+  }
+}
+
+/* paisagem baixa: o ecrã inicial ocupa o palco todo; a coluna só aparece depois de ligar */
+@media (min-width: 600px) and (max-height: 499px) and (orientation: landscape) {
+  .col[data-started='false'] {
+    display: none;
+  }
+}

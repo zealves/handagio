@@ -167,10 +167,10 @@ describe('compositeSources', () => {
 });
 
 describe('nextChord', () => {
-  it('roda Nota → Tríade → Sétima → Quinta → Nota', () => {
-    expect(nextChord('off')).toBe('triad');
+  it('roda Uma nota → Quinta → Acorde → Sétima → Uma nota', () => {
+    expect(nextChord('off')).toBe('power');
+    expect(nextChord('power')).toBe('triad');
     expect(nextChord('triad')).toBe('seventh');
-    expect(nextChord('seventh')).toBe('power');
-    expect(nextChord('power')).toBe('off');
+    expect(nextChord('seventh')).toBe('off');
   });
 });

@@ -253,6 +253,12 @@
 .segFull button {
   padding: 6px 2px;
 }
+/* forma de tocar: o desenho por cima do rótulo */
+.chordOpt {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+}
 .handRow {
   display: flex;
   gap: 4px;
