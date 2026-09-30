@@ -107,10 +107,12 @@ export const ON_MIN = 0.2;
  * - dobra crua já a `EARLY_FRACTION` do caminho entre o repouso (0, ou o esticado
  *   calibrado/aprendido) e o `on` SEM o desconto do dedo: o desconto do anelar e do mindinho não se
  *   soma ao antecipado, para o ruído de um dedo parado continuar abaixo deste nível;
- * - e a mesma distância percorrida a partir da linha de base (o mínimo da dobra crua nos últimos
- *   `BASELINE_S`): um dedo que repousa já meio dobrado tem de subir tanto como um esticado;
- * - este dedo a mexer-se pelo menos `EARLY_DOMINANCE` × o dedo mais rápido da mesma mão (quando
- *   se dobra o anelar, o mindinho e o médio vão atrás mais devagar e não disparam antecipados).
+ * - a dobra crua subiu, desde a linha de base (`BASELINE_S`), o que falta do repouso do próprio dedo
+ *   até esse nível (ver `REST_WINDOW_S`), e pelo menos `JITTER_K` × o seu tremor;
+ * - `EARLY_MIN_RISES` fotogramas seguidos a subir;
+ * - este dedo a mexer-se pelo menos `EARLY_DOMINANCE` × o outro dedo mais rápido da mesma mão
+ *   nos últimos `COUPLED_HISTORY` fotogramas (quando se dobra o anelar, o mindinho e o médio vão
+ *   atrás, mais devagar e um pouco depois, e não disparam antecipados).
  * Só dedos, nunca polegares.
  */
 export const EARLY_VEL = 3;
@@ -118,11 +120,31 @@ export const EARLY_FRACTION = 0.7;
 export const EARLY_DOMINANCE = 0.6;
 /**
  * Movimento acoplado: um anelar ou mindinho que só passa o `on` graças ao desconto (entre o `on`
- * e o `on` sem desconto) só dispara se estiver a mexer-se pelo menos `COUPLED_DOMINANCE` × o dedo
- * mais rápido da mesma mão, e ainda a subir. Dobrar o anelar arrasta o mindinho (e vice-versa)
- * mais devagar: esse arrasto não toca; o mindinho dobrado de propósito (é o mais rápido) toca.
+ * e o `on` sem desconto), ou que dispara antecipado, só dispara se estiver a subir a pelo menos
+ * `COUPLED_DOMINANCE` × o outro dedo mais rápido da mesma mão nos últimos `COUPLED_HISTORY`
+ * fotogramas, e se tiver subido pelo menos `COUPLED_RISE_RATIO` × o que subiu o outro dedo que
+ * mais subiu no mesmo intervalo (ver `notDragged`). Dobrar o anelar arrasta o mindinho (e
+ * vice-versa) mais devagar e um pouco depois: esse arrasto não toca; o mindinho dobrado de
+ * propósito toca. O disparo da v2.1 (o `on` sem desconto) não tem esta guarda, como na v2.1.
  */
 export const COUPLED_DOMINANCE = 0.6;
+/**
+ * Movimento acoplado: fotogramas de velocidade dos outros dedos que contam. O dedo arrastado vai
+ * 1–2 fotogramas atrás do que dobra; comparar só com o fotograma atual deixava-o passar quando o
+ * anelar já abrandava (revisão, ronda 3). Com 4 fotogramas também apanha 2 de atraso.
+ */
+export const COUPLED_HISTORY = 4;
+/**
+ * Movimento acoplado: fração mínima da subida do outro dedo que mais subiu (ver `notDragged`).
+ * Mais alta do que `COUPLED_DOMINANCE`, porque com ruído a razão das subidas oscila: com 0.6, um
+ * mindinho a acompanhar 55% do anelar ainda passava às vezes.
+ */
+export const COUPLED_RISE_RATIO = 0.7;
+/**
+ * Fotogramas depois de uma mão aparecer (ou trocar de lado) em que nenhum dedo dispara, além do
+ * portão `armed`: os primeiros pontos de uma mão que entra são instáveis.
+ */
+export const ENTRY_IGNORE_FRAMES = 4;
 /**
  * Linha de base de cada dedo: o mínimo da dobra crua nos últimos `BASELINE_S` segundos (sem o
  * fotograma atual), ou, se for mais alto, o valor onde começou a subida atual (fotogramas
@@ -392,6 +414,8 @@ export class GestureEngine extends Emitter<GestureEvents> {
   /** Dobras cruas dos fotogramas anteriores e a sua idade (s), para a linha de base. */
   private histV: number[][] = Array.from({ length: 10 }, () => []);
   private histAge: number[][] = Array.from({ length: 10 }, () => []);
+  /** Velocidades cruas dos últimos `COUPLED_HISTORY` fotogramas de cada dedo. */
+  private velHist = Array.from({ length: 10 }, () => [] as number[]);
   /** Diagnóstico e testes: a regra do último disparo de cada dedo. */
   readonly lastTrigger: (Trigger | null)[] = new Array(10).fill(null);
   /** Fotogramas seguidos com a dobra crua a subir, e a dobra crua antes de começar a subir. */
@@ -482,7 +506,6 @@ export class GestureEngine extends Emitter<GestureEvents> {
       this.prevDt[h] = dt;
 
       // 1.º passo: dobra crua, velocidades e suavização de todos os dedos da mão
-      let maxRawVel = 0;
       for (let j = 0; j < 5; j++) {
         const i = h * 5 + j;
         const f = this.fingers[i];
@@ -507,6 +530,7 @@ export class GestureEngine extends Emitter<GestureEvents> {
           this.slowCurl[i] = raw;
           this.slowVel[i] = 0;
           this.rises[i] = 0;
+          this.velHist[i].length = 0;
           this.jCount[i] = 0;
           this.jPos[i] = 0;
           this.jSd[i] = JITTER_START;
@@ -529,7 +553,9 @@ export class GestureEngine extends Emitter<GestureEvents> {
           this.slowVel[i] =
             this.slowVel[i] * THUMB_VEL_SMOOTH_PREV +
             ((this.slowCurl[i] - sc) / dt) * (1 - THUMB_VEL_SMOOTH_PREV);
-          maxRawVel = Math.max(maxRawVel, f.rawVel);
+          const vh = this.velHist[i];
+          vh.push(f.rawVel);
+          if (vh.length > COUPLED_HISTORY) vh.shift();
           // início da subida atual: a dobra crua antes do primeiro fotograma a subir
           if (f.rawVel <= 0) this.rises[i] = 0;
           else if (this.rises[i]++ === 0) this.runStart[i] = f.raw;
@@ -613,7 +639,21 @@ export class GestureEngine extends Emitter<GestureEvents> {
           !f.down &&
           f.refr <= 0 &&
           this.armed[i] &&
-          (this.lastTrigger[i] = this.trigger(i, on, full, early, rest, dt, prevDt, maxRawVel))
+          this.handFrames[h] > ENTRY_IGNORE_FRAMES &&
+          (this.lastTrigger[i] = this.trigger(
+            i,
+            on,
+            full,
+            early,
+            rest,
+            dt,
+            prevDt,
+            this.fastestOther(h, j),
+            // com um limiar aprendido, o disparo da v2.1 fica no `on` da v2.1 (ver `trigger`)
+            o.learn && !calibrated(i, o.calibration) && usableRange(this.adaptive.ranges[i])
+              ? defaultThresholds(i, o.sensitivity).full
+              : 0,
+          ))
         ) {
           f.down = true;
           f.y0 = wristY;
@@ -640,16 +680,26 @@ export class GestureEngine extends Emitter<GestureEvents> {
     dt: number,
     prevDt: number,
     maxRawVel: number,
+    minFull: number,
   ): Trigger | null {
     const f = this.fingers[i];
-    // o disparo da v2.1: o `on` sem desconto, com a dobra e a velocidade da v2.1
-    if (this.slowCurl[i] > full && this.slowVel[i] > VEL_TRIGGER) return 'full';
+    const free = () => this.notDragged(Math.floor(i / 5), i % 5);
+    // o disparo da v2.1: o `on` sem desconto, com a dobra e a velocidade da v2.1. Com um limiar
+    // aprendido nunca abaixo do da v2.1 (`minFull`): a aprendizagem só facilita pelas regras novas,
+    // que pedem uma subida de verdade e não deixam passar um dedo arrastado; sem isto, o mindinho
+    // arrastado pelo anelar e a postura que sobe aos poucos voltavam a tocar (revisão, ronda 3)
+    if (this.slowCurl[i] > Math.max(full, minFull) && this.slowVel[i] > VEL_TRIGGER) return 'full';
     // repouso do dedo: o de referência (0, calibrado ou aprendido) ou o medido, se for mais alto
     const r = Math.max(rest, this.slowRest[i]);
     const need = (level: number) => Math.max(RISE_MIN, level - r);
-    if (f.curl > on && f.vel > VEL_TRIGGER && this.discounted(i, need(on), dt, prevDt, maxRawVel))
+    if (
+      f.curl > on &&
+      f.vel > VEL_TRIGGER &&
+      this.discounted(i, need(on), dt, prevDt, maxRawVel) &&
+      free()
+    )
       return 'discount';
-    if (this.early(i, early, need(early), dt, prevDt, maxRawVel)) return 'early';
+    if (this.early(i, early, need(early), dt, prevDt, maxRawVel) && free()) return 'early';
     return null;
   }
 
@@ -663,6 +713,36 @@ export class GestureEngine extends Emitter<GestureEvents> {
     const sorted = Array.from(w.subarray(0, n)).sort((a, b) => a - b);
     const q = (p: number) => sorted[Math.round(p * (n - 1))];
     this.jSd[i] = (q(JITTER_HI_PCT) - q(JITTER_LO_PCT)) / JITTER_SPREAD;
+  }
+
+  /** Velocidade crua mais alta dos outros dedos da mão h nos últimos `COUPLED_HISTORY` fotogramas. */
+  /** Subida da dobra crua do dedo i nos últimos n fotogramas (desde o mínimo). */
+  private riseOver(i: number, n: number): number {
+    const hv = this.histV[i];
+    let m = this.fingers[i].raw;
+    for (let k = Math.max(0, hv.length - n); k < hv.length; k++) m = Math.min(m, hv[k]);
+    return this.fingers[i].raw - m;
+  }
+
+  /**
+   * Guarda do movimento acoplado para o dedo j da mão h: a subida dele nos últimos fotogramas (os
+   * da subida atual, e pelo menos `COUPLED_HISTORY`) é pelo menos `COUPLED_RISE_RATIO` × a do outro
+   * dedo que mais subiu. Um mindinho arrastado pelo anelar sobe só uma fração do que o anelar sobe,
+   * mesmo que vá atrasado e já o esteja a ultrapassar em velocidade.
+   */
+  private notDragged(h: number, j: number): boolean {
+    const i = h * 5 + j;
+    const n = Math.max(COUPLED_HISTORY, this.rises[i] + 1);
+    let other = 0;
+    for (let q = 1; q < 5; q++) if (q !== j) other = Math.max(other, this.riseOver(h * 5 + q, n));
+    return this.riseOver(i, n) >= other * COUPLED_RISE_RATIO;
+  }
+
+  private fastestOther(h: number, j: number): number {
+    let m = 0;
+    for (let q = 1; q < 5; q++)
+      if (q !== j) for (const v of this.velHist[h * 5 + q]) m = Math.max(m, v);
+    return m;
   }
 
   /** Tremor do dedo i (ver `JITTER_MAX`). */
@@ -688,7 +768,8 @@ export class GestureEngine extends Emitter<GestureEvents> {
    * Disparo só pelo desconto (anelar e mindinho entre o `on` e o `on` sem desconto): o dedo subiu
    * pelo menos `rise` desde a linha de base, em `DISCOUNT_MIN_RISES` fotogramas seguidos e com
    * declive nos dois últimos acima de `DISCOUNT_MIN_SLOPE`, e
-   * não vai arrastado por um vizinho mais rápido (`COUPLED_DOMINANCE`).
+   * não vai arrastado por um vizinho mais rápido (`COUPLED_DOMINANCE`, com `maxRawVel` o outro dedo
+   * mais rápido nos últimos `COUPLED_HISTORY` fotogramas).
    */
   private discounted(i: number, rise: number, dt: number, prevDt: number, maxRawVel: number) {
     const f = this.fingers[i];
@@ -696,6 +777,7 @@ export class GestureEngine extends Emitter<GestureEvents> {
       f.raw - this.base[i] >= Math.max(rise, this.jitterRise(i)) &&
       this.rises[i] >= DISCOUNT_MIN_RISES &&
       this.slope2(i, dt, prevDt) > DISCOUNT_MIN_SLOPE &&
+      f.rawVel > 0 &&
       f.rawVel >= maxRawVel * COUPLED_DOMINANCE
     );
   }
@@ -716,6 +798,7 @@ export class GestureEngine extends Emitter<GestureEvents> {
       this.slope2(i, dt, prevDt) > EARLY_VEL &&
       f.raw >= level &&
       f.raw - this.base[i] >= Math.max(rise, this.jitterRise(i)) &&
+      f.rawVel > 0 &&
       f.rawVel >= maxRawVel * EARLY_DOMINANCE
     );
   }

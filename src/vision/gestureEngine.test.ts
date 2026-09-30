@@ -10,6 +10,7 @@ import {
   dragSemitones,
   EARLY_FRACTION,
   EARLY_MIN_RISES,
+  ENTRY_IGNORE_FRAMES,
   EARLY_VEL,
   FINGER_ON_DISCOUNT,
   GestureEngine,
@@ -125,7 +126,7 @@ describe('gestureEngine', () => {
   it('perder a mão liberta as notas', () => {
     const g = new GestureEngine();
     const ev = record(g);
-    g.process(open, 1 / 30, opts);
+    for (let k = 0; k < 5; k++) g.process(open, 1 / 30, opts);
     for (let k = 0; k < 3; k++) g.process(closeIdx(1), 1 / 30, opts);
     g.process([null, null], 1 / 30, opts);
     expect(ev).toEqual(['on1', 'off1']);
@@ -268,7 +269,7 @@ describe('gestureEngine', () => {
     it('os outros dedos disparam logo no primeiro fotograma acima do limiar', () => {
       const g = new GestureEngine();
       const ev = record(g);
-      for (let k = 0; k < 3; k++) g.process(open, 1 / 30, topts);
+      for (let k = 0; k < 5; k++) g.process(open, 1 / 30, topts);
       g.process(closeIdx(1), 1 / 30, topts);
       expect(ev).toEqual(['on1']);
     });
@@ -631,6 +632,74 @@ describe('gestureEngine', () => {
           `pausa ${pause}`,
         ).toHaveLength(1);
       }
+    });
+
+    it('mindinho arrastado pelo anelar (40%, 1–2 fotogramas atrás, repouso 0.10) não toca', () => {
+      for (const lag of [0, 1, 2]) {
+        const r = rng(17 + lag);
+        const g = new GestureEngine();
+        const ev = record(g);
+        const hist: number[] = [];
+        const at = (ring: number) => {
+          hist.push(ring);
+          const lagged = hist[Math.max(0, hist.length - 1 - lag)];
+          const n = () => gauss(r) * 0.01;
+          g.process(
+            handWith([0, 0.1 + n(), 0.1 + n(), ring + n(), 0.1 + 0.4 * lagged + n()]),
+            1 / 30,
+            opts,
+          );
+        };
+        for (let k = 0; k < 45; k++) at(0);
+        for (let q = 0; q < 20; q++) {
+          for (let k = 1; k <= 5; k++) at(0.8 * smooth(k / 5));
+          for (let k = 0; k < 8; k++) at(0.8);
+          for (let k = 1; k <= 5; k++) at(0.8 * (1 - smooth(k / 5)));
+          for (let k = 0; k < 10; k++) at(0);
+        }
+        expect(
+          ev.filter((e) => e === 'on3'),
+          `atraso ${lag}`,
+        ).toHaveLength(20);
+        expect(
+          ev.filter((e) => e === 'on4'),
+          `atraso ${lag}`,
+        ).toEqual([]);
+      }
+    });
+
+    it('com limiares aprendidos, a postura a subir aos poucos não toca abaixo do on da v2.1', () => {
+      const lo = { ...opts, learn: true };
+      for (const j of [3, 4]) {
+        const g = new GestureEngine();
+        const ranges: ({ lo: number; hi: number } | null)[] = new Array(10).fill(null);
+        ranges[j] = { lo: 0.1, hi: 0.68 };
+        g.adaptive.load(ranges);
+        const ev = record(g);
+        const r = rng(3 + j);
+        const at = (v: number) => {
+          const c = [0, 0.1, 0.1, 0.1, 0.1].map((x) => x + gauss(r) * 0.008);
+          c[j] = v + gauss(r) * 0.008;
+          g.process(handWith(c), 1 / 30, lo);
+        };
+        for (let k = 0; k < 45; k++) at(0.1);
+        // degraus de 0.05 em 3 fotogramas, 1.2 s cada, até 0.45 (abaixo do on da v2.1)
+        for (let v = 0.1; v < 0.45 - 1e-9; v += 0.05) {
+          for (let k = 1; k <= 3; k++) at(v + 0.05 * smooth(k / 3));
+          for (let k = 0; k < 36; k++) at(v + 0.05);
+        }
+        expect(ev, `dedo ${j}`).toEqual([]);
+      }
+    });
+
+    it(`nos primeiros ${ENTRY_IGNORE_FRAMES} fotogramas de uma mão nada toca`, () => {
+      const g = new GestureEngine();
+      const ev = record(g);
+      // entra esticada e dobra logo: só pode tocar depois de ENTRY_IGNORE_FRAMES fotogramas
+      g.process(handWith([0, 0, 0, 0, 0]), 1 / 30, opts);
+      for (let k = 2; k <= ENTRY_IGNORE_FRAMES; k++)
+        g.process(handWith([0, 0.9, 0, 0, 0]), 1 / 30, opts);
+      expect(ev).toEqual([]);
     });
 
     it('tentativas falhadas e ruído forte não prendem o tremor em cima', () => {

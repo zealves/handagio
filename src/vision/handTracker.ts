@@ -27,6 +27,8 @@ export const LABEL_SWITCH_FRAMES = 3;
  * para a continuidade (~200 ms a 30 fps de deteção).
  */
 export const PREV_KEEP_FRAMES = 6;
+/** Peso do valor novo na EMA da velocidade do pulso usada para prever a troca de lado. */
+export const WRIST_VEL_SMOOTH = 0.5;
 /** Fotogramas com duas mãos usados para aprender a orientação dos rótulos. */
 export const ORIENTATION_VOTES = 10;
 /**
@@ -172,8 +174,18 @@ export function assignHands(
   for (const k of [0, 1] as const) {
     const hand = out[k];
     const p = before[k];
+    // velocidade suavizada (EMA): uma só diferença entre fotogramas amplifica o tremor do pulso
+    const v0 = state.vel[k];
     state.vel[k] =
-      hand && p && state.missed[k] === 0 ? { x: hand[0].x - p.x, y: hand[0].y - p.y, z: 0 } : null;
+      hand && p && state.missed[k] === 0
+        ? v0
+          ? {
+              x: v0.x + (hand[0].x - p.x - v0.x) * WRIST_VEL_SMOOTH,
+              y: v0.y + (hand[0].y - p.y - v0.y) * WRIST_VEL_SMOOTH,
+              z: 0,
+            }
+          : { x: hand[0].x - p.x, y: hand[0].y - p.y, z: 0 }
+        : null;
     if (hand) {
       state.prev[k] = hand[0];
       state.missed[k] = 0;
