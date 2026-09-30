@@ -10,11 +10,10 @@ Interface redesenhada para pôr o foco em tocar, e instrumentos acústicos grava
 - Ecrã inteiro (`E`) e esconder interface (`I`), com a barra a espreitar ao mexer o rato.
 - O palco mostra sempre só as mãos (a pessoa não aparece, nem na gravação); ondas sempre por baixo do palco, mais leves.
 - Um só visualizador (ondas sobrepostas); os canvases fora do ecrã deixam de desenhar.
-- "Cada dedo toca…" à mão: coluna à esquerda do palco com Uma nota, Oitava, Quinta, Acorde, Suspenso, Sétima, Nona e Arpejo, cada uma com um desenho e a explicação numa dica; tecla `C` e menu ⋯ no telemóvel.
-- Arpejo sincronizado com o tempo: as notas do acorde uma a uma, uma por semicolcheia, enquanto o dedo estiver dobrado; o looper grava-as como soam.
+- "Cada dedo toca…" à mão: coluna à esquerda do palco com Uma nota, Oitava, Quinta, Acorde, Suspenso, Sétima e Nona, cada uma com um desenho e a explicação numa dica; tecla `C` e menu ⋯ no telemóvel.
 - Limitador de segurança à saída: muitos dedos com acordes já não saturam.
 - Seletor de instrumentos com pesquisa e grupos por família; `,` e `.` mudam de instrumento.
-- Efeitos em cartões (reverb, eco/delay, pitch, filtro, drive, boca), com reverb e eco à mão na barra.
+- Efeitos num rodapé por baixo do palco, cada um com o nome (Reverb, Eco, Filtro, Drive, Pitch e o efeito da boca com o medidor), e em cartões na gaveta Efeitos (no telemóvel e em janelas baixas, pelo menu ⋯).
 - Layout para telemóvel (folha inferior), tablet, desktop e paisagem baixa.
 - Oitava, sensibilidade, altura da mão e arrastar passam para as Definições, com a lista de atalhos.
 - Altura da mão e arrastar são duas opções independentes: "A altura da mão escolhe a nota" (desligada por defeito) e "Arrastar a nota depois de tocar", que dobra o tom a partir da nota tocada, também no modo Personalizado.
