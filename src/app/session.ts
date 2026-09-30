@@ -5,7 +5,7 @@ import { DRUMS, instrumentInfo, isSampled } from '../audio/instruments';
 import { samples } from '../audio/samples/loader';
 import { Looper, type LoopEvent } from '../audio/looper';
 import { Clock, quantizeTime, STEPS_PER_BAR, STEPS_PER_BEAT, TapTempo } from '../audio/metronome';
-import { clamp, noteName, chordName, scaleLength } from '../audio/theory';
+import { clamp, noteName, chordName } from '../audio/theory';
 import { live, pushBurst } from '../state/live';
 import { getState, setState, useStore, type Store } from '../state/store';
 import { CameraError, listCameras, openCamera, stopStream } from '../vision/camera';
@@ -82,10 +82,8 @@ class Session {
     );
     this.gesture.on('noteOff', ({ finger }) => this.fingerOff(finger));
     this.gesture.on('glide', ({ finger, pitch }) => {
-      const notes = this.fingerNote[finger];
-      const base = this.fingerMidi(finger, 0) + pitch;
-      const root = notes?.[0] ?? 0;
-      (notes ?? [root]).forEach((m, k) => audio.glide(voiceKey(finger, k), base + (m - root)));
+      // `pitch` é o desvio em meios-tons em relação à nota tocada (já com a altura e o acorde)
+      this.fingerNote[finger]?.forEach((m, k) => audio.glide(voiceKey(finger, k), m + pitch));
     });
     this.gesture.on('continuous', ({ finger, level, pitch }) =>
       this.fingerContinuous(finger, level, pitch),
@@ -109,7 +107,6 @@ class Session {
       heightPitch: s.heightPitch && !custom,
       glide: s.glide && !custom,
       continuous: instrumentInfo(s.instrument).kind === 'continuous',
-      scaleLen: scaleLength(s.scale),
       calibration: s.calibration,
     };
   }

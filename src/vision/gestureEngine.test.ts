@@ -19,7 +19,6 @@ const opts: GestureOptions = {
   heightPitch: false,
   glide: false,
   continuous: false,
-  scaleLen: 5,
 };
 const open: AssignedHands = [syntheticHand(false, 0.3), syntheticHand(false, 0.7)];
 const closeIdx = (k: number): AssignedHands => {

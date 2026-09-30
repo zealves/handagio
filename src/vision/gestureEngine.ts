@@ -13,7 +13,7 @@ export interface GestureEvents extends Record<string, unknown> {
   noteOff: { finger: number };
   /** Instrumentos contínuos (theremin): level 0..1, pitch em semitons sobre a nota base. */
   continuous: { finger: number; level: number; pitch: number };
-  /** Nota sustentada: deslocamento contínuo em semitons sobre a nota base. */
+  /** Nota sustentada: desvio contínuo em meios-tons em relação à nota que foi tocada. */
   glide: { finger: number; pitch: number };
 }
 
@@ -25,7 +25,6 @@ export interface GestureOptions {
   heightPitch: boolean;
   glide: boolean;
   continuous: boolean;
-  scaleLen: number;
   calibration?: Calibration | null;
 }
 
@@ -42,10 +41,40 @@ export interface FingerLive {
   dwellT: number;
   /** Ponta do dedo normalizada (0..1), já em espelho. */
   tip: { x: number; y: number } | null;
+  /** Altura do pulso (`lm[0].y`) no fotograma em que a nota disparou (ponto de partida do arrastar). */
+  y0: number;
+  /** Desvio do arrastar em meios-tons, já suavizado. */
+  bend: number;
 }
 
 export const VEL_TRIGGER = 0.3;
 export const HYSTERESIS = 0.18;
+
+/**
+ * Altura da mão escolhe a nota: graus da escala por unidade de altura do pulso (0..1), à volta
+ * do centro `HEIGHT_CENTER`. 10 dá ~1 grau por cada 10% do ecrã.
+ */
+export const HEIGHT_DEGREES = 10;
+export const HEIGHT_CENTER = 0.55;
+/** Arrastar depois de tocar: meios-tons por unidade de altura (~2 por cada 10% do ecrã). */
+export const DRAG_SEMITONES = 20;
+/** Arrastar: desvio de altura ignorado (tremor da deteção); o tom só muda depois dele, sem salto. */
+export const DRAG_DEADZONE = 0.02;
+/** Arrastar: peso do valor novo na suavização (EMA). */
+export const DRAG_SMOOTH = 0.5;
+/** Arrastar: limite do desvio, em meios-tons, para cada lado. */
+export const DRAG_MAX = 12;
+
+/** Graus da escala escolhidos pela altura do pulso. */
+export const heightShiftOf = (y: number): number =>
+  Math.round((HEIGHT_CENTER - y) * HEIGHT_DEGREES);
+
+/** Desvio do arrastar (meios-tons, sem suavização) de `y0` até `y`; positivo quando a mão sobe. */
+export function dragSemitones(y0: number, y: number): number {
+  const d = y0 - y;
+  const past = Math.max(0, Math.abs(d) - DRAG_DEADZONE);
+  return clamp(Math.sign(d) * past * DRAG_SEMITONES, -DRAG_MAX, DRAG_MAX);
+}
 
 /**
  * Polegares: o polegar mexe-se muito quando se dobram os outros dedos e a sua dobra é mais
@@ -126,6 +155,8 @@ export const newFinger = (): FingerLive => ({
   dwellVel: 0,
   dwellT: 0,
   tip: null,
+  y0: 0,
+  bend: 0,
 });
 
 export class GestureEngine extends Emitter<GestureEvents> {
@@ -154,7 +185,8 @@ export class GestureEngine extends Emitter<GestureEvents> {
         continue;
       }
       const cs = curls(lm);
-      const heightShift = o.heightPitch ? Math.round((0.55 - lm[0].y) * 8) : 0;
+      const wristY = lm[0].y;
+      const heightShift = o.heightPitch ? heightShiftOf(wristY) : 0;
       for (let j = 0; j < 5; j++) {
         const i = h * 5 + j;
         const f = this.fingers[i];
@@ -200,6 +232,8 @@ export class GestureEngine extends Emitter<GestureEvents> {
             f.dwell = 0;
             f.dwellT = 0;
             f.down = true;
+            f.y0 = wristY;
+            f.bend = 0;
             this.emit('noteOn', {
               finger: i,
               velocity: velocityFrom(f.dwellVel),
@@ -208,13 +242,16 @@ export class GestureEngine extends Emitter<GestureEvents> {
           }
         } else if (!f.down && f.curl > on && f.vel > VEL_TRIGGER) {
           f.down = true;
+          f.y0 = wristY;
+          f.bend = 0;
           this.emit('noteOn', { finger: i, velocity: velocityFrom(f.vel), shift: heightShift });
         } else if (f.down && f.curl < off) {
           f.down = false;
           this.emit('noteOff', { finger: i });
         } else if (f.down && o.glide) {
-          const pitch = o.heightPitch ? (0.55 - lm[0].y) * 8 * (12 / o.scaleLen) : 0;
-          this.emit('glide', { finger: i, pitch });
+          // relativo ao ponto de partida: soma-se à nota que foi tocada
+          f.bend += (dragSemitones(f.y0, wristY) - f.bend) * DRAG_SMOOTH;
+          this.emit('glide', { finger: i, pitch: f.bend });
         }
       }
     }
