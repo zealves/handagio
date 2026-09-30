@@ -2,7 +2,7 @@
 
 Versões segundo [SemVer](https://semver.org/lang/pt-BR/). A mais recente fica no topo.
 
-## [2.2.0] — por lançar
+## [2.2.0] — 2026-09-30
 
 Deteção dos dedos mais rápida e mais fácil, sobretudo no anelar e no mindinho.
 
@@ -49,6 +49,7 @@ Primeira versão completa, com layout de três colunas e separadores Som / Músi
 - Presets, calibração, definições, tema claro, PWA e testes e2e.
 - Deploy automático por FTP para handagio.com; desbloqueio de áudio no iOS.
 
+[2.2.0]: https://github.com/zealves/handagio/releases/tag/v2.2.0
 [2.1.0]: https://github.com/zealves/handagio/releases/tag/v2.1.0
 [2.0.0]: https://github.com/zealves/handagio/releases/tag/v2.0.0
 [1.0.0]: https://github.com/zealves/handagio/releases/tag/v1.0.0
