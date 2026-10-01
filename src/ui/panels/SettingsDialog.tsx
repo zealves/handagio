@@ -192,9 +192,9 @@ export function SettingsDialog() {
               disabled={cams.length < 2}
             >
               <option value="">{tr.cameraDefault}</option>
-              {cams.map((c) => (
+              {cams.map((c, k) => (
                 <option key={c.id} value={c.id}>
-                  {c.label}
+                  {c.label || tr.cameraN(k + 1)}
                 </option>
               ))}
             </select>

@@ -359,6 +359,7 @@ const en = {
       'After you play, raise or lower your hand to bend the pitch. Works on sustained instruments (violin, flute, organ, winds…).',
     camera: 'Camera',
     cameraDefault: 'Default',
+    cameraN: (n: number) => `Camera ${n}`,
     lowRes: 'Lower the resolution even more (slower computers)',
     sound: 'Sound',
     volume: 'Master volume',

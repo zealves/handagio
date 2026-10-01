@@ -1,4 +1,4 @@
-// Acesso à câmara: getUserMedia, escolha de câmara e erros traduzidos para português.
+// Acesso à câmara: getUserMedia, escolha de câmara e erros com o código do navegador.
 
 export class CameraError extends Error {
   constructor(
@@ -10,23 +10,13 @@ export class CameraError extends Error {
   }
 }
 
+/**
+ * Erro da câmara com o código do navegador (NotAllowedError, NotFoundError…). A mensagem para a
+ * pessoa vem das línguas, pelo código (`cameraError` em src/i18n/data.ts); aqui fica só o código.
+ */
 export function translateCameraError(e: unknown): CameraError {
   const name = (e as { name?: string })?.name ?? 'Error';
-  const msg: Record<string, string> = {
-    NotAllowedError:
-      'O acesso à câmara foi bloqueado. Carrega no ícone da câmara ou do cadeado na barra de endereço, permite a câmara e recarrega a página.',
-    SecurityError:
-      'O navegador não deixa usar a câmara nesta página. Abre-a por https ou em localhost.',
-    NotFoundError: 'Não encontrei nenhuma câmara ligada a este computador.',
-    OverconstrainedError:
-      'A câmara escolhida já não está disponível. Escolhe outra nas definições.',
-    NotReadableError:
-      'A câmara está a ser usada por outra app (videochamada, por exemplo). Fecha-a e tenta outra vez.',
-    AbortError: 'A câmara não arrancou. Tenta outra vez.',
-    Unsupported:
-      'Este navegador não dá acesso à câmara. Experimenta o Chrome, o Edge, o Firefox ou o Safari recentes.',
-  };
-  return new CameraError(name, msg[name] ?? `A câmara não arrancou (${name}). Tenta outra vez.`);
+  return new CameraError(name, name);
 }
 
 export interface CameraOptions {
@@ -74,9 +64,12 @@ export async function openCamera(o: CameraOptions = {}): Promise<MediaStream> {
 export async function listCameras(): Promise<{ id: string; label: string }[]> {
   if (!navigator.mediaDevices?.enumerateDevices) return [];
   const all = await navigator.mediaDevices.enumerateDevices();
-  return all
-    .filter((d) => d.kind === 'videoinput')
-    .map((d, k) => ({ id: d.deviceId, label: d.label || `Câmara ${k + 1}` }));
+  return (
+    all
+      .filter((d) => d.kind === 'videoinput')
+      // sem nome (antes de dar permissão), a interface mostra "Câmara 1", "Camera 1"…
+      .map((d) => ({ id: d.deviceId, label: d.label }))
+  );
 }
 
 export function stopStream(s: MediaStream | null | undefined): void {

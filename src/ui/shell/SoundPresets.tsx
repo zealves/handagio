@@ -102,7 +102,7 @@ export function SoundPresets() {
           </button>
         </form>
       )}
-      <div className={p.pillRow} role="group" aria-label="Sons guardados">
+      <div className={p.pillRow} role="group" aria-label={tr.title}>
         {Object.entries(all).map(([n, pr]) => {
           const mine = n in st.userPresets;
           return (

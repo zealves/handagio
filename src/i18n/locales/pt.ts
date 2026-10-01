@@ -251,6 +251,7 @@ const pt = {
       'Depois de tocares, sobe ou desce a mão para dobrar o tom. Funciona nos instrumentos de nota longa (violino, flauta, órgão, sopros…).',
     camera: 'Câmara',
     cameraDefault: 'Predefinida',
+    cameraN: (n: number) => `Câmara ${n}`,
     lowRes: 'Baixar ainda mais a resolução (computadores mais lentos)',
     sound: 'Som',
     volume: 'Volume geral',

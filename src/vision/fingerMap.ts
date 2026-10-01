@@ -38,8 +38,6 @@ export function fingerDegreeFor(i: number, thumbs: boolean, tonicAt: TonicAt): n
   return tonicAt === 'left-pinky' ? d - fingerDegree(4, thumbs) : d;
 }
 
-export const fingerLabel = (i: number): string => (i < 5 ? 'E ' : 'D ') + FINGER_NAMES[i % 5];
-
 /** Dedos ativos pela ordem do ecrã. */
 export const activeScreenOrder = (thumbs: boolean): number[] =>
   SCREEN_ORDER.filter((i) => isActive(i, thumbs));
