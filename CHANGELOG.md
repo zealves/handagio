@@ -2,7 +2,7 @@
 
 Versões segundo [SemVer](https://semver.org/lang/pt-BR/). A mais recente fica no topo.
 
-## [2.3.0] — por lançar
+## [2.3.0] — 2026-10-01
 
 - O polegar toca ao encostar ao lado do indicador (como quem carrega num botão) e solta ao afastar, em vez de dobrar como os outros dedos. A medida é relativa à própria mão, por isso não muda ao rodar, inclinar ou afastar a mão da câmara.
 - O polegar não toca quando é o indicador que dobra e vem ter com ele, nem quando a mão entra já com o polegar encostado.
@@ -57,6 +57,7 @@ Primeira versão completa, com layout de três colunas e separadores Som / Músi
 - Presets, calibração, definições, tema claro, PWA e testes e2e.
 - Deploy automático por FTP para handagio.com; desbloqueio de áudio no iOS.
 
+[2.3.0]: https://github.com/zealves/handagio/releases/tag/v2.3.0
 [2.2.0]: https://github.com/zealves/handagio/releases/tag/v2.2.0
 [2.1.0]: https://github.com/zealves/handagio/releases/tag/v2.1.0
 [2.0.0]: https://github.com/zealves/handagio/releases/tag/v2.0.0
