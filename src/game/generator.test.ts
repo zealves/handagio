@@ -162,9 +162,22 @@ describe('generateChart', () => {
     expect(progressionFor(6)).toEqual([0, 3, 2, 4]);
     const c = generateChart({ difficulty: 'easy', seed: 3, scaleSize: 5 });
     const bass = c.backing.filter((e) => e.kind === 'bass');
+    const last = bass[bass.length - 1];
     for (const b of bass) {
       if (b.kind !== 'bass') continue;
+      if (b === last) continue;
       expect(b.degree).toBe(progressionFor(5)[Math.floor(b.step / 16) % 4]);
     }
+  });
+
+  it('o baixo do último compasso fica na tónica, para a música terminar resolvida', () => {
+    for (const d of DIFFICULTIES)
+      for (const seed of seeds) {
+        const c = generateChart({ difficulty: d, seed, scaleSize: 7 });
+        const bass = c.backing.filter((e) => e.kind === 'bass');
+        const last = bass[bass.length - 1];
+        expect(last.step).toBe((c.bars - 1) * 16);
+        if (last.kind === 'bass') expect(last.degree).toBe(0);
+      }
   });
 });

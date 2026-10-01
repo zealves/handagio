@@ -173,7 +173,8 @@ function backing(bars: number, d: Difficulty, prog: number[]): BackingEvent[] {
     if (bar === bars - 1) {
       drum(base, DRUM_SLOT.kick, 0.9);
       drum(base, DRUM_SLOT.crash, 0.6);
-      ev.push({ step: base, kind: 'bass', degree, dur: BAR, vel: 0.7 });
+      // a tónica (grau 0), para a música terminar resolvida em vez de ficar no V
+      ev.push({ step: base, kind: 'bass', degree: 0, dur: BAR, vel: 0.7 });
       continue;
     }
     for (let s = 0; s < BAR; s += hatEvery) drum(base + s, DRUM_SLOT.hat, 0.45);
