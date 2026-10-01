@@ -146,3 +146,21 @@
   background: transparent;
   color: #e8eeff;
 }
+
+/* a outra língua, discreta, no fundo do ecrã inicial */
+.lang {
+  position: absolute;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(140, 170, 255, 0.25);
+  background: transparent;
+  color: #8f9bc2;
+  font-size: 13px;
+}
+.lang:hover {
+  color: #e8eeff;
+  border-color: #35e0ff;
+}

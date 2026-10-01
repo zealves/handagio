@@ -7,6 +7,7 @@ import { MOUTH_FX, type MouthFxId } from '../../state/types';
 import { Knob } from '../controls/Knob';
 import { useFrame } from '../frame';
 import p from '../panels/panels.module.css';
+import { t, useT } from '../../i18n';
 import { mouthText } from '../../i18n/data';
 import { keyTarget } from './logic';
 
@@ -28,10 +29,10 @@ const semis = (v: number) => (v === 0 ? '0 st' : `${v > 0 ? '+' : ''}${v} st`);
 
 function storeKnob(
   k: KnobKey,
-  label: string,
   o: { min: number; max: number; step?: number; format: (v: number) => string },
 ) {
   function EffectKnob({ size, testId }: ControlProps) {
+    const label = useT().fx.knobs[k].label;
     const value = useStore((st) => st[k]);
     const set = useStore((st) => st.set);
     return (
@@ -60,18 +61,21 @@ function MouthControl({ testId = 'mouth-fx' }: ControlProps) {
   const bar = useRef<HTMLElement>(null);
   const txt = useRef<HTMLSpanElement>(null);
   const opts = useRef<(HTMLButtonElement | null)[]>([]);
+  const all = useT();
+  const tr = all.fx;
+  const space = all.start.space;
   useFrame(() => {
     if (bar.current) bar.current.style.width = `${live.mouth * 100}%`;
     if (txt.current) {
       const face = useStore.getState().faceState;
       txt.current.textContent =
         face === 'unavailable' && !live.spaceHeld
-          ? 'indisponível'
+          ? t().fx.meter.unavailable
           : face === 'waiting' && !live.spaceHeld && live.mouth < 0.02
-            ? 'à espera'
+            ? t().fx.meter.waiting
             : live.mouth > 0.08
               ? `${Math.round(live.mouth * 100)}%`
-              : 'fechada';
+              : t().fx.meter.closed;
     }
   });
   const k = MOUTH_FX.findIndex((m) => m.id === mouthFx);
@@ -89,7 +93,7 @@ function MouthControl({ testId = 'mouth-fx' }: ControlProps) {
       <div
         className={p.pillWrap}
         role="radiogroup"
-        aria-label="Efeito da boca"
+        aria-label={tr.mouthLabel}
         aria-describedby={`${id}-md`}
         onKeyDown={onKey}
         data-testid={testId}
@@ -113,16 +117,16 @@ function MouthControl({ testId = 'mouth-fx' }: ControlProps) {
         ))}
       </div>
       <div className={p.meter}>
-        <span>Boca</span>
+        <span>{tr.mouth}</span>
         <div className={p.bar} role="presentation">
           <i ref={bar} />
         </div>
         <span ref={txt} className={p.meterTxt} aria-live="off">
-          à espera
+          {tr.meter.waiting}
         </span>
       </div>
       <p id={`${id}-md`} className={p.hint}>
-        {desc}. Abre a boca para aplicar; segura <kbd>Espaço</kbd> para simular.
+        {desc}. {tr.hintOpen} <kbd>{space}</kbd> {tr.hintSimulate}
       </p>
     </div>
   );
@@ -133,31 +137,31 @@ export const EFFECTS: EffectDef[] = [
     id: 'reverb',
     label: 'Reverb',
     desc: 'Espaço à volta do som',
-    Control: storeKnob('reverb', 'Reverb', { min: 0, max: 1, format: pct }),
+    Control: storeKnob('reverb', { min: 0, max: 1, format: pct }),
   },
   {
     id: 'echo',
     label: 'Eco',
     desc: 'Delay: repetições do som',
-    Control: storeKnob('echo', 'Eco', { min: 0, max: 1, format: pct }),
+    Control: storeKnob('echo', { min: 0, max: 1, format: pct }),
   },
   {
     id: 'pitch',
     label: 'Pitch',
     desc: 'Transpõe tudo em semitons',
-    Control: storeKnob('pitch', 'Pitch', { min: -12, max: 12, step: 1, format: semis }),
+    Control: storeKnob('pitch', { min: -12, max: 12, step: 1, format: semis }),
   },
   {
     id: 'filter',
     label: 'Filtro',
     desc: 'Fecha para abafar o som',
-    Control: storeKnob('filter', 'Filtro', { min: 0, max: 1, format: pct }),
+    Control: storeKnob('filter', { min: 0, max: 1, format: pct }),
   },
   {
     id: 'drive',
     label: 'Drive',
     desc: 'Saturação quente',
-    Control: storeKnob('drive', 'Drive', { min: 0, max: 1, format: pct }),
+    Control: storeKnob('drive', { min: 0, max: 1, format: pct }),
   },
   {
     id: 'mouth',

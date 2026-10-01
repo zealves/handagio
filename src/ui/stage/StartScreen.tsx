@@ -1,15 +1,20 @@
-// Ecrã inicial: um único botão (Começar) e, em pequeno, a privacidade e o caminho sem câmara.
-// Depois de começar, se a câmara falhar, o mesmo sítio mostra o erro e as duas saídas.
+// Ecrã inicial: um único botão (Começar) e, em pequeno, a privacidade, o caminho sem câmara e a
+// outra língua. Depois de começar, se a câmara falhar, o mesmo sítio mostra o erro e as saídas.
 import { session } from '../../app/session';
+import { LANG_NAMES, LANGS, setLang, useT } from '../../i18n';
 import { useStore } from '../../state/store';
 import { IconPlay } from '../icons/UiIcons';
 import s from './StartScreen.module.css';
 
 export function StartScreen() {
+  const tr = useT().start;
+  const lang = useStore((st) => st.lang);
+  // com duas línguas, o link passa à outra; com mais, à seguinte (o seletor completo está nas ⚙)
+  const other = LANGS[(LANGS.indexOf(lang) + 1) % LANGS.length];
   return (
     <div className={s.start} role="dialog" aria-labelledby="start-title">
       <h2 id="start-title" className="sr-only">
-        Começar a tocar com as mãos
+        {tr.title}
       </h2>
       <button
         type="button"
@@ -21,10 +26,10 @@ export function StartScreen() {
         <span className={s.play} aria-hidden>
           <IconPlay width={30} height={30} />
         </span>
-        <span className={s.goLabel}>Começar</span>
+        <span className={s.goLabel}>{tr.go}</span>
       </button>
       <p id="start-privacy" className={s.privacy}>
-        🔒 O vídeo fica no teu dispositivo: nada é enviado.
+        {tr.privacy}
       </p>
       <button
         type="button"
@@ -32,17 +37,27 @@ export function StartScreen() {
         onClick={() => session.startWithoutCamera()}
         data-testid="start-touch"
       >
-        Sem câmara? Tocar no ecrã
+        {tr.touch}
       </button>
       <p className={s.keys}>
-        Teclado: <kbd>A</kbd>
+        {tr.keys} <kbd>A</kbd>
         <kbd>S</kbd>
         <kbd>D</kbd>
-        <kbd>F</kbd> · <kbd>J</kbd>
-        <kbd>K</kbd>
-        <kbd>L</kbd>
-        <kbd>Ç</kbd> · <kbd>Espaço</kbd> = boca
+        <kbd>F</kbd> ·{' '}
+        {tr.rightKeys.map((k) => (
+          <kbd key={k}>{k}</kbd>
+        ))}{' '}
+        · <kbd>{tr.space}</kbd> {tr.mouth}
       </p>
+      <button
+        type="button"
+        className={s.lang}
+        lang={other}
+        onClick={() => void setLang(other)}
+        data-testid="lang-switch"
+      >
+        {LANG_NAMES[other]}
+      </button>
     </div>
   );
 }
@@ -51,6 +66,7 @@ export function StartScreen() {
 export function CameraErrorCard() {
   const error = useStore((st) => st.cameraError);
   const set = useStore((st) => st.set);
+  const tr = useT().start;
   if (!error) return null;
   return (
     <div
@@ -59,11 +75,11 @@ export function CameraErrorCard() {
       aria-labelledby="cam-err-t"
       data-testid="camera-error"
     >
-      <h2 id="cam-err-t">Sem acesso à câmara</h2>
+      <h2 id="cam-err-t">{tr.camTitle}</h2>
       <p>{error}</p>
       <div className={s.row}>
         <button type="button" className={s.primary} onClick={() => void session.start()}>
-          Tentar outra vez
+          {tr.retry}
         </button>
         <button
           type="button"
@@ -71,7 +87,7 @@ export function CameraErrorCard() {
           onClick={() => set({ cameraError: null, touchKeys: true })}
           data-testid="camera-error-touch"
         >
-          Tocar no ecrã
+          {tr.touchShort}
         </button>
       </div>
     </div>

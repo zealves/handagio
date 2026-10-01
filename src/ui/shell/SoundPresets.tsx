@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { completePreset, FACTORY_PRESETS, pickSound, presetMatches } from '../../state/presets';
+import { useT } from '../../i18n';
 import { presetLabel } from '../../i18n/data';
 import { getState, useStore } from '../../state/store';
 import { IconClose, IconPlus } from '../icons/UiIcons';
@@ -23,6 +24,7 @@ export function SoundPresets() {
   const [confirm, setConfirm] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
   const input = useRef<HTMLInputElement>(null);
+  const tr = useT().presets;
   useEffect(() => {
     if (naming) input.current?.focus();
   }, [naming]);
@@ -37,13 +39,13 @@ export function SoundPresets() {
     const n = name.trim();
     if (!n) return;
     if (n in FACTORY_PRESETS) {
-      setMsg('Esse nome é de um som de fábrica. Escolhe outro.');
+      setMsg(tr.factoryName);
       return;
     }
     st.set({ userPresets: { ...st.userPresets, [n]: pickSound(getState()) } });
     setName('');
     setNaming(false);
-    setMsg(`"${n}" guardado.`);
+    setMsg(tr.saved(n));
   };
   const remove = (n: string) => {
     if (confirm !== n) {
@@ -54,13 +56,13 @@ export function SoundPresets() {
     delete rest[n];
     st.set({ userPresets: rest });
     setConfirm(null);
-    setMsg(`"${n}" apagado.`);
+    setMsg(tr.deleted(n));
   };
 
   return (
     <section className={p.section} aria-labelledby="presets-t" data-testid="presets">
       <h3 className={p.label} id="presets-t">
-        Sons guardados
+        {tr.title}
         <button
           type="button"
           className={s.add}
@@ -68,7 +70,7 @@ export function SoundPresets() {
           onClick={() => setNaming((x) => !x)}
           data-testid="preset-add"
         >
-          <IconPlus width={14} height={14} /> Guardar
+          <IconPlus width={14} height={14} /> {tr.add}
         </button>
       </h3>
       {naming && (
@@ -90,13 +92,13 @@ export function SoundPresets() {
               e.stopPropagation();
               setNaming(false);
             }}
-            placeholder="Nome do som"
-            aria-label="Nome para guardar o som atual"
+            placeholder={tr.namePlaceholder}
+            aria-label={tr.nameAria}
             maxLength={40}
             data-testid="preset-name"
           />
           <button type="submit" className={p.btn} disabled={!name.trim()}>
-            Guardar
+            {tr.save}
           </button>
         </form>
       )}
@@ -122,11 +124,11 @@ export function SoundPresets() {
                   type="button"
                   className={s.del}
                   data-confirm={confirm === n || undefined}
-                  aria-label={confirm === n ? `Confirmar: apagar ${n}` : `Apagar ${n}`}
-                  title={confirm === n ? 'Apagar?' : `Apagar ${n}`}
+                  aria-label={confirm === n ? tr.confirmDel(n) : tr.del(n)}
+                  title={confirm === n ? tr.confirmShort : tr.del(n)}
                   onClick={() => remove(n)}
                 >
-                  {confirm === n ? 'Apagar?' : <IconClose width={12} height={12} />}
+                  {confirm === n ? tr.confirmShort : <IconClose width={12} height={12} />}
                 </button>
               )}
             </span>
@@ -134,7 +136,7 @@ export function SoundPresets() {
         })}
       </div>
       <p className={p.hint} aria-live="polite">
-        {msg || 'Um som junta o instrumento, as notas, os efeitos e o tempo.'}
+        {msg || tr.hint}
       </p>
     </section>
   );

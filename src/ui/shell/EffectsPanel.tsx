@@ -1,6 +1,7 @@
 // Tab Efeitos: o efeito da boca primeiro (é a assinatura da app), depois os 5 knobs e "Repor
 // efeitos" (com um segundo toque a confirmar).
 import { useEffect, useState } from 'react';
+import { useT } from '../../i18n';
 import { useStore } from '../../state/store';
 import p from '../panels/panels.module.css';
 import { EFFECTS } from './effects';
@@ -21,23 +22,24 @@ export function EffectsPanel() {
     return () => clearTimeout(t);
   }, [confirm]);
   const Mouth = byId('mouth').Control;
+  const tr = useT().fx;
   return (
     <div className={s.effects} data-testid="effects">
       <section className={p.section} aria-labelledby="fx-mouth-t">
         <h3 className={p.label} id="fx-mouth-t">
-          Efeito da boca 👄
+          {tr.mouthTitle}
         </h3>
         <Mouth />
       </section>
       <section className={p.section} aria-labelledby="fx-t">
         <h3 className={p.label} id="fx-t">
-          Efeitos
+          {tr.title}
         </h3>
         <div className={s.knobs}>
           {KNOBS.map((id) => {
-            const { Control, desc } = byId(id);
+            const { Control } = byId(id);
             return (
-              <div key={id} className={s.knob} title={desc}>
+              <div key={id} className={s.knob} title={tr.knobs[id as keyof typeof tr.knobs].desc}>
                 <Control size={56} testId={`knob-${id}`} />
               </div>
             );
@@ -55,7 +57,7 @@ export function EffectsPanel() {
             }}
             data-testid="fx-reset"
           >
-            {confirm ? 'Repor? Toca outra vez' : 'Repor efeitos'}
+            {confirm ? tr.resetConfirm : tr.reset}
           </button>
         </div>
       </section>

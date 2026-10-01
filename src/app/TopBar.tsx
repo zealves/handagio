@@ -1,6 +1,7 @@
 // Cabeçalho: a marca e, depois de começar, as ações de topo (teclado tátil, ecrã inteiro,
 // gravar e definições). Antes de começar fica só a marca: o ecrã inicial tem um único botão.
 import { toggleRecording } from './recording';
+import { useT } from '../i18n';
 import { useStore } from '../state/store';
 import { IconButton } from '../ui/controls/IconButton';
 import { IconExpand, IconKeys, IconLogo, IconSettings, IconShrink } from '../ui/icons/UiIcons';
@@ -13,6 +14,7 @@ export function TopBar() {
   const touchKeys = useStore((st) => st.touchKeys);
   const set = useStore((st) => st.set);
   const fs = useFullscreen();
+  const h = useT().header;
   return (
     <header className={s.bar}>
       <h1 className={s.brand}>
@@ -23,7 +25,7 @@ export function TopBar() {
       {started && (
         <div className={s.actions}>
           <IconButton
-            label={touchKeys ? 'Esconder o teclado no ecrã' : 'Tocar no ecrã'}
+            label={touchKeys ? h.touchHide : h.touchShow}
             aria-pressed={touchKeys}
             onClick={() => set({ touchKeys: !touchKeys })}
             data-testid="touch-keys"
@@ -32,7 +34,7 @@ export function TopBar() {
           </IconButton>
           <IconButton
             className={s.wideOnly}
-            label={fs.active ? 'Sair do ecrã inteiro (E)' : 'Ecrã inteiro (E)'}
+            label={fs.active ? h.exitFullscreen : h.fullscreen}
             aria-pressed={fs.active}
             onClick={fs.toggle}
             data-testid="fullscreen"
@@ -43,15 +45,15 @@ export function TopBar() {
             type="button"
             className={s.rec}
             aria-pressed={recording}
-            aria-label={recording ? 'Parar a gravação' : 'Gravar'}
-            title={recording ? 'Parar a gravação' : 'Gravar'}
+            aria-label={recording ? h.stopRecording : h.record}
+            title={recording ? h.stopRecording : h.record}
             onClick={() => void toggleRecording()}
             data-testid="record"
           >
             <i aria-hidden />
           </button>
           <IconButton
-            label="Definições"
+            label={h.settings}
             onClick={() => set({ settingsOpen: true })}
             data-testid="settings-open"
           >

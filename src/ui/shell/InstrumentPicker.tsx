@@ -7,6 +7,7 @@ import { FAMILIES } from '../../audio/patches/types';
 import { useStore } from '../../state/store';
 import { instrumentIcon } from '../icons/InstrumentIcons';
 import p from '../panels/panels.module.css';
+import { useT } from '../../i18n';
 import { familyLabel, instrumentText } from '../../i18n/data';
 import { IconSearch } from '../icons/UiIcons';
 import { filterByFamily, groupByFamily, searchInstruments } from './logic';
@@ -16,8 +17,6 @@ import s from './InstrumentPicker.module.css';
 const FILTERS = ['Todos', ...FAMILIES];
 
 type SampleStatus = 'loading' | 'ready' | 'error' | undefined;
-
-const LOAD_ERROR_DESC = 'Não foi possível carregar — toca para tentar de novo';
 
 function Card({
   info,
@@ -34,8 +33,9 @@ function Card({
 }) {
   const loading = status === 'loading';
   const failed = status === 'error';
+  const tr = useT().picker;
   const txt = instrumentText(info.id);
-  const desc = failed ? LOAD_ERROR_DESC : txt.desc;
+  const desc = failed ? tr.loadError : txt.desc;
   return (
     <button
       type="button"
@@ -43,7 +43,7 @@ function Card({
       aria-pressed={active}
       aria-busy={loading || undefined}
       onClick={() => onPick(info.id)}
-      title={`${txt.name}${info.sampled ? ' (gravado)' : ''}: ${desc}`}
+      title={`${txt.name}${info.sampled ? ` (${tr.recorded})` : ''}: ${desc}`}
       data-row=""
       data-testid={testId}
     >
@@ -53,7 +53,7 @@ function Card({
         {failed && <span className={s.errDot} aria-hidden />}
       </span>
       <span className={s.name}>{txt.name}</span>
-      {info.sampled && <span className={s.sampled}>gravado</span>}
+      {info.sampled && <span className={s.sampled}>{tr.recorded}</span>}
       <span className="sr-only">{desc}</span>
     </button>
   );
@@ -66,6 +66,7 @@ export function InstrumentPicker() {
   const set = useStore((st) => st.set);
   const [q, setQ] = useState('');
   const fine = useMedia(FINE_POINTER);
+  const tr = useT().picker;
   const [searching, setSearching] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLDivElement>(null);
@@ -118,10 +119,10 @@ export function InstrumentPicker() {
       data-testid="instruments"
     >
       <h3 className={p.label} id="inst-t">
-        Instrumento
+        {tr.title}
       </h3>
       <div className={s.top}>
-        <div className={`${p.pillRow} ${s.filters}`} role="group" aria-label="Filtrar por família">
+        <div className={`${p.pillRow} ${s.filters}`} role="group" aria-label={tr.filters}>
           {FILTERS.map((f) => (
             <button
               key={f}
@@ -131,7 +132,7 @@ export function InstrumentPicker() {
               onClick={() => set({ familyFilter: f })}
               data-testid={`family-${f}`}
             >
-              {f === 'Todos' ? 'Todos' : familyLabel(f)}
+              {f === 'Todos' ? tr.all : familyLabel(f)}
             </button>
           ))}
         </div>
@@ -139,7 +140,7 @@ export function InstrumentPicker() {
           <button
             type="button"
             className={`${p.pill} ${s.lupa}`}
-            aria-label="Procurar instrumento"
+            aria-label={tr.search}
             aria-pressed={showSearch}
             onClick={() => {
               setSearching((x) => !x);
@@ -156,8 +157,8 @@ export function InstrumentPicker() {
           ref={input}
           type="search"
           className={s.search}
-          placeholder="Procurar instrumento…"
-          aria-label="Procurar instrumento"
+          placeholder={tr.searchPlaceholder}
+          aria-label={tr.search}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           data-testid="instrument-search"
@@ -183,7 +184,7 @@ export function InstrumentPicker() {
             </div>
           </section>
         ))}
-        {!groups.length && <p className={s.empty}>Nenhum instrumento encontrado.</p>}
+        {!groups.length && <p className={s.empty}>{tr.empty}</p>}
       </div>
     </section>
   );

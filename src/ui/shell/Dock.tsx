@@ -53,7 +53,7 @@ function Message() {
             }}
             data-sheet-keep=""
           >
-            Ver
+            {tr.dock.view}
           </button>
         )}
       </div>
@@ -62,7 +62,7 @@ function Message() {
     return (
       <div className={s.msg} role="status" data-testid="status">
         <span>{status}</span>
-        <IconButton small label="Fechar a mensagem" onClick={() => set({ status: '' })}>
+        <IconButton small label={tr.dock.closeMessage} onClick={() => set({ status: '' })}>
           <IconClose width={14} height={14} />
         </IconButton>
       </div>
@@ -71,7 +71,7 @@ function Message() {
     return (
       <div className={`${s.msg} ${s.coach}`} role="status" data-testid="coach">
         <span>{tr.coach[coach.id]}</span>
-        <IconButton small label="Dispensar as dicas" onClick={coach.dismiss}>
+        <IconButton small label={tr.dock.dismissCoach} onClick={coach.dismiss}>
           <IconClose width={14} height={14} />
         </IconButton>
       </div>
@@ -80,6 +80,7 @@ function Message() {
 }
 
 function Pills() {
+  const d = useT().dock;
   const st = useStore(
     useShallow((x) => ({
       instrument: x.instrument,
@@ -114,7 +115,7 @@ function Pills() {
   return (
     <nav
       className={s.pills}
-      aria-label="Som atual"
+      aria-label={d.pills}
       onPointerDown={onDown}
       onPointerMove={onMove}
       onPointerUp={() => (swipe.current = null)}
@@ -127,8 +128,11 @@ function Pills() {
         className={s.pill}
         aria-haspopup="dialog"
         aria-expanded={st.sheet === 'som'}
-        aria-label={`Instrumento: ${instrumentText(info.id).name}${loading ? ' (a carregar)' : failed ? ' (erro ao carregar)' : ''}`}
-        title="Instrumentos (, e . para mudar)"
+        aria-label={
+          d.instrument(instrumentText(info.id).name) +
+          (loading ? d.loading : failed ? d.loadError : '')
+        }
+        title={d.instrumentsTitle}
         onClick={() => toggleSheet('som')}
         data-testid="pill-instrument"
       >
@@ -145,15 +149,13 @@ function Pills() {
         aria-haspopup="dialog"
         aria-expanded={st.sheet === 'notas'}
         aria-label={
-          st.custom
-            ? 'Notas: personalizadas'
-            : `Notas: ${noteNames()[st.root]} ${scaleLabel(st.scale)}`
+          st.custom ? d.customNotesAria : d.notesAria(noteNames()[st.root], scaleLabel(st.scale))
         }
         onClick={() => toggleSheet('notas')}
         data-testid="pill-scale"
       >
         <span className={s.label}>
-          {st.custom ? 'Notas personalizadas' : `${noteNames()[st.root]} · ${scaleLabel(st.scale)}`}
+          {st.custom ? d.customNotes : `${noteNames()[st.root]} · ${scaleLabel(st.scale)}`}
         </span>
       </button>
       {!wide && (
@@ -161,8 +163,8 @@ function Pills() {
           type="button"
           className={`${s.pill} ${s.pillIcon}`}
           aria-expanded={st.chordStrip}
-          aria-label={`Cada dedo toca: ${chordText(chord.id).label}`}
-          title={`Cada dedo toca: ${chordText(chord.id).label} (C)`}
+          aria-label={d.eachFinger(chordText(chord.id).label)}
+          title={`${d.eachFinger(chordText(chord.id).label)} (C)`}
           onClick={() => st.set({ chordStrip: !st.chordStrip, sheet: null })}
           data-chord-keep=""
           data-testid="pill-chord"

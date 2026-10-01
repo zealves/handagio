@@ -15,7 +15,8 @@ import { ScalePanel } from '../panels/ScalePanel';
 import { TempoPanel } from '../panels/TempoPanel';
 import { EffectsPanel } from './EffectsPanel';
 import { InstrumentPicker } from './InstrumentPicker';
-import { keyTarget, SHEET_TABS, SHEET_TITLES } from './logic';
+import { useT } from '../../i18n';
+import { keyTarget, SHEET_TABS } from './logic';
 import { SIDE_SHEET, useMedia } from './media';
 import { SoundPresets } from './SoundPresets';
 import s from './Sheet.module.css';
@@ -64,6 +65,7 @@ export function Sheet() {
   const open = sheet !== null;
   const tab = sheet ?? lastTab;
   const close = () => set({ sheet: null });
+  const tr = useT().sheet;
 
   useEffect(() => {
     const d = ref.current!;
@@ -134,7 +136,7 @@ export function Sheet() {
       data-expanded={expanded || undefined}
       data-dragging={dy !== 0 || undefined}
       style={dy ? { ['--drag' as string]: `${dy}px` } : undefined}
-      aria-label="Configurar o som"
+      aria-label={tr.label}
       onKeyDown={(e) => {
         if (e.key !== 'Escape' || e.defaultPrevented) return;
         e.preventDefault();
@@ -157,7 +159,7 @@ export function Sheet() {
         </div>
       )}
       <div className={s.head}>
-        <div role="tablist" aria-label="Configuração" className={s.tabs}>
+        <div role="tablist" aria-label={tr.tabsLabel} className={s.tabs}>
           {SHEET_TABS.map((t, k) => (
             <button
               key={t}
@@ -173,14 +175,14 @@ export function Sheet() {
               className={s.tab}
               onClick={() => choose(t)}
               onKeyDown={(e) => onTabKey(e, k)}
-              title={`${SHEET_TITLES[t]} (${k + 1})`}
+              title={`${tr.tabs[t]} (${k + 1})`}
               data-testid={`tab-${t}`}
             >
-              {SHEET_TITLES[t]}
+              {tr.tabs[t]}
             </button>
           ))}
         </div>
-        <IconButton label="Fechar" onClick={close} data-testid="sheet-close">
+        <IconButton label={tr.close} onClick={close} data-testid="sheet-close">
           <IconClose width={16} height={16} />
         </IconButton>
       </div>
@@ -191,7 +193,7 @@ export function Sheet() {
         className={s.body}
         data-testid={`panel-${tab}`}
       >
-        <PanelFlat.Provider value={SHEET_TITLES[tab]}>{open && content(tab)}</PanelFlat.Provider>
+        <PanelFlat.Provider value={tr.tabs[tab]}>{open && content(tab)}</PanelFlat.Provider>
       </div>
     </dialog>
   );

@@ -78,13 +78,6 @@ export function nextInstrument(id: string, dir: 1 | -1, filter = 'Todos'): strin
 }
 
 export const SHEET_TABS: SheetTab[] = ['som', 'notas', 'efeitos', 'estudio'];
-export const SHEET_TITLES: Record<SheetTab, string> = {
-  som: 'Som',
-  notas: 'Notas',
-  efeitos: 'Efeitos',
-  estudio: 'Estúdio',
-};
-
 /** Tab que a tecla abre (1–4), ou `null`. */
 export function tabForKey(key: string): SheetTab | null {
   const k = Number(key);
