@@ -349,9 +349,10 @@ Registo das decisões tomadas quando o pedido era ambíguo. A mais recente fica 
       - o Dock, a folha e os atalhos ficam desligados: mudar o som chamaria o `releaseAll`, que cortaria o acompanhamento agendado. O `Esc` sai.
       - o metrónomo e o looper calam-se, mas o looper continua a contar os compassos.
       - esconder o separador termina a partida sem guardar o recorde.
-      - as opções de gestos desligam-se durante uma ronda: desligam o modo contínuo, o deslizar (`glide`) e a altura da mão (`heightPitch`), para uma configuração theremin ou deslizar não manter os toques afastados do juiz nem envergar as notas do resultado.
+      - as opções de gestos desligam-se durante uma ronda: desligam o modo contínuo, o deslizar (`glide`) e a altura da mão (`heightPitch`), para uma configuração theremin ou deslizar não manter os toques afastados do juiz nem desafinar as notas da partitura.
       - o HUD (chips de nota/loop/câmara) esconde-se durante o jogo, como o Dock, para não cobrir a pista nem abrir a folha.
       - uma nota falhada pára e desvanece a vermelho na linha (`MISS_MAX_DEPTH`), para se ver que não foi acertada.
       - o clique no cartão do jogo só conta se o ponteiro desceu no fundo (arrastar o slider do atraso para fora do cartão não sai).
     - **Desvio à spec:** as preferências novas (`gameBest`, `gameDifficulty`, `gameLagMs`) não sobem a versão do `persist`. O `merge` já preenche as chaves em falta com os valores por defeito e o `sanitizePrefs` valida-as. Subir para a v10 mudava todos os testes de migração sem ganho. O diagnóstico para rondas curtas é `__vsc.session.gameBars`.
+    - **"Repor as preferências":** mantém os recordes do jogo (`gameBest`), tal como os sons guardados.
 

@@ -1,5 +1,5 @@
 // Cabeçalho: a marca, o seletor de língua (sempre) e, depois de começar, as ações de topo
-// (teclado tátil, ecrã inteiro, gravar e definições).
+// (jogo, teclado tátil, ecrã inteiro, gravar e definições).
 import { toggleRecording } from './recording';
 import { session } from './session';
 import { useT } from '../i18n';
