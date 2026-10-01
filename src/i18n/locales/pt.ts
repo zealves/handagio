@@ -376,7 +376,7 @@ const pt = {
     best: (n: number) => `Recorde: ${n}`,
     noBest: 'Sem recorde',
     lag: (ms: number) => `Atraso da câmara: ${ms} ms`,
-    lagHint: 'Se os acertos contam tarde, sobe; se contam cedo, desce.',
+    lagHint: 'Só para a câmara: se os acertos contam tarde, sobe; se contam cedo, desce.',
     start: 'Começar',
     cancel: 'Cancelar',
     exit: 'Sair do jogo (Esc)',

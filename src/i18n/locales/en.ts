@@ -484,7 +484,7 @@ const en = {
     best: (n: number) => `Best: ${n}`,
     noBest: 'No best yet',
     lag: (ms: number) => `Camera delay: ${ms} ms`,
-    lagHint: 'If hits count late, raise it; if they count early, lower it.',
+    lagHint: 'Camera only: if hits count late, raise it; if they count early, lower it.',
     start: 'Start',
     cancel: 'Cancel',
     exit: 'Leave the game (Esc)',
