@@ -5,6 +5,7 @@ import { App } from './app/App';
 import { session } from './app/session';
 import { audio } from './audio/engine';
 import { samples } from './audio/samples/loader';
+import { detectLang, installLangSync, setLang } from './i18n';
 import { DEBUG } from './lib/debug';
 import { live } from './state/live';
 import { useStore } from './state/store';
@@ -29,8 +30,25 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   });
 }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+/** Língua guardada pelo utilizador (só se já a escolheu: o valor por defeito do store não conta). */
+function savedLang(): unknown {
+  try {
+    return (
+      JSON.parse(localStorage.getItem('handagio:prefs') ?? 'null') as { state?: { lang?: unknown } }
+    )?.state?.lang;
+  } catch {
+    return undefined;
+  }
+}
+
+// a app só monta depois de a língua chegar (um chunk pequeno; o pt é pré-carregado no index.html)
+async function boot(): Promise<void> {
+  await setLang(detectLang(savedLang(), navigator.languages ?? [navigator.language]));
+  installLangSync();
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  );
+}
+void boot();

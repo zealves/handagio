@@ -8,6 +8,8 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:4173',
     permissions: ['camera'],
+    // a app segue a língua do navegador: os testes correm em português (o inglês tem os seus)
+    locale: 'pt-PT',
     // Chromium completo (headless novo) com GPU: no headless-shell o WebGL é por software e a
     // deteção bloqueia a thread principal durante centenas de ms.
     channel: 'chromium',
