@@ -10,7 +10,8 @@ import s from './CameraStage.module.css';
 
 export function CameraStage() {
   const started = useStore((st) => st.started);
-  const playing = useStore((st) => st.game?.phase === 'playing');
+  // em pausa a pista fica montada, mas congelada por baixo do cartão de pausa (GameDialog.tsx)
+  const inGame = useStore((st) => st.game?.phase === 'playing' || st.game?.phase === 'paused');
   const videoRef = useCallback((v: HTMLVideoElement | null) => session.attachVideo(v), []);
   return (
     <div className={s.window}>
@@ -21,7 +22,7 @@ export function CameraStage() {
         <div className={s.dim} aria-hidden />
         <ParticleWave />
         <HandOverlay />
-        {playing && <GameTrack />}
+        {inGame && <GameTrack />}
         <HudOverlay />
         {!started && <StartScreen />}
         <CameraErrorCard />

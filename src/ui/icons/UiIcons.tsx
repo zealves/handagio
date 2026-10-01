@@ -90,6 +90,11 @@ export const IconStop = (p: P) => (
     <rect x="6" y="6" width="12" height="12" rx="2" />
   </svg>
 );
+export const IconPause = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M8 5v14M16 5v14" />
+  </svg>
+);
 export const IconTrash = (p: P) => (
   <svg {...base(p)}>
     <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" />

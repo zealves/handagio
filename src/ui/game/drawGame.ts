@@ -6,9 +6,9 @@ import { FINGER_COLORS } from '../theme';
 
 export interface GameLabels {
   go: string;
-  judge: { perfect: string; good: string; miss: string };
+  judge: { perfect: string; good: string; miss: string; early: string; late: string };
   combo: (n: number) => string;
-  /** Nome curto do dedo de cada faixa (só aparece com faixas largas). */
+  /** Nome curto da mão e do dedo de cada faixa (só aparece com faixas largas). */
   lanes: string[];
 }
 
@@ -20,12 +20,14 @@ const BOTTOM_W = 0.92;
 const MAX_BOTTOM_W = 760;
 const TOP_RATIO = 0.3;
 /** Durações (s) do clarão de um acerto, do texto do juízo e do desvanecer de um falhado. */
-const FLASH_S = 0.18;
+const FLASH_S = 0.25;
 const JUDGE_S = 0.6;
 const MISS_FADE_S = 0.5;
 /** Largura mínima (px) de uma faixa para escrever o nome do dedo. */
 const LABEL_MIN_LANE = 56;
 const MISS_COLOR = '#ff5c7a';
+/** Cor de "Cedo!"/"Tarde!": nem o branco de um acerto, nem o vermelho de um falhado. */
+const NEAR_COLOR = '#ffd166';
 /**
  * Profundidade máxima de uma nota falhada: sem isto, `depth` continua a avançar com `dt` e, com
  * atrasos típicos (~120 ms) e janelas curtas (Difícil), a nota já teria passado o fundo do canvas
@@ -93,15 +95,19 @@ export function drawGame(
     if (st === NOTE_PERFECT || st === NOTE_GOOD) continue;
     let alpha = 1;
     if (st === NOTE_MISS) {
-      alpha = 1 - (now - run.judgedAt[k]) / MISS_FADE_S;
+      // depois de uma retoma, `judgedAt` pode ficar ligeiramente no futuro (desloca-se com a
+      // ronda): sem toque ainda decorrido, o falhado não desvanece (fica à espera, não ao máximo)
+      const since = now - run.judgedAt[k];
+      if (since < 0) continue;
+      alpha = 1 - since / MISS_FADE_S;
       if (alpha <= 0) continue;
     } else if (st === NOTE_PENDING && dt < -0.4) continue;
     const e = st === NOTE_MISS ? Math.min(depth(dt, lead), MISS_MAX_DEPTH) : depth(dt, lead);
     if (e < 0) continue;
     const lane = run.chart.notes[k].lane;
     const lw = widthAt(e) / n;
-    const nw = lw * 0.72;
-    const nh = Math.max(6, nw * 0.38);
+    const nw = lw * 0.86;
+    const nh = Math.max(10, nw * 0.38);
     g.save();
     g.globalAlpha = alpha;
     g.fillStyle = st === NOTE_MISS ? MISS_COLOR : color(lane);
@@ -115,10 +121,13 @@ export function drawGame(
 
   // linha de impacto: um alvo por faixa, que acende num acerto
   const lw1 = widthAt(1) / n;
-  const r = Math.min(lw1 * 0.32, 30);
+  const r = Math.min(lw1 * 0.42, 44);
   for (let l = 0; l < n; l++) {
     const x = laneX(l, 1);
-    const flash = Math.max(0, 1 - (now - run.hitAt[l]) / FLASH_S);
+    // guarda contra `hitAt` no futuro (retoma): sem isto o clarão acenderia ao máximo durante a
+    // contagem, para um acerto que já lá estava antes da pausa
+    const sinceHit = now - run.hitAt[l];
+    const flash = sinceHit >= 0 ? Math.max(0, 1 - sinceHit / FLASH_S) : 0;
     g.save();
     g.strokeStyle = color(l);
     g.lineWidth = 3;
@@ -167,21 +176,25 @@ export function drawGame(
   g.save();
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  if (run.last && now - run.last.at < JUDGE_S) {
-    const a = 1 - (now - run.last.at) / JUDGE_S;
+  // guarda contra `last.at` no futuro (retoma): o juízo de antes da pausa só volta a aparecer
+  // quando o relógio realmente lá chegar, nunca ao máximo logo na contagem
+  const sinceJudge = run.last ? now - run.last.at : -1;
+  if (run.last && sinceJudge >= 0 && sinceJudge < JUDGE_S) {
+    const a = 1 - sinceJudge / JUDGE_S;
+    const { kind } = run.last;
     g.globalAlpha = a;
-    g.fillStyle = run.last.kind === 'miss' ? MISS_COLOR : '#fff';
+    g.fillStyle =
+      kind === 'miss' ? MISS_COLOR : kind === 'early' || kind === 'late' ? NEAR_COLOR : '#fff';
     g.font = '700 24px system-ui, sans-serif';
-    // Cedo/Tarde ainda não têm texto próprio (fica para quando tiverem rótulo na interface)
-    const judgeText = (labels.judge as Partial<Record<string, string>>)[run.last.kind];
+    const judgeText = labels.judge[run.last.kind];
     if (judgeText) g.fillText(judgeText, cx, hit - r - 34 - 10 * (1 - a));
   }
   g.globalAlpha = 1;
   const beat = 4 * stepDur;
-  const toStart = run.start - now;
+  const toStart = run.countTo - now;
   const count = Math.ceil(toStart / beat);
   const big =
-    toStart > 0 ? (count <= 3 ? String(count) : '') : now - run.start < 0.6 ? labels.go : '';
+    toStart > 0 ? (count <= 3 ? String(count) : '') : now - run.countTo < 0.6 ? labels.go : '';
   if (big) {
     g.fillStyle = '#fff';
     g.font = '800 64px system-ui, sans-serif';

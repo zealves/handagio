@@ -1,5 +1,6 @@
-// Cabeçalho: a marca, o seletor de língua (sempre) e, depois de começar, as ações de topo
-// (jogo, teclado tátil, ecrã inteiro, gravar e definições).
+// Cabeçalho: a marca, o seletor de língua (sempre) e, depois de começar, o interruptor Livre |
+// Jogo (também durante o jogo) e as ações de topo (teclado tátil, ecrã inteiro, gravar e
+// definições), estas escondidas durante o jogo.
 import { toggleRecording } from './recording';
 import { session } from './session';
 import { useT } from '../i18n';
@@ -10,6 +11,7 @@ import {
   IconGamepad,
   IconKeys,
   IconLogo,
+  IconMusic,
   IconSettings,
   IconShrink,
 } from '../ui/icons/UiIcons';
@@ -28,17 +30,38 @@ export function TopBar() {
   return (
     <header className={s.bar}>
       <h1 className={s.brand}>
-        <IconLogo />
+        <IconLogo className={s.logo} />
         <span className={s.name}>Handagio</span>
         <span className={s.tag}>Vision Sound Cam</span>
       </h1>
       <div className={s.actions}>
         <LangMenu />
+        {started && (
+          <div className={s.modes} role="group" aria-label={h.modes}>
+            <button
+              type="button"
+              className={s.mode}
+              aria-pressed={!inGame}
+              onClick={() => inGame && session.stopGame()}
+              data-testid="mode-free"
+            >
+              <IconMusic aria-hidden />
+              <span className={s.modeLabel}>{h.modeFree}</span>
+            </button>
+            <button
+              type="button"
+              className={s.mode}
+              aria-pressed={inGame}
+              onClick={() => !inGame && session.openGame()}
+              data-testid="mode-game"
+            >
+              <IconGamepad aria-hidden />
+              <span className={s.modeLabel}>{h.modeGame}</span>
+            </button>
+          </div>
+        )}
         {started && !inGame && (
           <>
-            <IconButton label={h.game} onClick={() => session.openGame()} data-testid="game-open">
-              <IconGamepad />
-            </IconButton>
             <IconButton
               label={touchKeys ? h.touchHide : h.touchShow}
               aria-pressed={touchKeys}

@@ -1,9 +1,10 @@
-// Ecrã inicial: um único botão (Começar) e, em pequeno, a privacidade, o caminho sem câmara e a
-// outra língua. Depois de começar, se a câmara falhar, o mesmo sítio mostra o erro e as saídas.
+// Ecrã inicial: dois botões grandes (Tocar livre e Jogar) e, em pequeno, a privacidade, o caminho
+// sem câmara e a outra língua. Depois de começar, se a câmara falhar, o mesmo sítio mostra o erro
+// e as saídas.
 import { session } from '../../app/session';
 import { LANG_NAMES, LANGS, setLang, useT } from '../../i18n';
-import { useStore } from '../../state/store';
-import { IconPlay } from '../icons/UiIcons';
+import { getState, useStore } from '../../state/store';
+import { IconGamepad, IconPlay } from '../icons/UiIcons';
 import s from './StartScreen.module.css';
 
 export function StartScreen() {
@@ -16,18 +17,37 @@ export function StartScreen() {
       <h2 id="start-title" className="sr-only">
         {tr.title}
       </h2>
-      <button
-        type="button"
-        className={s.go}
-        onClick={() => void session.start()}
-        aria-describedby="start-privacy"
-        data-testid="start"
-      >
-        <span className={s.play} aria-hidden>
-          <IconPlay width={30} height={30} />
-        </span>
-        <span className={s.goLabel}>{tr.go}</span>
-      </button>
+      <div className={s.choices}>
+        <button
+          type="button"
+          className={s.go}
+          onClick={() => void session.start()}
+          aria-describedby="start-privacy"
+          data-testid="start"
+        >
+          <span className={s.play} aria-hidden>
+            <IconPlay width={30} height={30} />
+          </span>
+          <span className={s.goLabel}>{tr.free}</span>
+        </button>
+        <button
+          type="button"
+          className={s.go}
+          onClick={() =>
+            void session.start().then(() => {
+              const st = getState();
+              if (st.started && !st.cameraError) session.openGame();
+            })
+          }
+          aria-describedby="start-privacy"
+          data-testid="start-game"
+        >
+          <span className={`${s.play} ${s.playGame}`} aria-hidden>
+            <IconGamepad width={30} height={30} />
+          </span>
+          <span className={s.goLabel}>{tr.game}</span>
+        </button>
+      </div>
       <p id="start-privacy" className={s.privacy}>
         {tr.privacy}
       </p>

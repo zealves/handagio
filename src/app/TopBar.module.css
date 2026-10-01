@@ -13,8 +13,16 @@
   min-width: 0;
   margin: 0;
 }
+/* o logótipo nunca encolhe: quando falta espaço é o nome que trunca (ver `.name`) */
+.logo {
+  flex-shrink: 0;
+}
 .name {
   align-self: baseline;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--font-title);
   font-weight: 600;
   font-size: 17px;
@@ -34,8 +42,47 @@
 }
 .actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 8px;
+}
+/* interruptor Livre | Jogo: uma pílula com dois segmentos de 44 px de altura */
+.modes {
+  display: flex;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--glass-strong);
+  overflow: hidden;
+  flex: none;
+}
+.mode {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 44px;
+  min-width: 44px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  transition:
+    background var(--t-fast),
+    color var(--t-fast);
+}
+.mode:nth-child(2) {
+  border-left: 1px solid var(--line);
+}
+.mode svg {
+  flex: none;
+}
+.mode[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--cyan) 22%, transparent);
+  color: var(--ink);
 }
 /* Gravar: o círculo vermelho passa a quadrado enquanto grava */
 .rec {
@@ -86,12 +133,32 @@
     display: none;
   }
 }
-/* telemóvel muito estreito (320 px): com o seletor de língua não cabe o nome, fica o logótipo */
+/*
+ * O interruptor Livre | Jogo ocupa bem mais do que o botão único de hoje: medido (Playwright, a
+ * largura real dos testids), com as etiquetas visíveis as ações só cabem sem transbordar a partir
+ * de ~405 px; por baixo disso o botão de definições fica mesmo fora do ecrã. Por isso o limiar
+ * sobe de 380 para 429 px (cobre os telemóveis maiores, como o 390 px do iPhone 12/13/14, com
+ * folga até ao 430 px do Pro Max).
+ */
+@media (max-width: 429px) {
+  .modeLabel {
+    display: none;
+  }
+  .mode {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+  }
+  .actions {
+    gap: 4px;
+  }
+}
+/* telemóvel muito estreito (320 px): com o seletor de língua não cabe o nome nem o logótipo */
 @media (max-width: 359px) {
   .name {
     display: none;
   }
-  .actions {
-    gap: 6px;
+  .logo {
+    display: none;
   }
 }

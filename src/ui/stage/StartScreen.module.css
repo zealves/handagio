@@ -14,6 +14,17 @@
     radial-gradient(circle at 70% 85%, rgba(255, 79, 216, 0.12), transparent 55%), var(--stage-bg);
   color: #e8eeff;
 }
+/* os dois botões grandes do ecrã inicial, lado a lado; em coluna abaixo de 480 px */
+.choices {
+  display: flex;
+  gap: 28px;
+}
+@media (max-width: 479px) {
+  .choices {
+    flex-direction: column;
+    gap: 20px;
+  }
+}
 .go {
   display: grid;
   justify-items: center;
@@ -22,6 +33,7 @@
   padding: 0;
   background: none;
   color: inherit;
+  min-height: 44px;
 }
 .play {
   display: grid;
@@ -38,10 +50,21 @@
     transform var(--t-fast),
     box-shadow var(--t-fast);
 }
+/* o jogo fica com a outra cor do gradiente da marca, para se distinguir do tocar livre */
+.playGame {
+  background: var(--magenta);
+  box-shadow:
+    0 0 0 8px color-mix(in srgb, var(--magenta) 8%, transparent),
+    0 0 36px color-mix(in srgb, var(--magenta) 55%, transparent);
+}
 /* o triângulo do ícone tem o peso à esquerda: centra-se a olho */
 .play svg {
   margin-left: 4px;
   fill: currentColor;
+}
+.playGame svg {
+  margin-left: 0;
+  fill: none;
 }
 .go:hover .play {
   transform: scale(1.04);
@@ -49,12 +72,20 @@
     0 0 0 10px rgba(53, 224, 255, 0.1),
     0 0 48px rgba(53, 224, 255, 0.65);
 }
+.go:hover .playGame {
+  box-shadow:
+    0 0 0 10px color-mix(in srgb, var(--magenta) 10%, transparent),
+    0 0 48px color-mix(in srgb, var(--magenta) 65%, transparent);
+}
 .go:focus-visible {
   outline: none;
 }
 .go:focus-visible .play {
   outline: 2px solid #35e0ff;
   outline-offset: 6px;
+}
+.go:focus-visible .playGame {
+  outline-color: var(--magenta);
 }
 .goLabel {
   font-family: var(--font-title);
