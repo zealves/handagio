@@ -5,6 +5,7 @@ import { DEFAULT_CUSTOM_NOTES, type NoteMode } from '../app/notes';
 import { migratePrefs, sanitizePrefs } from '../ui/shell/logic';
 import type { LearnedRange } from '../vision/adaptive';
 import type { TonicAt } from '../vision/fingerMap';
+import type { Lang } from '../i18n/types';
 import type { RecordingMeta } from './recordingsDb';
 import type {
   Calibration,
@@ -66,6 +67,8 @@ export interface Prefs extends SoundSettings {
   showFps: boolean;
   /** Dicas do primeiro uso já cumpridas (ou dispensadas). */
   coachDone: CoachId[];
+  /** Língua da interface (a inicial vem de `detectLang`, em main.tsx). */
+  lang: Lang;
 }
 
 export interface Runtime {
@@ -147,6 +150,7 @@ export const DEFAULT_PREFS: Prefs = {
   userPresets: {},
   showFps: false,
   coachDone: [],
+  lang: 'pt',
 };
 
 const PREF_KEYS = Object.keys(DEFAULT_PREFS) as (keyof Prefs)[];

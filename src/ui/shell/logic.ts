@@ -12,6 +12,7 @@ import {
   type ScaleName,
 } from '../../audio/theory';
 import { DEFAULT_SOUND } from '../../state/store';
+import { isLang } from '../../i18n/types';
 import type { CoachId, Engine, SheetTab } from '../../state/types';
 import { normalizeRanges } from '../../vision/adaptive';
 
@@ -226,6 +227,7 @@ export function sanitizePrefs<T extends Record<string, unknown>>(p: T): T {
   if ('learnedRanges' in p) out.learnedRanges = normalizeRanges(p.learnedRanges);
   if ('learnHand' in p && typeof p.learnHand !== 'boolean') out.learnHand = true;
   if ('showFps' in p && typeof p.showFps !== 'boolean') out.showFps = false;
+  if ('lang' in p && !isLang(p.lang)) out.lang = 'pt';
   if ('coachDone' in p)
     out.coachDone = Array.isArray(p.coachDone)
       ? p.coachDone.filter((c): c is CoachId => COACH_IDS.includes(c as CoachId))
