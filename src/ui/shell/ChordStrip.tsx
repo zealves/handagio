@@ -5,6 +5,7 @@ import { useEffect, useRef, type KeyboardEvent } from 'react';
 import { CHORD_MODES } from '../../audio/theory';
 import { useStore } from '../../state/store';
 import { ChordGlyph } from './ChordGlyph';
+import { useT } from '../../i18n';
 import { chordText } from '../../i18n/data';
 import { keyTarget } from './logic';
 import { useMedia, WIDE } from './media';
@@ -15,6 +16,7 @@ export function ChordStrip() {
   const open = useStore((st) => st.chordStrip);
   const set = useStore((st) => st.set);
   const docked = useMedia(WIDE);
+  const eachFinger = useT().notes.eachFinger;
   const root = useRef<HTMLDivElement>(null);
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const shown = docked || open;
@@ -71,7 +73,7 @@ export function ChordStrip() {
     <div
       ref={root}
       role="radiogroup"
-      aria-label="Cada dedo toca"
+      aria-label={eachFinger.replace(/…$/, '')}
       className={s.strip}
       data-docked={docked || undefined}
       onKeyDown={onKey}
@@ -79,7 +81,7 @@ export function ChordStrip() {
     >
       {docked && (
         <span className={s.title} aria-hidden>
-          Cada dedo toca…
+          {eachFinger}
         </span>
       )}
       {CHORD_MODES.map((m, i) => (

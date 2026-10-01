@@ -16,10 +16,9 @@ export interface ControlProps {
   testId?: string;
 }
 
+/** Os nomes e as explicações estão nas línguas (`fx.knobs`, `data.mouth`). */
 export interface EffectDef {
   id: string;
-  label: string;
-  desc: string;
   Control: ComponentType<ControlProps>;
 }
 
@@ -135,38 +134,26 @@ function MouthControl({ testId = 'mouth-fx' }: ControlProps) {
 export const EFFECTS: EffectDef[] = [
   {
     id: 'reverb',
-    label: 'Reverb',
-    desc: 'Espaço à volta do som',
     Control: storeKnob('reverb', { min: 0, max: 1, format: pct }),
   },
   {
     id: 'echo',
-    label: 'Eco',
-    desc: 'Delay: repetições do som',
     Control: storeKnob('echo', { min: 0, max: 1, format: pct }),
   },
   {
     id: 'pitch',
-    label: 'Pitch',
-    desc: 'Transpõe tudo em semitons',
     Control: storeKnob('pitch', { min: -12, max: 12, step: 1, format: semis }),
   },
   {
     id: 'filter',
-    label: 'Filtro',
-    desc: 'Fecha para abafar o som',
     Control: storeKnob('filter', { min: 0, max: 1, format: pct }),
   },
   {
     id: 'drive',
-    label: 'Drive',
-    desc: 'Saturação quente',
     Control: storeKnob('drive', { min: 0, max: 1, format: pct }),
   },
   {
     id: 'mouth',
-    label: 'Boca',
-    desc: 'Abre a boca para aplicar',
     Control: MouthControl,
   },
 ];

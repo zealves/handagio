@@ -5,6 +5,7 @@ import { DRUMS } from '../../audio/instruments';
 import { live } from '../../state/live';
 import { useStore } from '../../state/store';
 import { useFrame } from '../frame';
+import { useT } from '../../i18n';
 import { instrumentText, padLabels } from '../../i18n/data';
 import { FINGER_COLORS } from '../theme';
 import s from './bottom.module.css';
@@ -15,6 +16,7 @@ export function DrumPads() {
   const instrument = useStore((st) => st.instrument);
   const kitId = DRUMS[instrument] ? instrument : 'drums';
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const tr = useT().keyboard;
 
   useFrame(() => {
     refs.current.forEach((el, k) => {
@@ -38,11 +40,7 @@ export function DrumPads() {
   };
 
   return (
-    <div
-      className={s.pads}
-      role="group"
-      aria-label={`Pads de percussão: ${instrumentText(kitId).name}`}
-    >
+    <div className={s.pads} role="group" aria-label={tr.pads(instrumentText(kitId).name)}>
       {padLabels(kitId)
         .slice(0, 8)
         .map((label, k) => (

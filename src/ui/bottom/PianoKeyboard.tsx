@@ -7,6 +7,7 @@ import { SAMPLED_BY_ID } from '../../audio/instruments';
 import { noteName, pitchClassName } from '../../audio/theory';
 import { live } from '../../state/live';
 import { useStore } from '../../state/store';
+import { useT } from '../../i18n';
 import { useFrame } from '../frame';
 import s from './bottom.module.css';
 
@@ -18,6 +19,7 @@ export function PianoKeyboard() {
   const octave = useStore((st) => st.octave);
   const instrument = useStore((st) => st.instrument);
   const register = SAMPLED_BY_ID[instrument]?.register ?? 0;
+  const tr = useT().keyboard;
   const wrap = useRef<HTMLDivElement>(null);
   const [octaves, setOctaves] = useState(3);
   useEffect(() => {
@@ -111,7 +113,7 @@ export function PianoKeyboard() {
 
   return (
     <div className={s.scroll} ref={wrap}>
-      <div className={s.piano} role="group" aria-label="Teclado de piano">
+      <div className={s.piano} role="group" aria-label={tr.piano}>
         {whites.map((m) => (
           <button key={m} className={s.white} {...btn(m)}>
             <span className={s.keyName}>{m % 12 === 0 ? noteName(m) : pitchClassName(m)}</span>

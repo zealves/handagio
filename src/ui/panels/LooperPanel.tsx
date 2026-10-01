@@ -4,18 +4,12 @@ import { session } from '../../app/session';
 import { audio } from '../../audio/engine';
 import { useStore } from '../../state/store';
 import type { LoopBars } from '../../state/types';
+import { t, useT } from '../../i18n';
 import { Toggle } from '../controls/Toggle';
 import { useFrame } from '../frame';
 import { IconTrash, IconUndo } from '../icons/UiIcons';
 import { Panel } from './Panel';
 import s from './panels.module.css';
-
-const LABEL = {
-  idle: 'Gravar loop',
-  armed: 'À espera do compasso…',
-  recording: 'A gravar…',
-  playing: 'Sobrepor camada',
-} as const;
 
 export function LooperPanel() {
   const st = useStore(
@@ -26,6 +20,7 @@ export function LooperPanel() {
       set: x.set,
     })),
   );
+  const tr = useT().looper;
   const bar = useRef<HTMLElement>(null);
   const info = useRef<HTMLSpanElement>(null);
   const lp = session.looper;
@@ -42,14 +37,17 @@ export function LooperPanel() {
     const f = lp.state === 'armed' ? 0 : lp.loopPos(pos) / lp.lengthSteps;
     el.style.width = `${f * 100}%`;
     if (info.current)
-      info.current.textContent = `Compasso ${lp.state === 'armed' ? '–' : lp.barAt(pos) + 1}/${lp.bars}`;
+      info.current.textContent = t().looper.bar(
+        lp.state === 'armed' ? '–' : String(lp.barAt(pos) + 1),
+        lp.bars,
+      );
   });
 
   return (
-    <Panel title="Looper" testId="looper">
+    <Panel title={tr.title} testId="looper">
       <div className={s.tempoRow} style={{ marginTop: 0 }}>
         <span className={s.field} id="bars-l">
-          Compassos
+          {tr.bars}
         </span>
         <div className={s.seg} role="radiogroup" aria-labelledby="bars-l">
           {([1, 2, 4] as LoopBars[]).map((b) => (
@@ -75,15 +73,15 @@ export function LooperPanel() {
           onClick={() => session.loopRecord()}
           data-testid="loop-rec"
         >
-          {overdub ? 'Fechar camada' : LABEL[st.looper.state]}
+          {overdub ? tr.closeLayer : tr.state[st.looper.state]}
         </button>
         <button
           type="button"
           className={s.btn}
           onClick={() => session.loopUndo()}
           disabled={!st.looper.layers && !overdub}
-          aria-label="Desfazer a última camada"
-          title="Desfazer a última camada"
+          aria-label={tr.undo}
+          title={tr.undo}
         >
           <IconUndo width={16} height={16} />
         </button>
@@ -92,8 +90,8 @@ export function LooperPanel() {
           className={s.btn}
           onClick={() => session.loopClear()}
           disabled={st.looper.state === 'idle'}
-          aria-label="Limpar o loop"
-          title="Limpar o loop"
+          aria-label={tr.clear}
+          title={tr.clear}
         >
           <IconTrash width={16} height={16} />
         </button>
@@ -102,13 +100,11 @@ export function LooperPanel() {
         <i ref={bar} />
       </div>
       <div className={s.loopInfo}>
-        <span ref={info}>Vazio</span>
-        <span>
-          {st.looper.layers} {st.looper.layers === 1 ? 'camada' : 'camadas'}
-        </span>
+        <span ref={info}>{tr.empty}</span>
+        <span>{tr.layers(st.looper.layers)}</span>
       </div>
       <Toggle
-        label="Congelar no instrumento gravado"
+        label={tr.freeze}
         checked={st.loopFreeze}
         onChange={(v) => st.set({ loopFreeze: v })}
       />

@@ -7,6 +7,7 @@ import { Slider } from '../controls/Slider';
 import { Toggle } from '../controls/Toggle';
 import type { LearnedRange } from '../../vision/adaptive';
 import { activeScreenOrder } from '../../vision/fingerMap';
+import { LANG_NAMES, LANGS, setLang, useT } from '../../i18n';
 import { fingerName } from '../../i18n/data';
 import { FINGER_COLORS } from '../theme';
 import { IconBack, IconClose } from '../icons/UiIcons';
@@ -36,6 +37,7 @@ export function SettingsDialog() {
       muted: x.muted,
       uiHidden: x.uiHidden,
       showFps: x.showFps,
+      lang: x.lang,
       set: x.set,
     })),
   );
@@ -44,6 +46,8 @@ export function SettingsDialog() {
   const [cams, setCams] = useState<{ id: string; label: string }[]>([]);
   const [msg, setMsg] = useState('');
   const fine = useMedia(FINE_POINTER);
+  const tr = useT().settings;
+  const space = useT().start.space;
 
   useEffect(() => {
     const d = ref.current!;
@@ -69,17 +73,17 @@ export function SettingsDialog() {
         <button
           type="button"
           className={s.back}
-          aria-label="Fechar as definições"
+          aria-label={tr.close}
           onClick={close}
           data-testid="settings-back"
         >
-          <IconBack width={18} height={18} /> Voltar
+          <IconBack width={18} height={18} /> {tr.back}
         </button>
-        <h2 id={`${id}-t`}>Definições</h2>
+        <h2 id={`${id}-t`}>{tr.title}</h2>
         <IconButton
           small
           className={s.closeX}
-          label="Fechar as definições"
+          label={tr.close}
           onClick={close}
           data-testid="settings-close"
         >
@@ -88,7 +92,7 @@ export function SettingsDialog() {
       </div>
       <div className={s.body}>
         <section className={s.section}>
-          <h3>Mãos</h3>
+          <h3>{tr.hands}</h3>
           <div className={s.row}>
             <button
               type="button"
@@ -99,7 +103,7 @@ export function SettingsDialog() {
               }}
               disabled={!!st.calibrating || st.engine !== 'hands'}
             >
-              Calibrar mãos
+              {tr.calibrate}
             </button>
             <button
               type="button"
@@ -111,34 +115,31 @@ export function SettingsDialog() {
               disabled={!st.calibration && !st.learnedRanges}
               data-testid="reset-calibration"
             >
-              Repor calibração
+              {tr.resetCalibration}
             </button>
           </div>
           <p className={s.hint}>
             {st.engine !== 'hands'
-              ? 'A calibração fica disponível quando a deteção das mãos estiver ligada.'
+              ? tr.calibNeedsHands
               : st.calibration
-                ? 'Limiares calibrados para ti. Para recalibrar: 3 s com os dedos esticados e 3 s com os dedos dobrados. Os polegares não precisam de calibração.'
-                : 'Estica os dedos durante 3 s e depois dobra-os durante 3 s. Os limiares ajustam-se à tua mão (os polegares não precisam de calibração).'}
+                ? tr.calibrated
+                : tr.calibHowTo}
           </p>
           <Toggle
-            label="Aprender a minha mão enquanto toco"
+            label={tr.learnHand}
             checked={st.learnHand}
             onChange={(v) => st.set({ learnHand: v })}
             testId="learn-hand"
           />
-          <p className={s.hint}>
-            A app vai vendo até onde cada dedo estica e dobra e ajusta-se sozinha, para o anelar e o
-            mindinho tocarem com menos esforço. A calibração, se a fizeres, tem prioridade.
-          </p>
+          <p className={s.hint}>{tr.learnHint}</p>
           {st.learnHand && st.learnedRanges && (
             <details className={s.details}>
-              <summary>Ver o intervalo aprendido</summary>
+              <summary>{tr.learnedShow}</summary>
               <LearnedBars ranges={st.learnedRanges} />
             </details>
           )}
           <Slider
-            label="Sensibilidade da visão"
+            label={tr.sensitivity}
             min={0}
             max={100}
             value={Math.round(st.sensitivity * 100)}
@@ -146,7 +147,7 @@ export function SettingsDialog() {
             format={(v) => `${v}%`}
           />
           <Toggle
-            label="Usar também os polegares"
+            label={tr.thumbs}
             checked={st.thumbs}
             onChange={(v) => st.set({ thumbs: v })}
             testId="thumbs"
@@ -154,7 +155,7 @@ export function SettingsDialog() {
           {st.thumbs && (
             <>
               <Slider
-                label="Sensibilidade dos polegares"
+                label={tr.thumbSensitivity}
                 min={0}
                 max={100}
                 value={Math.round(st.thumbSensitivity * 100)}
@@ -162,43 +163,35 @@ export function SettingsDialog() {
                 format={(v) => `${v}%`}
                 testId="thumb-sensitivity"
               />
-              <p className={s.hint}>
-                O polegar toca ao dobrar ou ao mover-se para baixo, depressa, também com a mão
-                inclinada. Se os polegares tocam sem querer, baixa. Se custam a tocar, sobe.
-              </p>
+              <p className={s.hint}>{tr.thumbHint}</p>
             </>
           )}
           <Toggle
-            label={`A altura da mão escolhe a nota${st.custom ? ' (só no modo Escala)' : ''}`}
+            label={tr.heightPitch(st.custom)}
             checked={st.heightPitch}
             onChange={(v) => st.set({ heightPitch: v })}
             testId="height-pitch"
           />
-          <p className={s.hint}>
-            Sobe ou desce a mão antes de dobrar o dedo para tocar uma nota mais aguda ou mais grave.
-          </p>
+          <p className={s.hint}>{tr.heightHint}</p>
           <Toggle
-            label="Arrastar a nota depois de tocar"
+            label={tr.glide}
             checked={st.glide}
             onChange={(v) => st.set({ glide: v })}
             testId="glide"
           />
-          <p className={s.hint}>
-            Depois de tocares, sobe ou desce a mão para dobrar o tom. Funciona nos instrumentos de
-            nota longa (violino, flauta, órgão, sopros…).
-          </p>
+          <p className={s.hint}>{tr.glideHint}</p>
         </section>
 
         <section className={s.section}>
-          <h3>Câmara</h3>
+          <h3>{tr.camera}</h3>
           <label className={p.field}>
-            Câmara
+            {tr.camera}
             <select
               value={st.cameraId ?? ''}
               onChange={(e) => st.set({ cameraId: e.target.value || null })}
               disabled={cams.length < 2}
             >
-              <option value="">Predefinida</option>
+              <option value="">{tr.cameraDefault}</option>
               {cams.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.label}
@@ -206,17 +199,13 @@ export function SettingsDialog() {
               ))}
             </select>
           </label>
-          <Toggle
-            label="Baixar ainda mais a resolução (computadores mais lentos)"
-            checked={st.lowRes}
-            onChange={(v) => st.set({ lowRes: v })}
-          />
+          <Toggle label={tr.lowRes} checked={st.lowRes} onChange={(v) => st.set({ lowRes: v })} />
         </section>
 
         <section className={s.section}>
-          <h3>Som</h3>
+          <h3>{tr.sound}</h3>
           <Slider
-            label="Volume geral"
+            label={tr.volume}
             min={0}
             max={100}
             value={Math.round(st.volume * 100)}
@@ -224,7 +213,7 @@ export function SettingsDialog() {
             format={(v) => `${v}%`}
           />
           <Toggle
-            label="Silenciar"
+            label={tr.mute}
             checked={st.muted}
             onChange={(v) => st.set({ muted: v })}
             testId="mute"
@@ -232,10 +221,30 @@ export function SettingsDialog() {
         </section>
 
         <section className={s.section}>
-          <h3>Aspeto</h3>
+          <h3>{tr.look}</h3>
+          <div className={s.row} style={{ justifyContent: 'space-between' }}>
+            <span className={p.field} id={`${id}-lang`}>
+              {tr.language}
+            </span>
+            <div className={p.seg} role="radiogroup" aria-labelledby={`${id}-lang`}>
+              {LANGS.map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  role="radio"
+                  lang={l}
+                  aria-checked={st.lang === l}
+                  onClick={() => void setLang(l)}
+                  data-testid={`lang-${l}`}
+                >
+                  {LANG_NAMES[l]}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className={s.row} style={{ justifyContent: 'space-between' }}>
             <span className={p.field} id={`${id}-th`}>
-              Tema
+              {tr.theme}
             </span>
             <div className={p.seg} role="radiogroup" aria-labelledby={`${id}-th`}>
               {(['dark', 'light'] as const).map((t) => (
@@ -246,19 +255,19 @@ export function SettingsDialog() {
                   aria-checked={st.theme === t}
                   onClick={() => st.set({ theme: t })}
                 >
-                  {t === 'dark' ? 'Escuro' : 'Claro'}
+                  {t === 'dark' ? tr.dark : tr.light}
                 </button>
               ))}
             </div>
           </div>
           <Toggle
-            label="Esconder a interface (I)"
+            label={tr.hideUi}
             checked={st.uiHidden}
             onChange={(v) => st.set({ uiHidden: v, settingsOpen: !v })}
             testId="hide-ui"
           />
           <Toggle
-            label="Mostrar FPS e modo de deteção"
+            label={tr.showFps}
             checked={st.showFps}
             onChange={(v) => st.set({ showFps: v })}
             testId="show-fps"
@@ -267,54 +276,50 @@ export function SettingsDialog() {
 
         {fine && (
           <section className={s.section}>
-            <h3>Atalhos</h3>
+            <h3>{tr.shortcuts}</h3>
             <dl className={s.keys}>
               <dt>
-                <kbd>A</kbd>…<kbd>Ç</kbd>
+                <kbd>A</kbd>…<kbd>{tr.lastKey}</kbd>
               </dt>
-              <dd>Tocar com os dedos (sem câmara)</dd>
+              <dd>{tr.keys.fingers}</dd>
               <dt>
-                <kbd>Espaço</kbd>
+                <kbd>{space}</kbd>
               </dt>
-              <dd>Simular a boca aberta</dd>
+              <dd>{tr.keys.space}</dd>
               <dt>
                 <kbd>,</kbd> <kbd>.</kbd>
               </dt>
-              <dd>Instrumento anterior / seguinte</dd>
+              <dd>{tr.keys.instrument}</dd>
               <dt>
                 <kbd>C</kbd>
               </dt>
-              <dd>Cada dedo toca…: a forma seguinte</dd>
+              <dd>{tr.keys.chord}</dd>
               <dt>
                 <kbd>1</kbd>…<kbd>4</kbd>
               </dt>
-              <dd>Abrir Som, Notas, Efeitos ou Estúdio</dd>
+              <dd>{tr.keys.tabs}</dd>
               <dt>
                 <kbd>I</kbd>
               </dt>
-              <dd>Esconder / mostrar a interface</dd>
+              <dd>{tr.keys.hide}</dd>
               <dt>
                 <kbd>E</kbd>
               </dt>
-              <dd>Ecrã inteiro</dd>
+              <dd>{tr.keys.fullscreen}</dd>
               <dt>
                 <kbd>Esc</kbd>
               </dt>
-              <dd>Fechar o menu ou voltar a mostrar a interface</dd>
+              <dd>{tr.keys.esc}</dd>
             </dl>
           </section>
         )}
 
         <section className={s.section}>
-          <h3>Créditos dos sons</h3>
-          <p className={s.hint}>
-            Os instrumentos gravados vêm da biblioteca tonejs-instruments (CC-BY 3.0), com amostras
-            de VSCO 2, Karoryfer, Universidade de Iowa e Freesound. Os restantes sons são
-            sintetizados.
-          </p>
+          <h3>{tr.credits}</h3>
+          <p className={s.hint}>{tr.creditsText}</p>
           <p className={s.hint}>
             <a href="samples/CREDITS.md" target="_blank" rel="noopener">
-              Ver créditos completos
+              {tr.creditsLink}
             </a>
           </p>
         </section>
@@ -325,16 +330,17 @@ export function SettingsDialog() {
               type="button"
               className={p.btn}
               onClick={() => {
-                const { userPresets, coachDone } = getState();
-                st.set({ ...DEFAULT_PREFS, userPresets, coachDone });
-                setMsg('Preferências repostas.');
+                // a língua, os sons guardados e as dicas cumpridas ficam
+                const { userPresets, coachDone, lang } = getState();
+                st.set({ ...DEFAULT_PREFS, userPresets, coachDone, lang });
+                setMsg(tr.prefsReset);
               }}
             >
-              Repor as preferências
+              {tr.resetPrefs}
             </button>
           </div>
           <p className={s.hint} aria-live="polite">
-            {msg || 'Tudo fica guardado neste navegador. Nada sai do teu dispositivo.'}
+            {msg || tr.storedHint}
           </p>
         </section>
       </div>
@@ -347,17 +353,14 @@ export function SettingsDialog() {
  * baixo; 1 = dobrado): os 8 dedos que dobram (os polegares não aprendem, ver decisão 65).
  */
 function LearnedBars({ ranges }: { ranges: (LearnedRange | null)[] }) {
+  const tr = useT().settings;
   return (
-    <div
-      className={s.bars}
-      data-testid="learned-bars"
-      aria-label="Intervalo aprendido de cada dedo"
-    >
+    <div className={s.bars} data-testid="learned-bars" aria-label={tr.learnedLabel}>
       {activeScreenOrder(false).map((i) => {
         const r = ranges[i];
         const title = r
           ? `${fingerName(i)}: ${Math.round(r.lo * 100)}–${Math.round(r.hi * 100)}%`
-          : `${fingerName(i)}: ainda a aprender`;
+          : tr.learnedStill(fingerName(i));
         return (
           <span
             key={i}

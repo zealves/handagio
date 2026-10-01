@@ -24,25 +24,20 @@ import { useStore } from '../../state/store';
 import { activeScreenOrder, type TonicAt } from '../../vision/fingerMap';
 import { ChordGlyph } from '../shell/ChordGlyph';
 import { keyTarget, visibleScales } from '../shell/logic';
+import { t, useT } from '../../i18n';
 import { chordText, scaleLabel } from '../../i18n/data';
 import { FINGER_COLORS } from '../theme';
 import { Panel } from './Panel';
 import s from './panels.module.css';
 
-const FINGER_WORDS = ['polegar', 'indicador', 'médio', 'anelar', 'mindinho'];
-const handOf = (i: number) => (i < 5 ? 'Mão esquerda' : 'Mão direita');
-const fingerText = (i: number) => `${handOf(i)}, ${FINGER_WORDS[i % 5]}`;
+const handOf = (i: number) => (i < 5 ? t().notes.leftHand : t().notes.rightHand);
+const fingerWord = (i: number) => t().notes.fingerWords[i % 5];
+const fingerText = (i: number) => `${handOf(i)}, ${fingerWord(i)}`;
 /** Tempo durante o qual "Copiar da escala" espera pelo segundo clique. */
 const CONFIRM_MS = 3000;
 
-const NOTE_MODES: { id: NoteMode; label: string }[] = [
-  { id: 'scale', label: 'Escala' },
-  { id: 'custom', label: 'Personalizadas' },
-];
-const TONIC_AT: { id: TonicAt; label: string }[] = [
-  { id: 'left-pinky', label: 'Mindinho esq.' },
-  { id: 'right-index', label: 'Indicador dir.' },
-];
+const NOTE_MODES: NoteMode[] = ['scale', 'custom'];
+const TONIC_AT: TonicAt[] = ['left-pinky', 'right-index'];
 /** Oitavas base possíveis (as mesmas do antigo controlo deslizante). */
 const OCTAVES = [1, 2, 3, 4, 5, 6];
 
@@ -62,6 +57,7 @@ export function ScalePanel() {
     })),
   );
   const id = useId();
+  const tr = useT().notes;
   const [editing, setEditing] = useState<number | null>(null);
   // "Copiar da escala": à espera do segundo clique, ou as notas já são iguais às da escala
   const [copyState, setCopyState] = useState<'confirm' | 'same' | null>(null);
@@ -132,11 +128,11 @@ export function ScalePanel() {
     };
 
   return (
-    <Panel title="Notas" testId="scale-panel">
+    <Panel title={tr.title} testId="scale-panel">
       <div className={s.stack} style={{ gap: 18 }}>
         <section className={s.section}>
           <h3 className={s.label} id={`${id}-mode`}>
-            As notas vêm da
+            {tr.from}
           </h3>
           <div
             className={`${s.seg} ${s.segHalf}`}
@@ -146,34 +142,30 @@ export function ScalePanel() {
           >
             {NOTE_MODES.map((m) => (
               <button
-                key={m.id}
+                key={m}
                 type="button"
                 role="radio"
-                aria-checked={st.noteMode === m.id}
+                aria-checked={st.noteMode === m}
                 onClick={() => {
                   // fechar o editor ao mudar de modo (senão roubava o foco ao voltar)
                   setEditing(null);
                   setCopyState(null);
-                  st.set({ noteMode: m.id });
+                  st.set({ noteMode: m });
                 }}
-                data-testid={`note-mode-${m.id}`}
+                data-testid={`note-mode-${m}`}
               >
-                {m.label}
+                {tr.modes[m]}
               </button>
             ))}
           </div>
-          <p className={s.hint}>
-            {custom
-              ? 'Escolhes a nota exata de cada dedo. A altura da mão não escolhe a nota; arrastar depois de tocar continua a funcionar.'
-              : 'Cada dedo toca uma nota da escala, a subir da esquerda para a direita.'}
-          </p>
+          <p className={s.hint}>{custom ? tr.customHint : tr.scaleHint}</p>
         </section>
 
         {!custom && (
           <>
             <section className={s.section}>
               <h3 className={s.label} id={`${id}-root`}>
-                Tónica
+                {tr.root}
               </h3>
               <div
                 className={s.pillRow}
@@ -203,7 +195,7 @@ export function ScalePanel() {
 
             <section className={s.section}>
               <h3 className={s.label} id={`${id}-scale`}>
-                Escala
+                {tr.scale}
               </h3>
               <div className={s.pillWrap} role="radiogroup" aria-labelledby={`${id}-scale`}>
                 {visibleScales(st.scale, moreScales).map((sc) => (
@@ -226,18 +218,15 @@ export function ScalePanel() {
                   onClick={() => setMoreScales((x) => !x)}
                   data-testid="scale-more"
                 >
-                  {moreScales ? '− menos' : '+ mais'}
+                  {moreScales ? tr.less : tr.more}
                 </button>
               </div>
-              <p className={s.hint}>
-                A escala escolhe que notas os dedos tocam. A Pentatónica tem 5 notas e qualquer
-                combinação soa bem.
-              </p>
+              <p className={s.hint}>{tr.scaleExplain}</p>
             </section>
 
             <section className={s.section}>
               <h3 className={s.label} id={`${id}-tonic`}>
-                Tónica no
+                {tr.tonicAt}
               </h3>
               <div
                 className={`${s.seg} ${s.segHalf}`}
@@ -245,31 +234,27 @@ export function ScalePanel() {
                 aria-labelledby={`${id}-tonic`}
                 data-testid="tonic-at"
               >
-                {TONIC_AT.map((t) => (
+                {TONIC_AT.map((at) => (
                   <button
-                    key={t.id}
+                    key={at}
                     type="button"
                     role="radio"
-                    aria-checked={st.tonicAt === t.id}
-                    onClick={() => st.set({ tonicAt: t.id })}
-                    data-testid={`tonic-at-${t.id}`}
+                    aria-checked={st.tonicAt === at}
+                    onClick={() => st.set({ tonicAt: at })}
+                    data-testid={`tonic-at-${at}`}
                   >
-                    {t.label}
+                    {tr.tonicModes[at]}
                   </button>
                 ))}
               </div>
-              <p className={s.hint}>
-                {st.tonicAt === 'left-pinky'
-                  ? 'O mindinho esquerdo toca a tónica e as notas sobem até ao mindinho direito.'
-                  : 'O indicador direito toca a tónica; à esquerda as notas descem, à direita sobem.'}
-              </p>
+              <p className={s.hint}>{st.tonicAt === 'left-pinky' ? tr.tonicLeft : tr.tonicRight}</p>
             </section>
           </>
         )}
 
         <section className={s.section}>
           <h3 className={s.label} id={`${id}-chord`}>
-            Cada dedo toca…
+            {tr.eachFinger}
           </h3>
           <div
             className={s.chordCards}
@@ -305,22 +290,16 @@ export function ScalePanel() {
 
         <section className={s.section}>
           <h3 className={s.label}>
-            {custom
-              ? 'Os teus dedos tocam'
-              : `Em ${noteNames()[st.root]} ${scaleLabel(st.scale)}, os teus dedos tocam`}
+            {custom ? tr.fingersPlay : tr.fingersPlayIn(noteNames()[st.root], scaleLabel(st.scale))}
           </h3>
-          <div
-            ref={notesRef}
-            className={s.fingerNotes}
-            aria-label="Notas de cada dedo, da esquerda para a direita"
-          >
+          <div ref={notesRef} className={s.fingerNotes} aria-label={tr.fingerNotesLabel}>
             {drum ? (
               <p className={s.desc} style={{ margin: 0, minHeight: 0 }}>
-                Com percussão, cada dedo toca um som do kit.
+                {tr.drumHint}
               </p>
             ) : (
               [order.filter((i) => i < 5), order.filter((i) => i >= 5)].map((hand, h) => (
-                <div key={h} className={s.handRow} aria-label={h ? 'Mão direita' : 'Mão esquerda'}>
+                <div key={h} className={s.handRow} aria-label={h ? tr.rightHand : tr.leftHand}>
                   {hand.map((i) =>
                     custom ? (
                       <button
@@ -328,7 +307,7 @@ export function ScalePanel() {
                         type="button"
                         className={`${s.fingerNote} ${s.fingerNoteBtn}`}
                         style={{ ['--c' as string]: FINGER_COLORS[i] }}
-                        aria-label={`${fingerText(i)}: ${noteName(st.customNotes[i])}. Mudar`}
+                        aria-label={`${fingerText(i)}: ${noteName(st.customNotes[i])}. ${tr.change}`}
                         aria-expanded={editing === i}
                         aria-controls={editing === i ? `${id}-editor` : undefined}
                         onClick={() => setEditing(editing === i ? null : i)}
@@ -365,7 +344,7 @@ export function ScalePanel() {
                   onClose={closeEditor}
                 />
               ) : (
-                <p className={s.hint}>Toca num dedo para escolher a nota dele.</p>
+                <p className={s.hint}>{tr.tapFinger}</p>
               )}
               <div className={s.copyRow}>
                 <button
@@ -375,14 +354,10 @@ export function ScalePanel() {
                   onClick={copyFromScale}
                   data-testid="copy-from-scale"
                 >
-                  {confirmCopy ? 'Substituir as notas?' : 'Copiar da escala'}
+                  {confirmCopy ? tr.copyConfirm : tr.copy}
                 </button>
                 <span className={s.hint} style={{ margin: 0 }} aria-live="polite">
-                  {confirmCopy
-                    ? 'Carrega outra vez para confirmar.'
-                    : copyState === 'same'
-                      ? 'Já são iguais às da escala.'
-                      : 'Põe em cada dedo a nota que tocaria no modo Escala.'}
+                  {confirmCopy ? tr.copyAgain : copyState === 'same' ? tr.copySame : tr.copyHint}
                 </span>
               </div>
             </>
@@ -392,7 +367,7 @@ export function ScalePanel() {
         {!custom && (
           <section className={s.section}>
             <h3 className={s.label} id={`${id}-oct`}>
-              Oitava base
+              {tr.octave}
             </h3>
             <div
               className={s.pillWrap}
@@ -439,6 +414,7 @@ function NoteEditor({ id, finger, midi, onPick, onClose }: EditorProps) {
   const octave = Math.floor(midi / 12) - 1;
   // o editor é montado de novo para cada dedo (key), por isso o estado começa na nota atual
   const [focus, setFocus] = useState(pc);
+  const tr = useT().notes;
   const grid = useRef<HTMLDivElement>(null);
   const focusNote = (k: number) => grid.current?.querySelectorAll('button')[k]?.focus();
   // ao abrir, o foco vai para a nota atual
@@ -480,7 +456,7 @@ function NoteEditor({ id, finger, midi, onPick, onClose }: EditorProps) {
       className={s.noteEditor}
       style={{ ['--c' as string]: FINGER_COLORS[finger] }}
       role="group"
-      aria-label={`Nota do ${FINGER_WORDS[finger % 5]} (${handOf(finger).toLowerCase()})`}
+      aria-label={tr.editorLabel(fingerWord(finger), handOf(finger).toLowerCase())}
       onKeyDown={onKey}
       data-testid="note-editor"
     >
@@ -488,7 +464,7 @@ function NoteEditor({ id, finger, midi, onPick, onClose }: EditorProps) {
         <span>{fingerText(finger)}</span>
         <strong className="tnum">{noteName(midi)}</strong>
       </div>
-      <div ref={grid} className={s.noteGrid} role="radiogroup" aria-label="Nota">
+      <div ref={grid} className={s.noteGrid} role="radiogroup" aria-label={tr.noteLabel}>
         {noteNames().map((n, k) => (
           <button
             key={n}
@@ -513,17 +489,17 @@ function NoteEditor({ id, finger, midi, onPick, onClose }: EditorProps) {
           <button
             type="button"
             className={s.btn}
-            aria-label="Oitava abaixo"
+            aria-label={tr.octaveDown}
             onClick={() => shift(-1)}
             disabled={midi - 12 < CUSTOM_MIN}
           >
             −
           </button>
-          <span className="tnum">Oitava {octave}</span>
+          <span className="tnum">{tr.octaveN(octave)}</span>
           <button
             type="button"
             className={s.btn}
-            aria-label="Oitava acima"
+            aria-label={tr.octaveUp}
             onClick={() => shift(1)}
             disabled={midi + 12 > CUSTOM_MAX}
           >
@@ -531,10 +507,10 @@ function NoteEditor({ id, finger, midi, onPick, onClose }: EditorProps) {
           </button>
         </div>
         <button type="button" className={s.btn} onClick={onClose} data-testid="note-editor-done">
-          Feito
+          {tr.done}
         </button>
       </div>
-      <p className={s.hint}>Escolher uma nota toca-a. Oitavas mais altas soam mais agudas.</p>
+      <p className={s.hint}>{tr.editorHint}</p>
     </div>
   );
 }
