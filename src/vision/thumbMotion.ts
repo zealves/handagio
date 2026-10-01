@@ -1,8 +1,9 @@
-// Polegar: toca ao mexer-se em relação à mão, para qualquer lado (docs/DECISIONS.md, 65). A
-// medida de encostar ao indicador (`thumbGap`) dependia da profundidade e da forma da mão, e com a
-// mão inclinada quase não mudava. Aqui a ponta do polegar mede-se num referencial preso à palma e
-// a "pressão" é o afastamento a um repouso que a acompanha devagar: um movimento decidido conta,
-// para onde quer que vá, e o polegar parado volta a 0 sozinho (é um toque, não um botão).
+// Polegar: toca ao dobrar (para dentro da palma) ou ao mover-se para baixo, em relação à mão
+// (docs/DECISIONS.md, 65). A medida de encostar ao indicador (`thumbGap`) dependia da profundidade
+// e da forma da mão, e com a mão inclinada quase não mudava. Aqui a ponta do polegar mede-se num
+// referencial preso à palma e a "pressão" é o afastamento a um repouso que a acompanha devagar,
+// só nas direções de tocar: para cima ou para fora não conta. O polegar parado volta a 0 sozinho
+// (é um toque, não um botão).
 import { clamp } from '../audio/theory';
 import { squarePt } from './fingerCurl';
 import type { Pt } from './types';
@@ -12,6 +13,12 @@ import type { Pt } from './types';
  * ~70–80% do afastamento antes de o repouso o seguir; parado, a pressão desce a metade em ~0,3 s.
  */
 export const THUMB_BASE_TAU = 0.4;
+/**
+ * Tempo (s) com que o repouso segue o polegar nas direções que não tocam (para cima, para fora).
+ * Mais lento do que `THUMB_BASE_TAU`: subir o polegar e voltar ao sítio não pode contar como um
+ * movimento para baixo. Só fica a contar se o polegar ficar em cima mais de ~1 s.
+ */
+export const THUMB_BACK_TAU = 1.5;
 /**
  * Afastamento ao repouso (em unidades da palma, ver `palmCoords`) que dá pressão 1. Um toque
  * do polegar desloca a ponta ~0,25–0,5; o arrasto dos outros dedos e o tremor ficam abaixo de
@@ -33,6 +40,26 @@ export const THUMB_MIN_RATIO = 0.25;
  * mesma escala do v, para um toque de lado contar como um toque para cima.
  */
 export const PALM_WIDTH_RATIO = 0.8;
+/**
+ * Direção de tocar, em coordenadas da palma: a meio caminho entre dobrar (+u, para o lado do
+ * mindinho) e para baixo (−v, para o pulso). Um movimento conta por inteiro até `THUMB_DIR_FULL`
+ * graus desta direção, nada a partir de `THUMB_DIR_ZERO` e em parte entre os dois: dobrar e para
+ * baixo (a 45°) contam, para cima, para fora e as diagonais para cima (a 90° ou mais) não.
+ */
+const PRESS_DIR = { u: Math.SQRT1_2, v: -Math.SQRT1_2 };
+export const THUMB_DIR_FULL = 55;
+export const THUMB_DIR_ZERO = 80;
+const COS_FULL = Math.cos((THUMB_DIR_FULL * Math.PI) / 180);
+const COS_ZERO = Math.cos((THUMB_DIR_ZERO * Math.PI) / 180);
+
+/** Peso (0..1) de um deslocamento (du, dv) pela direção (ver `PRESS_DIR`). */
+export function directionWeight(du: number, dv: number): number {
+  const d = Math.hypot(du, dv);
+  if (!d) return 0;
+  const cos = (du * PRESS_DIR.u + dv * PRESS_DIR.v) / d;
+  return clamp((cos - COS_ZERO) / (COS_FULL - COS_ZERO), 0, 1);
+}
+
 /** Sem medida, a pressão cai por este fator a cada fotograma. */
 const LOST_DECAY = 0.6;
 
@@ -75,7 +102,7 @@ export function palmCoords(lm: Pt[], aspect = 1): PalmUV | null {
   };
 }
 
-/** Pressão de movimento de um polegar (uma instância por mão). */
+/** Pressão de movimento de um polegar, só nas direções de tocar (uma instância por mão). */
 export class ThumbMotion {
   private base: PalmUV | null = null;
   /** Repouso de antes do toque (ver `markStart` e `release`). */
@@ -103,8 +130,10 @@ export class ThumbMotion {
       this.press = 0;
       return 0;
     }
-    this.press = clamp(Math.hypot(p.u - base.u, p.v - base.v) / THUMB_MOVE_FULL, 0, 1);
-    const k = 1 - Math.exp(-dt / THUMB_BASE_TAU);
+    const du = p.u - base.u;
+    const dv = p.v - base.v;
+    this.press = clamp((Math.hypot(du, dv) * directionWeight(du, dv)) / THUMB_MOVE_FULL, 0, 1);
+    const k = 1 - Math.exp(-dt / (this.press > 0 ? THUMB_BASE_TAU : THUMB_BACK_TAU));
     base.u += (p.u - base.u) * k;
     base.v += (p.v - base.v) * k;
     return this.press;

@@ -1288,7 +1288,7 @@ type ThumbVsc = Vsc & {
   live: { fingers: { down: boolean; curl: number }[] };
 };
 
-test('polegar: mexer-se para qualquer lado toca a nota do polegar e parar solta', async ({
+test('polegar: dobrar toca a nota do polegar, mesmo com a mão inclinada, e parar solta', async ({
   page,
 }) => {
   const errors = watchConsole(page);

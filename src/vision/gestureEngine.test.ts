@@ -38,6 +38,7 @@ import {
   type GestureOptions,
 } from './gestureEngine';
 import { syntheticHand } from './testHands';
+import { PALM_WIDTH_RATIO } from './thumbMotion';
 import type { AssignedHands } from './types';
 
 const opts: GestureOptions = {
@@ -168,14 +169,30 @@ describe('gestureEngine', () => {
 
   describe('polegares', () => {
     const topts: GestureOptions = { ...opts, thumbs: true };
+    /** Largura da palma sintética (0.09) a dividir pelo comprimento (0.2), numa palma real. */
+    const SYN_WIDTH = 0.09 / 0.2 / PALM_WIDTH_RATIO;
     /**
      * Mão esquerda com a ponta do polegar deslocada (dx, dy) palmas do sítio de repouso, em
-     * coordenadas da imagem; `pose` roda, inclina ou escala a mão (ver `syntheticHand`).
+     * coordenadas da mão em pé (dx para o lado do mindinho, na escala de uma palma real; dy para
+     * o pulso), com a rotação e a inclinação de `pose` (ver `syntheticHand`).
      */
-    const thumbOff = (dx = 0, dy = 0, pose: object = {}, closed: boolean[] | boolean = false) => {
+    const thumbOff = (
+      dx0 = 0,
+      dy0 = 0,
+      pose: { rot?: number; tilt?: number; aspect?: number; scale?: number } = {},
+      closed: boolean[] | boolean = false,
+    ) => {
       const lm = syntheticHand(closed, 0.3, 0.8, pose);
       const palm = Math.hypot(lm[9].x - lm[0].x, lm[9].y - lm[0].y);
-      lm[4] = { ...lm[4], x: lm[4].x + dx * palm, y: lm[4].y + dy * palm };
+      const r = ((pose.rot ?? 0) * Math.PI) / 180;
+      const y = dy0 * Math.cos(((pose.tilt ?? 0) * Math.PI) / 180);
+      const dx = dx0 * SYN_WIDTH;
+      const x = (dx * Math.cos(r) - y * Math.sin(r)) / (pose.aspect ?? 1);
+      lm[4] = {
+        ...lm[4],
+        x: lm[4].x + x * palm,
+        y: lm[4].y + (dx * Math.sin(r) + y * Math.cos(r)) * palm,
+      };
       return [lm, syntheticHand(false, 0.7)] as AssignedHands;
     };
     /** Polegar parado `rest` fotogramas e depois um toque rápido até (dx, dy), seguro `hold`. */
@@ -204,7 +221,7 @@ describe('gestureEngine', () => {
       expect(thumbThresholds(1).off).toBeGreaterThan(0);
     });
 
-    it('toca ao mexer-se para qualquer lado, com a mão direita, rodada ou inclinada', () => {
+    it('toca ao dobrar e ao mover para baixo, com a mão direita, rodada ou inclinada', () => {
       const poses: [object, number?][] = [
         [{}],
         [{ rot: 40 }],
@@ -216,11 +233,9 @@ describe('gestureEngine', () => {
       ];
       for (const [pose, aspect] of poses)
         for (const [dx, dy] of [
-          [0.35, 0],
-          [-0.35, 0],
-          [0, 0.35],
-          [0, -0.35],
-          [0.25, 0.25],
+          [0.4, 0],
+          [0, 0.4],
+          [0.3, 0.3],
         ]) {
           const g = new GestureEngine();
           const ev = record(g);
@@ -229,6 +244,23 @@ describe('gestureEngine', () => {
             ev.filter((e) => e.startsWith('on')),
             `${JSON.stringify(pose)} ${dx},${dy}`,
           ).toEqual(['on0']);
+        }
+    });
+
+    it('para cima, para fora e nas diagonais para cima não toca, em qualquer pose', () => {
+      for (const pose of [{}, { rot: 40 }, { rot: -45 }, { tilt: 55 }, { rot: 30, tilt: 45 }])
+        for (const [dx, dy] of [
+          [0, -0.45],
+          [-0.45, 0],
+          [-0.35, -0.35],
+          [0.35, -0.35],
+          [-0.35, 0.35],
+        ]) {
+          const g = new GestureEngine();
+          const ev = record(g);
+          flick(g, dx, dy, pose, 10);
+          for (let k = 0; k < 20; k++) g.process(thumbOff(0, 0, pose), 1 / 30, topts);
+          expect(ev, `${JSON.stringify(pose)} ${dx},${dy}`).toEqual([]);
         }
     });
 
@@ -256,7 +288,7 @@ describe('gestureEngine', () => {
       // um toque de ida e volta rápido toca uma vez e solta no regresso
       const g2 = new GestureEngine();
       const ev2 = record(g2);
-      flick(g2, 0, -0.35, {}, 2);
+      flick(g2, 0, 0.35, {}, 2);
       for (let k = 0; k < 20; k++) g2.process(thumbOff(0, 0), 1 / 30, topts);
       expect(ev2).toEqual(['on0', 'off0']);
     });
@@ -288,8 +320,8 @@ describe('gestureEngine', () => {
     });
 
     it('com outro dedo da mesma mão em baixo, o polegar precisa de se mexer mais', () => {
-      // no eixo do médio (v) a escala é exata: 1 palma = 1 unidade (a palma sintética é estreita)
-      const small = -0.22;
+      // para baixo, no eixo do médio (v): 1 palma = 1 unidade
+      const small = 0.22;
       const g = new GestureEngine();
       const ev = record(g);
       flick(g, 0, small);
@@ -301,7 +333,7 @@ describe('gestureEngine', () => {
       const mid = [false, false, true, false, false];
       for (const [d, want] of [
         [small, []],
-        [-0.4, ['on0']],
+        [0.4, ['on0']],
       ] as const) {
         const g2 = new GestureEngine();
         const ev2 = record(g2);

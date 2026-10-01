@@ -162,8 +162,8 @@ export function SettingsDialog() {
                 testId="thumb-sensitivity"
               />
               <p className={s.hint}>
-                O polegar toca ao mexer-se depressa, para qualquer lado, também com a mão inclinada.
-                Se os polegares tocam sem querer, baixa. Se custam a tocar, sobe.
+                O polegar toca ao dobrar ou ao mover-se para baixo, depressa, também com a mão
+                inclinada. Se os polegares tocam sem querer, baixa. Se custam a tocar, sobe.
               </p>
             </>
           )}

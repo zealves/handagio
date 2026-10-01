@@ -2,7 +2,7 @@
 // Partiu de processHands() no protótipo; desde a v2.2 a deteção dos dedos (suavização,
 // limiares por dedo, disparo antecipado, período refratário e aprendizagem) foi afinada para
 // ser mais rápida e mais fácil (docs/DECISIONS.md, 62). Os polegares têm regras próprias: tocam
-// ao mexer-se em relação à palma, para qualquer lado (`ThumbMotion`, 65), com confirmação e sem
+// ao dobrar ou mover-se para baixo em relação à palma (`ThumbMotion`, 65), com confirmação e sem
 // disparo antecipado.
 import { clamp } from '../audio/theory';
 import { Emitter } from '../lib/emitter';
@@ -264,8 +264,8 @@ export function dragSemitones(y0: number, y: number): number {
 
 /**
  * Polegares: o `on` da pressão de movimento (ver `ThumbMotion`: 0 parado, 1 afastado
- * `THUMB_MOVE_FULL` do repouso) com a sensibilidade neutra: um movimento de ~0,21 palmas, para
- * qualquer lado. Desde a decisão 65; antes era a pressão de encostar ao indicador (decisão 63).
+ * `THUMB_MOVE_FULL` do repouso) com a sensibilidade neutra: um movimento de ~0,21 palmas, a dobrar
+ * ou para baixo. Desde a decisão 65; antes era a pressão de encostar ao indicador (decisão 63).
  */
 export const THUMB_ON = 0.65;
 /**
