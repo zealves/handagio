@@ -2,6 +2,12 @@
 
 Versões segundo [SemVer](https://semver.org/lang/pt-BR/). A mais recente fica no topo.
 
+## [3.3.0] — 2026-10-01
+
+- Modo de jogo (protótipo): no botão do comando no cabeçalho escolhes Fácil (4 faixas), Médio (6) ou Difícil (8). As notas descem pela pista e dobras o dedo certo quando chegam à linha. Cada acerto toca a melodia por cima de bateria e baixo, numa música nova a cada ronda.
+- Cada ronda dura cerca de um minuto e meio. No fim aparecem os pontos, a precisão, o combo máximo e o atraso médio. O recorde fica guardado por dificuldade.
+- O atraso da câmara ajusta-se no cartão do jogo. Também se joga no teclado (D F J K no Fácil).
+
 ## [3.2.0] — 2026-10-01
 
 - A app passa a estar também em inglês. Na primeira visita segue a língua do navegador; muda-se no botão da língua do cabeçalho (sempre à vista), no link do ecrã inicial ou em ⚙ › Aspeto › Idioma, e a escolha fica guardada.

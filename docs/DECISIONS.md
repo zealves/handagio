@@ -339,3 +339,19 @@ Registo das decisões tomadas quando o pedido era ambíguo. A mais recente fica 
     - **Desvio à spec:** as mensagens de estado, os avisos e os nomes das gravações traduzem-se quando são criados, em vez de guardarem uma chave. Uma mensagem já no ecrã fica na língua antiga até desaparecer (segundos); as gravações já guardadas mantêm o nome que tinham. As dicas do primeiro uso traduzem-se ao desenhar.
     - **Testes:** o Playwright corre com `locale: 'pt-PT'` (a app segue a língua do navegador) e um grupo em `en-US` confirma o inglês, as notas em letras, a mudança sem recarregar e que só se pede o chunk da língua ativa. As mensagens de diagnóstico na consola e a documentação continuam em português.
 
+67. **Modo de jogo: pista ao estilo Guitar Hero (protótipo, v3.3).** O utilizador pediu um modo de jogo para diversão, para testar o conceito (spec `docs/superpowers/specs/2026-10-01-game-mode-design.md`, plano `docs/superpowers/plans/2026-10-01-game-mode.md`).
+    - **Escolhas do utilizador:** música procedural primeiro; pista de faixas por cima do palco; dificuldade escolhida no início (4, 6 ou 8 faixas); cada acerto toca a melodia por cima de um acompanhamento automático; rondas de tempo fixo.
+    - **Faixas:** Fácil só com indicadores e médios, porque o anelar e o mindinho mexem-se juntos na câmara. Sem polegares. A faixa `k` toca o grau `k` da escala do jogador. Com uma bateria ou um contínuo escolhido, a melodia usa o piano.
+    - **Tempo:** 90 / 110 / 130 BPM, 32 / 40 / 48 compassos (~85–89 s), sem semicolcheias (a câmara a 30 fps não as distingue) e com 1 tempo entre notas na mesma faixa.
+    - **Juiz:** Perfeito ±70 ms, Bom ±150 ms. Os toques soltos não tocam nem castigam: a deteção ainda dispara às vezes com o dedo vizinho. O atraso da câmara (120 ms por defeito, 0–250) desconta-se aos toques da câmara e não aos do teclado. O resultado mostra o atraso médio dos acertos, para o afinar com mãos reais.
+    - **Formato:** a `Chart` está separada do gerador, para mais tarde se ler MIDI ou músicas curadas sem mexer no juiz, na pontuação nem na pista.
+    - **Durante o jogo:**
+      - o Dock, a folha e os atalhos ficam desligados: mudar o som chamaria o `releaseAll`, que cortaria o acompanhamento agendado. O `Esc` sai.
+      - o metrónomo e o looper calam-se, mas o looper continua a contar os compassos.
+      - esconder o separador termina a partida sem guardar o recorde.
+      - as opções de gestos desligam-se durante uma ronda: desligam o modo contínuo, o deslizar (`glide`) e a altura da mão (`heightPitch`), para uma configuração theremin ou deslizar não manter os toques afastados do juiz nem envergar as notas do resultado.
+      - o HUD (chips de nota/loop/câmara) esconde-se durante o jogo, como o Dock, para não cobrir a pista nem abrir a folha.
+      - uma nota falhada pára e desvanece a vermelho na linha (`MISS_MAX_DEPTH`), para se ver que não foi acertada.
+    - **Clique no fundo:** o clique no cartão do jogo só conta se o ponteiro desceu no fundo (arrastar o slider do atraso para fora do cartão não sai).
+    - **Desvio à spec:** as preferências novas (`gameBest`, `gameDifficulty`, `gameLagMs`) não sobem a versão do `persist`. O `merge` já preenche as chaves em falta com os valores por defeito e o `sanitizePrefs` valida-as. Subir para a v10 mudava todos os testes de migração sem ganho. O diagnóstico para rondas curtas é `__vsc.session.gameBars`.
+
