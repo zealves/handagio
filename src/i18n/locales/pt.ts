@@ -134,6 +134,7 @@ const pt = {
     record: 'Gravar',
     stopRecording: 'Parar a gravação',
     settings: 'Definições',
+    game: 'Jogar',
   },
   hud: {
     note: 'Nota:',
@@ -362,6 +363,41 @@ const pt = {
     tapAgain: ' · carrega outra vez para apagar',
   },
   keyboard: { piano: 'Teclado de piano', pads: (kit: string) => `Pads de percussão: ${kit}` },
+  game: {
+    title: 'Modo de jogo',
+    intro: 'Dobra o dedo certo quando a nota chega à linha. Cada acerto toca a melodia.',
+    difficulty: 'Dificuldade',
+    levels: { easy: 'Fácil', medium: 'Médio', hard: 'Difícil' },
+    levelDesc: {
+      easy: '4 faixas · indicadores e médios',
+      medium: '6 faixas · com os anelares',
+      hard: '8 faixas · todos os dedos',
+    },
+    best: (n: number) => `Recorde: ${n}`,
+    noBest: 'Sem recorde',
+    lag: (ms: number) => `Atraso da câmara: ${ms} ms`,
+    lagHint: 'Se os acertos contam tarde, sobe; se contam cedo, desce.',
+    start: 'Começar',
+    cancel: 'Cancelar',
+    exit: 'Sair do jogo (Esc)',
+    go: 'Já!',
+    judge: { perfect: 'Perfeito!', good: 'Bom', miss: 'Falhado' },
+    combo: (n: number) => `Combo ${n}`,
+    over: 'Fim da ronda',
+    newBest: 'Novo recorde!',
+    points: 'Pontos',
+    accuracy: 'Precisão',
+    maxCombo: 'Combo máximo',
+    counts: (p: number, g: number, m: number) => `${p} perfeitos · ${g} bons · ${m} falhados`,
+    offset: (ms: number) =>
+      ms === 0
+        ? 'Tocas a tempo.'
+        : ms > 0
+          ? `Tocas em média ${ms} ms tarde.`
+          : `Tocas em média ${-ms} ms cedo.`,
+    again: 'Jogar outra vez',
+    quit: 'Sair',
+  },
   meta: {
     htmlLang: 'pt-PT',
     title: 'Handagio — Vision Sound Cam',

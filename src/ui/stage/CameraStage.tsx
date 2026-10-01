@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { session } from '../../app/session';
 import { useStore } from '../../state/store';
+import { GameTrack } from '../game/GameTrack';
 import { HandOverlay } from './HandOverlay';
 import { HudOverlay } from './HudOverlay';
 import { ParticleWave } from './ParticleWave';
@@ -9,6 +10,7 @@ import s from './CameraStage.module.css';
 
 export function CameraStage() {
   const started = useStore((st) => st.started);
+  const playing = useStore((st) => st.game?.phase === 'playing');
   const videoRef = useCallback((v: HTMLVideoElement | null) => session.attachVideo(v), []);
   return (
     <div className={s.window}>
@@ -19,6 +21,7 @@ export function CameraStage() {
         <div className={s.dim} aria-hidden />
         <ParticleWave />
         <HandOverlay />
+        {playing && <GameTrack />}
         <HudOverlay />
         {!started && <StartScreen />}
         <CameraErrorCard />

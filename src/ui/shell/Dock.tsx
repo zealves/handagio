@@ -188,7 +188,8 @@ function TouchKeys() {
 export function Dock() {
   const started = useStore((st) => st.started);
   const touchKeys = useStore((st) => st.touchKeys);
-  if (!started) return null;
+  const inGame = useStore((st) => st.game !== null);
+  if (!started || inGame) return null;
   return (
     <div className={s.dock} data-testid="dock">
       <Message />

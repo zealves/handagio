@@ -27,6 +27,13 @@ export const IconMusic = (p: P) => (
     <circle cx="17.5" cy="16" r="2.5" />
   </svg>
 );
+export const IconGamepad = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M6 11h4M8 9v4" />
+    <path d="M15 12h.01M18 10h.01" />
+    <path d="M17.3 5H6.7a4 4 0 0 0-3.95 3.4L2 14.5A2.8 2.8 0 0 0 6.9 17l1.6-2h7l1.6 2a2.8 2.8 0 0 0 4.9-2.5l-.75-6.1A4 4 0 0 0 17.3 5Z" />
+  </svg>
+);
 export const IconCamera = (p: P) => (
   <svg {...base(p)}>
     <rect x="3" y="6" width="13" height="12" rx="2.5" />

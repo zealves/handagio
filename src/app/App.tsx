@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useStore } from '../state/store';
+import { GameDialog } from '../ui/game/GameDialog';
 import { SettingsDialog } from '../ui/panels/SettingsDialog';
 import { Dock } from '../ui/shell/Dock';
 import { Sheet } from '../ui/shell/Sheet';
@@ -42,6 +43,7 @@ export function App() {
       </main>
       <Sheet />
       <SettingsDialog />
+      <GameDialog />
     </div>
   );
 }

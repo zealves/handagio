@@ -1,10 +1,18 @@
 // Cabeçalho: a marca, o seletor de língua (sempre) e, depois de começar, as ações de topo
 // (teclado tátil, ecrã inteiro, gravar e definições).
 import { toggleRecording } from './recording';
+import { session } from './session';
 import { useT } from '../i18n';
 import { useStore } from '../state/store';
 import { IconButton } from '../ui/controls/IconButton';
-import { IconExpand, IconKeys, IconLogo, IconSettings, IconShrink } from '../ui/icons/UiIcons';
+import {
+  IconExpand,
+  IconGamepad,
+  IconKeys,
+  IconLogo,
+  IconSettings,
+  IconShrink,
+} from '../ui/icons/UiIcons';
 import { useFullscreen } from '../ui/shell/fullscreen';
 import { LangMenu } from '../ui/shell/LangMenu';
 import s from './TopBar.module.css';
@@ -13,6 +21,7 @@ export function TopBar() {
   const started = useStore((st) => st.started);
   const recording = useStore((st) => st.recording);
   const touchKeys = useStore((st) => st.touchKeys);
+  const inGame = useStore((st) => st.game !== null);
   const set = useStore((st) => st.set);
   const fs = useFullscreen();
   const h = useT().header;
@@ -25,8 +34,11 @@ export function TopBar() {
       </h1>
       <div className={s.actions}>
         <LangMenu />
-        {started && (
+        {started && !inGame && (
           <>
+            <IconButton label={h.game} onClick={() => session.openGame()} data-testid="game-open">
+              <IconGamepad />
+            </IconButton>
             <IconButton
               label={touchKeys ? h.touchHide : h.touchShow}
               aria-pressed={touchKeys}

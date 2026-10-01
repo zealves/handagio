@@ -243,6 +243,7 @@ const en = {
     record: 'Record',
     stopRecording: 'Stop recording',
     settings: 'Settings',
+    game: 'Play',
   },
   hud: {
     note: 'Note:',
@@ -470,6 +471,41 @@ const en = {
     tapAgain: ' · tap again to delete',
   },
   keyboard: { piano: 'Piano keyboard', pads: (kit: string) => `Percussion pads: ${kit}` },
+  game: {
+    title: 'Game mode',
+    intro: 'Bend the right finger when the note reaches the line. Every hit plays the melody.',
+    difficulty: 'Difficulty',
+    levels: { easy: 'Easy', medium: 'Medium', hard: 'Hard' },
+    levelDesc: {
+      easy: '4 lanes · index and middle fingers',
+      medium: '6 lanes · plus ring fingers',
+      hard: '8 lanes · every finger',
+    },
+    best: (n: number) => `Best: ${n}`,
+    noBest: 'No best yet',
+    lag: (ms: number) => `Camera delay: ${ms} ms`,
+    lagHint: 'If hits count late, raise it; if they count early, lower it.',
+    start: 'Start',
+    cancel: 'Cancel',
+    exit: 'Leave the game (Esc)',
+    go: 'Go!',
+    judge: { perfect: 'Perfect!', good: 'Good', miss: 'Miss' },
+    combo: (n: number) => `Combo ${n}`,
+    over: 'Round over',
+    newBest: 'New best!',
+    points: 'Points',
+    accuracy: 'Accuracy',
+    maxCombo: 'Best combo',
+    counts: (p: number, g: number, m: number) => `${p} perfect · ${g} good · ${m} missed`,
+    offset: (ms: number) =>
+      ms === 0
+        ? 'You play on time.'
+        : ms > 0
+          ? `You play ${ms} ms late on average.`
+          : `You play ${-ms} ms early on average.`,
+    again: 'Play again',
+    quit: 'Leave',
+  },
   meta: {
     htmlLang: 'en',
     title: 'Handagio — Vision Sound Cam',
