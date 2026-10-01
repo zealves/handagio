@@ -38,7 +38,12 @@ await p.getByTestId('start').click();
 await p.waitForTimeout(3500);
 await p.evaluate(() => {
   const v = window.__vsc;
-  v.store.getState().set({ instrument: 'marimba', status: '' });
+  // sem as dicas do primeiro uso: o GIF mostra a app de quem já a conhece
+  v.store.getState().set({
+    instrument: 'marimba',
+    status: '',
+    coachDone: ['hands', 'bend', 'mouth', 'touch'],
+  });
   let t = 0;
   // sequência: mindinho esquerdo → mindinho direito, e de volta
   const order = [4, 3, 2, 1, 6, 7, 8, 9, 8, 7, 6, 1, 2, 3];
