@@ -1,8 +1,61 @@
 import { describe, expect, it } from 'vitest';
 import { COUNT_IN_STEPS, DIFFICULTIES, DIFFICULTY } from './config';
-import { DRUM_SLOT, generateChart, progressionFor } from './generator';
+import { DRUM_SLOT, generateChart, progressionFor, spaceLanes } from './generator';
 
 const seeds = Array.from({ length: 20 }, (_, k) => k + 1);
+
+describe('spaceLanes', () => {
+  it('afasta notas seguidas na mesma faixa, mudando para a faixa ao lado', () => {
+    const out = spaceLanes(
+      [
+        { step: 0, lane: 1 },
+        { step: 2, lane: 1 },
+        { step: 8, lane: 3 },
+      ],
+      4,
+    );
+    expect(out[0]).toEqual({ step: 0, lane: 1 });
+    expect(out[1].lane).not.toBe(1);
+    expect(out[2]).toEqual({ step: 8, lane: 3 });
+  });
+
+  it('nunca move a última nota: se colidir com a anterior, é a anterior que muda de faixa', () => {
+    // a reassignação do conflito (passo 0 / passo 2, faixa 1) empurraria a nota do passo 2 para
+    // a faixa 2, que é a faixa da nota final (passo 4) a menos de 1 tempo de distância
+    const out = spaceLanes(
+      [
+        { step: 0, lane: 1 },
+        { step: 2, lane: 1 },
+        { step: 4, lane: 2 },
+      ],
+      4,
+    );
+    const last = out[out.length - 1];
+    expect(last).toEqual({ step: 4, lane: 2 });
+    const prev = out[out.length - 2];
+    expect(prev.step).toBe(2);
+    expect(prev.lane).not.toBe(last.lane);
+  });
+
+  it('ao mudar a penúltima nota, evita também a faixa da sua própria antecessora', () => {
+    const out = spaceLanes(
+      [
+        { step: 0, lane: 3 },
+        { step: 6, lane: 0 },
+        { step: 8, lane: 0 },
+      ],
+      5,
+    );
+    const last = out[out.length - 1];
+    expect(last).toEqual({ step: 8, lane: 0 });
+    const prev = out[out.length - 2];
+    expect(prev.step).toBe(6);
+    expect(prev.lane).not.toBe(0); // não repete a faixa da nota final
+    expect(prev.lane).not.toBe(3); // não repete a faixa da sua antecessora
+    expect(prev.lane).toBeGreaterThanOrEqual(0);
+    expect(prev.lane).toBeLessThan(5);
+  });
+});
 
 describe('generateChart', () => {
   it('a mesma semente dá a mesma partitura', () => {

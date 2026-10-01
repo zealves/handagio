@@ -139,7 +139,7 @@ const nearest = (xs: number[], to: number): number =>
  * anterior, é a anterior que muda de faixa, para uma diferente da sua própria antecessora e
  * da faixa da final (para não voltar a colidir com nenhuma das duas).
  */
-function spaceLanes(ns: Onset[], lanes: number): Onset[] {
+export function spaceLanes(ns: Onset[], lanes: number): Onset[] {
   const out = [...ns].sort((a, b) => a.step - b.step);
   const lastIdx = out.length - 1;
   for (let k = 1; k < out.length; k++) {
