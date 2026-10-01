@@ -1,28 +1,20 @@
 .hud {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
   z-index: 2;
   pointer-events: none;
-  padding: 14px;
+  padding: 12px;
   display: grid;
-  grid-template-columns: 1fr auto;
-  align-content: start;
-  gap: 8px;
-}
-.col {
-  display: grid;
-  gap: 8px;
   justify-items: start;
-  align-content: start;
-}
-.right {
-  justify-items: end;
+  gap: 8px;
 }
 .chip {
   display: inline-flex;
+  align-items: center;
   gap: 6px;
-  padding: 5px 11px;
-  border-radius: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
   background: rgba(10, 16, 36, 0.55);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -38,6 +30,21 @@
   letter-spacing: 0.03em;
   text-transform: none;
   font-variant-numeric: tabular-nums;
+}
+/* chips que são botões: apanham o toque e têm 44 px de altura */
+.btn {
+  pointer-events: auto;
+  min-height: 44px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.btn:hover {
+  border-color: #35e0ff;
+}
+.btn[data-state='recording'],
+.btn[data-state='armed'] {
+  border-color: rgba(255, 59, 78, 0.6);
 }
 .rec {
   composes: chip;
@@ -68,19 +75,11 @@
     animation: none;
   }
 }
-@media (max-width: 600px) {
+@media (max-width: 639px) {
   .hud {
     padding: 8px;
   }
   .chip {
-    font-size: 11px;
-    padding: 3px 8px;
-  }
-}
-/* paisagem baixa: a barra vertical fica à direita, dentro do palco (tokens --vbar-inset e
-   --vbar-w); os chips da direita passam para a esquerda dela, com 8 px de folga */
-@media (min-width: 600px) and (max-height: 499px) and (orientation: landscape) {
-  .right {
-    margin-right: calc(var(--vbar-inset) + var(--vbar-w) + 8px - 14px);
+    font-size: 11.5px;
   }
 }

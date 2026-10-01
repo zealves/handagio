@@ -1,21 +1,20 @@
 import { useEffect } from 'react';
 import { useStore } from '../state/store';
-import { session } from './session';
 import { SettingsDialog } from '../ui/panels/SettingsDialog';
-import { ChordColumn } from '../ui/shell/ChordColumn';
-import { ControlBar } from '../ui/shell/ControlBar';
-import { DrawerHost } from '../ui/shell/DrawerHost';
-import { EffectsFooter } from '../ui/shell/EffectsFooter';
+import { Dock } from '../ui/shell/Dock';
+import { Sheet } from '../ui/shell/Sheet';
 import { installShortcuts } from '../ui/shell/shortcuts';
 import { useAutoHide } from '../ui/shell/useAutoHide';
 import { WaveViz } from '../ui/shell/WaveViz';
 import { CameraStage } from '../ui/stage/CameraStage';
 import s from './App.module.css';
+import { session } from './session';
 import { TopBar } from './TopBar';
 
 export function App() {
   const theme = useStore((st) => st.theme);
   const uiHidden = useStore((st) => st.uiHidden);
+  const started = useStore((st) => st.started);
   const peek = useAutoHide(uiHidden);
 
   useEffect(() => {
@@ -28,22 +27,20 @@ export function App() {
   }, []);
 
   return (
-    <div className={s.app} data-ui={uiHidden ? (peek ? 'peek' : 'hidden') : 'shown'}>
+    <div
+      className={s.app}
+      data-ui={uiHidden ? (peek ? 'peek' : 'hidden') : 'shown'}
+      data-started={started || undefined}
+    >
       <TopBar />
       <main className={s.main} id="conteudo">
         <div className={s.stageBox}>
-          <CameraStage onStart={() => void session.start()} />
-          <div className={s.chordSlot} data-testid="chord-slot">
-            <ChordColumn />
-          </div>
-          <div className={s.barSlot} data-testid="bar-slot">
-            <ControlBar />
-          </div>
+          <CameraStage />
+          <WaveViz className={s.waves} />
+          <Dock />
         </div>
-        <EffectsFooter className={s.footer} />
-        <WaveViz className={s.strip} />
       </main>
-      <DrawerHost />
+      <Sheet />
       <SettingsDialog />
     </div>
   );

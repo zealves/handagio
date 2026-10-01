@@ -57,16 +57,6 @@
 }
 
 /* efeitos */
-.mouthSel {
-  display: grid;
-  justify-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-.mouthSel select {
-  font-size: 12px;
-  padding: 6px 4px;
-}
 .meter {
   display: flex;
   align-items: center;
@@ -95,31 +85,6 @@
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
-/* Boca no rodapé: o seletor por cima e um medidor pequeno por baixo, à altura dos knobs */
-.mouthMini {
-  display: grid;
-  gap: 6px;
-  width: 116px;
-}
-.mouthMiniSel select {
-  height: 30px;
-  padding: 0 6px;
-  font-size: 12px;
-}
-.mouthMiniMeter {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 10px;
-  line-height: 14px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.mouthMiniMeter .bar {
-  height: 6px;
-}
-
 /* tempo e looper */
 .tempoRow {
   display: flex;
@@ -404,4 +369,150 @@
 }
 .noteEditor .hint {
   margin: 0;
+}
+
+/* ---------- v3: secções das tabs, pills de escolha e cartões ---------- */
+/* título de secção dentro de uma tab (INSTRUMENTO, ESCALA…) */
+.label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-family: var(--font-title);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.section {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+}
+/* fila de pills com scroll horizontal (tónicas, sons guardados) */
+.pillRow {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 2px 6px;
+  margin: 0 -2px;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+}
+.pillRow::-webkit-scrollbar {
+  display: none;
+}
+.pillWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pill {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  min-width: 40px;
+  justify-content: center;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--tile-bg);
+  color: var(--ink);
+  font-size: 13px;
+  white-space: nowrap;
+  scroll-snap-align: start;
+  transition:
+    border-color var(--t-fast),
+    background var(--t-fast);
+}
+.pill:hover {
+  border-color: var(--line-strong);
+}
+.pill[aria-checked='true'],
+.pill[aria-pressed='true'] {
+  border-color: var(--cyan);
+  background: rgba(53, 224, 255, 0.14);
+  color: var(--cyan);
+}
+.pillMore {
+  composes: pill;
+  color: var(--muted);
+  border-style: dashed;
+}
+/* cartões (instrumentos, formas de tocar) */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px;
+}
+.card {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 6px;
+  min-height: 76px;
+  padding: 10px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--tile-bg);
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+  line-height: 1.2;
+  transition:
+    border-color var(--t-fast),
+    background var(--t-fast);
+}
+.card:hover {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+.card[aria-pressed='true'],
+.card[aria-checked='true'] {
+  border-color: var(--cyan);
+  background: rgba(53, 224, 255, 0.12);
+  color: var(--cyan);
+}
+.card:focus-visible,
+.pill:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 1px;
+}
+/* as 7 formas de tocar em 4×2, como no protótipo */
+.chordCards {
+  composes: cards;
+  grid-template-columns: repeat(4, 1fr);
+}
+.cardActive {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--ink);
+}
+.cardActive b {
+  color: var(--cyan);
+  font-weight: 600;
+}
+.rowEnd {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ecrãs táteis: alvos de 44 px */
+@media (pointer: coarse) {
+  .pill,
+  .btn,
+  .chip,
+  .seg button {
+    min-height: 44px;
+  }
+  .chip {
+    padding: 0 14px;
+    font-size: 12.5px;
+  }
 }

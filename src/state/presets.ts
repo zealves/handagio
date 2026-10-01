@@ -78,3 +78,15 @@ export const completePreset = (p: Partial<SoundSettings>): SoundSettings => ({
   customNotes: normalizeCustomNotes(p.customNotes),
   chord: validChord(p.chord ?? DEFAULT_SOUND.chord),
 });
+
+/** O som atual é este preset? (campo a campo, depois de completar os presets antigos). */
+export function presetMatches(s: SoundSettings, p: Partial<SoundSettings>): boolean {
+  const full = completePreset(p);
+  return KEYS.every((k) => {
+    const a = s[k];
+    const b = full[k];
+    return Array.isArray(a) && Array.isArray(b)
+      ? a.length === b.length && a.every((v, i) => v === b[i])
+      : a === b;
+  });
+}

@@ -2,7 +2,10 @@ export type Engine = 'none' | 'hands' | 'motion' | 'keyboard';
 export type Quantize = 'off' | '1/8' | '1/16';
 export type ThemeName = 'dark' | 'light';
 export type LoopBars = 1 | 2 | 4;
-export type DrawerId = 'instrumentos' | 'escala' | 'efeitos' | 'tempo' | 'gravacoes' | 'rato';
+/** Tabs da folha de configuração (a última fica lembrada durante a sessão). */
+export type SheetTab = 'som' | 'notas' | 'efeitos' | 'estudio';
+/** Dicas do primeiro uso (cada uma aparece até se cumprir). */
+export type CoachId = 'hands' | 'bend' | 'mouth' | 'touch';
 export type MouthFxId =
   'wah' | 'filter' | 'dist' | 'echo' | 'vibrato' | 'robot' | 'tremolo' | 'swell' | 'off';
 

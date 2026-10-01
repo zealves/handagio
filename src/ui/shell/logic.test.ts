@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_CUSTOM_NOTES, LEGACY_CUSTOM_NOTES } from '../../app/notes';
 import { INSTRUMENTS } from '../../audio/instruments';
 import {
+  coachStep,
   compositeSources,
+  effectDefaults,
+  SHEET_TABS,
+  tabForKey,
+  visibleScales,
   groupByFamily,
   migratePrefs,
   keyTarget,
@@ -253,5 +258,98 @@ describe('keyTarget', () => {
     expect(keyTarget('End', 2, 7)).toBe(6);
     expect(keyTarget('Enter', 2, 7)).toBeNull();
     expect(keyTarget(' ', 2, 7)).toBeNull();
+  });
+});
+
+describe('tabForKey', () => {
+  it('1–4 abrem Som, Notas, Efeitos e Estúdio; as outras teclas não', () => {
+    expect(SHEET_TABS).toEqual(['som', 'notas', 'efeitos', 'estudio']);
+    expect(tabForKey('1')).toBe('som');
+    expect(tabForKey('2')).toBe('notas');
+    expect(tabForKey('3')).toBe('efeitos');
+    expect(tabForKey('4')).toBe('estudio');
+    expect(tabForKey('5')).toBeNull();
+    expect(tabForKey('a')).toBeNull();
+  });
+});
+
+describe('visibleScales', () => {
+  it('fechado: as 5 mais usadas; a ativa junta-se se for outra', () => {
+    expect(visibleScales('Maior', false)).toEqual([
+      'Maior',
+      'Menor',
+      'Pentatónica',
+      'Blues',
+      'Menor harmónica',
+    ]);
+    expect(visibleScales('Dórica', false)).toEqual([
+      'Maior',
+      'Menor',
+      'Pentatónica',
+      'Blues',
+      'Menor harmónica',
+      'Dórica',
+    ]);
+  });
+  it('aberto: todas, sem repetir', () => {
+    const all = visibleScales('Maior', true);
+    expect(all).toHaveLength(16);
+    expect(new Set(all).size).toBe(16);
+  });
+});
+
+describe('coachStep', () => {
+  const base = {
+    engine: 'hands' as const,
+    done: [] as ('hands' | 'bend' | 'mouth' | 'touch')[],
+    handsSeen: false,
+    notes: 0,
+    faceOk: true,
+  };
+  it('mãos primeiro, depois dobrar, depois a boca ao fim de 5 notas', () => {
+    expect(coachStep(base)).toBe('hands');
+    expect(coachStep({ ...base, handsSeen: true })).toBe('bend');
+    expect(coachStep({ ...base, handsSeen: true, notes: 2 })).toBeNull();
+    expect(coachStep({ ...base, handsSeen: true, notes: 5 })).toBe('mouth');
+  });
+  it('as cumpridas não voltam', () => {
+    expect(coachStep({ ...base, done: ['hands'] })).toBe('bend');
+    expect(coachStep({ ...base, done: ['hands', 'bend'], notes: 9 })).toBe('mouth');
+    expect(coachStep({ ...base, done: ['hands', 'bend', 'mouth'], notes: 9 })).toBeNull();
+  });
+  it('sem deteção da cara não pede a boca', () => {
+    expect(coachStep({ ...base, handsSeen: true, notes: 9, faceOk: false })).toBeNull();
+  });
+  it('sem câmara: só "toca nas teclas" até à primeira nota', () => {
+    expect(coachStep({ ...base, engine: 'keyboard' })).toBe('touch');
+    expect(coachStep({ ...base, engine: 'keyboard', notes: 1 })).toBeNull();
+    expect(coachStep({ ...base, engine: 'keyboard', done: ['touch'] })).toBeNull();
+  });
+  it('antes de arrancar a deteção, nada', () => {
+    expect(coachStep({ ...base, engine: 'none' })).toBeNull();
+    expect(coachStep({ ...base, engine: 'motion' })).toBeNull();
+  });
+});
+
+describe('effectDefaults', () => {
+  it('são os valores de fábrica dos 5 knobs e do efeito da boca', () => {
+    expect(effectDefaults()).toEqual({
+      reverb: 0.3,
+      echo: 0.15,
+      filter: 1,
+      drive: 0,
+      pitch: 0,
+      mouthFx: 'wah',
+    });
+  });
+});
+
+describe('sanitizePrefs (dicas e FPS)', () => {
+  it('dicas desconhecidas saem; showFps só aceita booleanos', () => {
+    expect(sanitizePrefs({ coachDone: ['hands', 'x', 'mouth'] })).toEqual({
+      coachDone: ['hands', 'mouth'],
+    });
+    expect(sanitizePrefs({ coachDone: 'hands' })).toEqual({ coachDone: [] });
+    expect(sanitizePrefs({ showFps: 1 })).toEqual({ showFps: false });
   });
 });

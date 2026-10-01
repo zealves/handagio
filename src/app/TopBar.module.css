@@ -3,6 +3,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-height: 44px;
+  padding: 0 4px;
 }
 .brand {
   display: flex;
@@ -35,9 +37,41 @@
   justify-content: flex-end;
   gap: 8px;
 }
-@media (max-width: 599px) {
-  .bar {
-    padding: 0 8px;
+/* Gravar: o círculo vermelho passa a quadrado enquanto grava */
+.rec {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--glass-strong);
+  transition:
+    border-color var(--t-fast),
+    background var(--t-fast);
+}
+.rec:hover {
+  border-color: var(--rec);
+}
+.rec i {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--rec);
+  transition: border-radius var(--t-fast);
+}
+.rec[aria-pressed='true'] {
+  border-color: var(--rec);
+  background: color-mix(in srgb, var(--rec) 22%, transparent);
+}
+.rec[aria-pressed='true'] i {
+  border-radius: 3px;
+  box-shadow: 0 0 12px var(--rec);
+}
+/* telemóvel: sem ecrã inteiro (o iPhone não o tem; fica a tecla E e o "esconder interface") */
+@media (max-width: 639px) {
+  .wideOnly {
+    display: none;
   }
   .name {
     font-size: 14px;

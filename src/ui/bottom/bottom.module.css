@@ -131,3 +131,15 @@
     grid-auto-rows: 50px;
   }
 }
+/* telemóvel: o piano cabe à largura (2 oitavas) e os 8 pads ficam em 2 filas de 4 */
+@media (max-width: 559px) {
+  .piano {
+    min-width: 100%;
+    height: 112px;
+  }
+  .pads {
+    width: 100%;
+    grid-template-columns: repeat(4, 1fr);
+    grid-auto-rows: 52px;
+  }
+}

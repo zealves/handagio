@@ -1,7 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { session } from '../../app/session';
-import { completePreset, FACTORY_PRESETS, pickSound } from '../../state/presets';
 import { DEFAULT_PREFS, getState, useStore } from '../../state/store';
 import { IconButton } from '../controls/IconButton';
 import { Slider } from '../controls/Slider';
@@ -9,7 +8,8 @@ import { Toggle } from '../controls/Toggle';
 import type { LearnedRange } from '../../vision/adaptive';
 import { activeScreenOrder, fingerLabel } from '../../vision/fingerMap';
 import { FINGER_COLORS } from '../theme';
-import { IconClose } from '../icons/UiIcons';
+import { IconBack, IconClose } from '../icons/UiIcons';
+import { FINE_POINTER, useMedia } from '../shell/media';
 import p from './panels.module.css';
 import s from './SettingsDialog.module.css';
 
@@ -26,23 +26,23 @@ export function SettingsDialog() {
       learnedRanges: x.learnedRanges,
       calibrating: x.calibrating,
       engine: x.engine,
-      userPresets: x.userPresets,
-      octave: x.octave,
       heightPitch: x.heightPitch,
       glide: x.glide,
       sensitivity: x.sensitivity,
       thumbSensitivity: x.thumbSensitivity,
       thumbs: x.thumbs,
       custom: x.noteMode === 'custom',
+      muted: x.muted,
+      uiHidden: x.uiHidden,
+      showFps: x.showFps,
       set: x.set,
     })),
   );
   const ref = useRef<HTMLDialogElement>(null);
   const id = useId();
   const [cams, setCams] = useState<{ id: string; label: string }[]>([]);
-  const [preset, setPreset] = useState('Piano calmo');
-  const [name, setName] = useState('');
   const [msg, setMsg] = useState('');
+  const fine = useMedia(FINE_POINTER);
 
   useEffect(() => {
     const d = ref.current!;
@@ -53,35 +53,6 @@ export function SettingsDialog() {
   }, [st.open]);
 
   const close = () => st.set({ settingsOpen: false });
-  const all = { ...FACTORY_PRESETS, ...st.userPresets };
-  const isUser = preset in st.userPresets;
-
-  const load = () => {
-    const pr = all[preset];
-    if (!pr) return;
-    st.set(completePreset(pr));
-    setMsg(`Predefinição "${preset}" carregada.`);
-  };
-  const save = () => {
-    const n = name.trim();
-    if (!n) return;
-    if (n in FACTORY_PRESETS) {
-      setMsg('Esse nome é de uma predefinição de fábrica. Escolhe outro.');
-      return;
-    }
-    st.set({ userPresets: { ...st.userPresets, [n]: pickSound(getState()) } });
-    setPreset(n);
-    setName('');
-    setMsg(`Predefinição "${n}" guardada.`);
-  };
-  const remove = () => {
-    if (!isUser) return;
-    const rest = { ...st.userPresets };
-    delete rest[preset];
-    st.set({ userPresets: rest });
-    setPreset('Piano calmo');
-    setMsg('Predefinição apagada.');
-  };
 
   return (
     <dialog
@@ -94,87 +65,27 @@ export function SettingsDialog() {
       data-testid="settings"
     >
       <div className={s.head}>
+        <button
+          type="button"
+          className={s.back}
+          aria-label="Fechar as definições"
+          onClick={close}
+          data-testid="settings-back"
+        >
+          <IconBack width={18} height={18} /> Voltar
+        </button>
         <h2 id={`${id}-t`}>Definições</h2>
-        <IconButton small label="Fechar as definições" onClick={close}>
+        <IconButton
+          small
+          className={s.closeX}
+          label="Fechar as definições"
+          onClick={close}
+          data-testid="settings-close"
+        >
           <IconClose width={16} height={16} />
         </IconButton>
       </div>
       <div className={s.body}>
-        <section className={s.section}>
-          <h3>Predefinições</h3>
-          <div className={s.row}>
-            <select
-              value={preset}
-              onChange={(e) => setPreset(e.target.value)}
-              aria-label="Predefinição"
-              data-testid="preset-select"
-            >
-              <optgroup label="De fábrica">
-                {Object.keys(FACTORY_PRESETS).map((n) => (
-                  <option key={n}>{n}</option>
-                ))}
-              </optgroup>
-              {Object.keys(st.userPresets).length > 0 && (
-                <optgroup label="As minhas">
-                  {Object.keys(st.userPresets).map((n) => (
-                    <option key={n}>{n}</option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
-            <button type="button" className={p.btn} onClick={load} data-testid="preset-load">
-              Carregar
-            </button>
-            {isUser && (
-              <button type="button" className={p.btn} onClick={remove}>
-                Apagar
-              </button>
-            )}
-          </div>
-          <div className={s.row}>
-            <input
-              className={s.input}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && save()}
-              placeholder="Nome da predefinição"
-              aria-label="Nome para guardar a predefinição atual"
-              maxLength={40}
-            />
-            <button type="button" className={p.btn} onClick={save} disabled={!name.trim()}>
-              Guardar atual
-            </button>
-          </div>
-          <p className={s.hint} aria-live="polite">
-            {msg ||
-              'Guarda o instrumento, a escala, a tónica, a oitava, as notas dos dedos, os efeitos e o tempo.'}
-          </p>
-        </section>
-
-        <section className={s.section}>
-          <h3>Câmara</h3>
-          <label className={p.field}>
-            Câmara
-            <select
-              value={st.cameraId ?? ''}
-              onChange={(e) => st.set({ cameraId: e.target.value || null })}
-              disabled={cams.length < 2}
-            >
-              <option value="">Predefinida</option>
-              {cams.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Toggle
-            label="Baixar ainda mais a resolução (computadores mais lentos)"
-            checked={st.lowRes}
-            onChange={(v) => st.set({ lowRes: v })}
-          />
-        </section>
-
         <section className={s.section}>
           <h3>Mãos</h3>
           <div className={s.row}>
@@ -220,8 +131,25 @@ export function SettingsDialog() {
             mindinho tocarem com menos esforço. A calibração, se a fizeres, tem prioridade.
           </p>
           {st.learnHand && st.learnedRanges && (
-            <LearnedBars ranges={st.learnedRanges} thumbs={st.thumbs} />
+            <details className={s.details}>
+              <summary>Ver o intervalo aprendido</summary>
+              <LearnedBars ranges={st.learnedRanges} thumbs={st.thumbs} />
+            </details>
           )}
+          <Slider
+            label="Sensibilidade da visão"
+            min={0}
+            max={100}
+            value={Math.round(st.sensitivity * 100)}
+            onChange={(v) => st.set({ sensitivity: v / 100 })}
+            format={(v) => `${v}%`}
+          />
+          <Toggle
+            label="Usar também os polegares"
+            checked={st.thumbs}
+            onChange={(v) => st.set({ thumbs: v })}
+            testId="thumbs"
+          />
           {st.thumbs && (
             <>
               <Slider
@@ -239,25 +167,6 @@ export function SettingsDialog() {
               </p>
             </>
           )}
-        </section>
-
-        <section className={s.section}>
-          <h3>Tocar</h3>
-          <Slider
-            label="Oitava base"
-            min={1}
-            max={6}
-            value={st.octave}
-            onChange={(v) => st.set({ octave: v })}
-          />
-          <Slider
-            label="Sensibilidade da visão"
-            min={0}
-            max={100}
-            value={Math.round(st.sensitivity * 100)}
-            onChange={(v) => st.set({ sensitivity: v / 100 })}
-            format={(v) => `${v}%`}
-          />
           <Toggle
             label={`A altura da mão escolhe a nota${st.custom ? ' (só no modo Escala)' : ''}`}
             checked={st.heightPitch}
@@ -280,7 +189,31 @@ export function SettingsDialog() {
         </section>
 
         <section className={s.section}>
-          <h3>Som e aspeto</h3>
+          <h3>Câmara</h3>
+          <label className={p.field}>
+            Câmara
+            <select
+              value={st.cameraId ?? ''}
+              onChange={(e) => st.set({ cameraId: e.target.value || null })}
+              disabled={cams.length < 2}
+            >
+              <option value="">Predefinida</option>
+              {cams.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Toggle
+            label="Baixar ainda mais a resolução (computadores mais lentos)"
+            checked={st.lowRes}
+            onChange={(v) => st.set({ lowRes: v })}
+          />
+        </section>
+
+        <section className={s.section}>
+          <h3>Som</h3>
           <Slider
             label="Volume geral"
             min={0}
@@ -289,6 +222,16 @@ export function SettingsDialog() {
             onChange={(v) => st.set({ volume: v / 100 })}
             format={(v) => `${v}%`}
           />
+          <Toggle
+            label="Silenciar"
+            checked={st.muted}
+            onChange={(v) => st.set({ muted: v })}
+            testId="mute"
+          />
+        </section>
+
+        <section className={s.section}>
+          <h3>Aspeto</h3>
           <div className={s.row} style={{ justifyContent: 'space-between' }}>
             <span className={p.field} id={`${id}-th`}>
               Tema
@@ -307,22 +250,21 @@ export function SettingsDialog() {
               ))}
             </div>
           </div>
-          <div className={s.row}>
-            <button
-              type="button"
-              className={p.btn}
-              onClick={() => {
-                const { userPresets } = getState();
-                st.set({ ...DEFAULT_PREFS, userPresets });
-                setMsg('Preferências repostas.');
-              }}
-            >
-              Repor as preferências
-            </button>
-          </div>
-          <p className={s.hint}>Tudo fica guardado neste navegador. Nada sai do teu computador.</p>
+          <Toggle
+            label="Esconder a interface (I)"
+            checked={st.uiHidden}
+            onChange={(v) => st.set({ uiHidden: v, settingsOpen: !v })}
+            testId="hide-ui"
+          />
+          <Toggle
+            label="Mostrar FPS e modo de deteção"
+            checked={st.showFps}
+            onChange={(v) => st.set({ showFps: v })}
+            testId="show-fps"
+          />
         </section>
 
+        {fine && (
         <section className={s.section}>
           <h3>Atalhos</h3>
           <dl className={s.keys}>
@@ -341,7 +283,11 @@ export function SettingsDialog() {
             <dt>
               <kbd>C</kbd>
             </dt>
-            <dd>Forma de tocar: nota, tríade, sétima ou quinta</dd>
+            <dd>Cada dedo toca…: a forma seguinte</dd>
+            <dt>
+              <kbd>1</kbd>…<kbd>4</kbd>
+            </dt>
+            <dd>Abrir Som, Notas, Efeitos ou Estúdio</dd>
             <dt>
               <kbd>I</kbd>
             </dt>
@@ -353,9 +299,10 @@ export function SettingsDialog() {
             <dt>
               <kbd>Esc</kbd>
             </dt>
-            <dd>Fechar a gaveta ou voltar a mostrar a interface</dd>
+            <dd>Fechar o menu ou voltar a mostrar a interface</dd>
           </dl>
         </section>
+        )}
 
         <section className={s.section}>
           <h3>Créditos dos sons</h3>
@@ -368,6 +315,25 @@ export function SettingsDialog() {
             <a href="samples/CREDITS.md" target="_blank" rel="noopener">
               Ver créditos completos
             </a>
+          </p>
+        </section>
+
+        <section className={s.section}>
+          <div className={s.row}>
+            <button
+              type="button"
+              className={p.btn}
+              onClick={() => {
+                const { userPresets, coachDone } = getState();
+                st.set({ ...DEFAULT_PREFS, userPresets, coachDone });
+                setMsg('Preferências repostas.');
+              }}
+            >
+              Repor as preferências
+            </button>
+          </div>
+          <p className={s.hint} aria-live="polite">
+            {msg || 'Tudo fica guardado neste navegador. Nada sai do teu dispositivo.'}
           </p>
         </section>
       </div>

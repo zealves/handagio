@@ -76,7 +76,8 @@ class Session {
   private lastVideoTime = -1;
   private fpsCount = 0;
   private fpsT = 0;
-  private startedOnce = false;
+  /** A câmara está a abrir, ou já abriu (o arranque só volta a correr depois de ela falhar). */
+  private cameraBusy = false;
   /** Carregamento das amostras adiado depois de mudar de instrumento (percorrer com , e .). */
   private sampleTimer: ReturnType<typeof setTimeout> | null = null;
   private keysDown = new Set<string>();
@@ -598,20 +599,26 @@ class Session {
   }
 
   // ---------- arranque ----------
+  /**
+   * Liga o som e a câmara. Se a câmara falhar, fica no modo teclado com o erro em `cameraError`
+   * (o palco oferece tentar outra vez ou tocar no ecrã) e pode voltar a ser chamado.
+   */
   async start(): Promise<void> {
     this.ensureAudio();
-    if (this.startedOnce) return;
-    this.startedOnce = true;
-    setState({ started: true, status: 'A pedir acesso à câmara…' });
+    if (this.cameraBusy) return;
+    this.cameraBusy = true;
+    setState({ started: true, cameraError: null, status: 'A pedir acesso à câmara…' });
     this.startLoop();
     try {
       await this.openCamera();
     } catch (e) {
       const msg = e instanceof CameraError ? e.message : 'A câmara não arrancou.';
-      setState({ engine: 'keyboard', status: `${msg} Entretanto toca com o teclado.` });
+      this.cameraBusy = false;
+      setState({ engine: 'keyboard', cameraError: msg, status: '' });
       return;
     }
-    setState({ status: 'Câmara ligada. A carregar o detetor de dedos…' });
+    // com a câmara ligada, o teclado tátil (de quem começou sem câmara) sai do caminho
+    setState({ touchKeys: false, status: 'Câmara ligada. A carregar o detetor de dedos…' });
     try {
       await this.hands.init(LOAD_TIMEOUT_MS);
       setState({ engine: 'hands', status: 'Pronto. Mostra as mãos e dobra os dedos.' });
@@ -631,6 +638,14 @@ class Session {
       console.info('[visão] detetor da boca indisponível.', e);
       setState({ faceState: 'unavailable' });
     }
+  }
+
+  /** Começa sem câmara: só o som, com o teclado tátil à vista (e o do computador). */
+  startWithoutCamera(): void {
+    this.ensureAudio();
+    this.startLoop();
+    if (this.cameraBusy) return;
+    setState({ started: true, engine: 'keyboard', touchKeys: true, cameraError: null, status: '' });
   }
 
   async openCamera(): Promise<void> {

@@ -84,7 +84,11 @@ export async function stopRecording(): Promise<void> {
       createdAt,
     };
     await saveRecording(rec);
-    setState({ recording: false, lastRecordingId: rec.id });
+    setState({
+      recording: false,
+      lastRecordingId: rec.id,
+      notice: { text: `${rec.name} guardada`, tab: 'estudio' },
+    });
     await refreshRecordings();
   } finally {
     busy = false;

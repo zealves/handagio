@@ -4,16 +4,11 @@ import { useStore } from '../../state/store';
 import { HandOverlay } from './HandOverlay';
 import { HudOverlay } from './HudOverlay';
 import { ParticleWave } from './ParticleWave';
-import { StartScreen } from './StartScreen';
+import { CameraErrorCard, StartScreen } from './StartScreen';
 import s from './CameraStage.module.css';
 
-interface Props {
-  onStart: () => void;
-}
-
-export function CameraStage({ onStart }: Props) {
+export function CameraStage() {
   const started = useStore((st) => st.started);
-  const status = useStore((st) => st.status);
   const videoRef = useCallback((v: HTMLVideoElement | null) => session.attachVideo(v), []);
   return (
     <div className={s.window}>
@@ -25,12 +20,8 @@ export function CameraStage({ onStart }: Props) {
         <ParticleWave />
         <HandOverlay />
         <HudOverlay />
-        {!started && <StartScreen onStart={onStart} />}
-        {status && (
-          <div className={s.status} role="status">
-            {status}
-          </div>
-        )}
+        {!started && <StartScreen />}
+        <CameraErrorCard />
       </div>
     </div>
   );

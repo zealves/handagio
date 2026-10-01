@@ -125,6 +125,28 @@ export const IconShrink = (p: P) => (
     <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" />
   </svg>
 );
+export const IconKeys = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="M8 5v8M12 5v8M16 5v8M6.5 13h3M10.5 13h3M14.5 13h3" />
+  </svg>
+);
+export const IconSearch = (p: P) => (
+  <svg {...base(p)}>
+    <circle cx="11" cy="11" r="6" />
+    <path d="m20 20-4.5-4.5" />
+  </svg>
+);
+export const IconBack = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M15 5l-7 7 7 7" />
+  </svg>
+);
+export const IconPlus = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);
 export const IconLogo = (p: P) => (
   <svg viewBox="0 0 32 32" width={30} height={30} aria-hidden {...p}>
     <defs>

@@ -1,19 +1,17 @@
-// Registo dos efeitos globais: cada entrada tem o seu controlo, usado na gaveta Efeitos e no
-// rodapé por baixo do palco (em modo compacto). Um efeito novo = uma entrada aqui + o nó
-// correspondente em src/audio.
-import { useId, useRef, type ComponentType } from 'react';
+// Registo dos efeitos globais: cada entrada tem o seu controlo, usado na tab Efeitos. Um efeito
+// novo = uma entrada aqui + o nó correspondente em src/audio.
+import { useId, useRef, type ComponentType, type KeyboardEvent } from 'react';
 import { live } from '../../state/live';
 import { DEFAULT_SOUND, useStore, type SoundSettings } from '../../state/store';
 import { MOUTH_FX, type MouthFxId } from '../../state/types';
 import { Knob } from '../controls/Knob';
 import { useFrame } from '../frame';
 import p from '../panels/panels.module.css';
+import { keyTarget } from './logic';
 
-/** `compact`: versão pequena do rodapé (sem a explicação; o valor só com o rato ou o foco). */
 export interface ControlProps {
   size?: number;
   testId?: string;
-  compact?: boolean;
 }
 
 export interface EffectDef {
@@ -32,7 +30,7 @@ function storeKnob(
   label: string,
   o: { min: number; max: number; step?: number; format: (v: number) => string },
 ) {
-  function EffectKnob({ size, testId, compact }: ControlProps) {
+  function EffectKnob({ size, testId }: ControlProps) {
     const value = useStore((st) => st[k]);
     const set = useStore((st) => st.set);
     return (
@@ -47,7 +45,6 @@ function storeKnob(
         format={o.format}
         size={size}
         testId={testId}
-        compact={compact}
       />
     );
   }
@@ -55,12 +52,13 @@ function storeKnob(
 }
 
 // eslint-disable-next-line react-refresh/only-export-components -- ficheiro é um registo de dados (EFFECTS), não um módulo de componentes
-function MouthControl({ testId = 'mouth-fx', compact }: ControlProps) {
+function MouthControl({ testId = 'mouth-fx' }: ControlProps) {
   const mouthFx = useStore((st) => st.mouthFx);
   const set = useStore((st) => st.set);
   const id = useId();
   const bar = useRef<HTMLElement>(null);
   const txt = useRef<HTMLSpanElement>(null);
+  const opts = useRef<(HTMLButtonElement | null)[]>([]);
   useFrame(() => {
     if (bar.current) bar.current.style.width = `${live.mouth * 100}%`;
     if (txt.current) {
@@ -75,47 +73,44 @@ function MouthControl({ testId = 'mouth-fx', compact }: ControlProps) {
               : 'fechada';
     }
   });
-  const desc = MOUTH_FX.find((m) => m.id === mouthFx)?.desc;
-  const select = (
-    <select
-      value={mouthFx}
-      onChange={(e) => set({ mouthFx: e.target.value as MouthFxId })}
-      aria-describedby={`${id}-md`}
-      data-testid={testId}
-    >
-      {MOUTH_FX.map((m) => (
-        <option key={m.id} value={m.id}>
-          {m.label}
-        </option>
-      ))}
-    </select>
-  );
-  if (compact)
-    return (
-      <div className={p.mouthMini}>
-        <label className={p.mouthMiniSel} title="Efeito da boca: abre a boca para o aplicar">
-          <span className="sr-only">Efeito da boca</span>
-          {select}
-        </label>
-        <div className={p.mouthMiniMeter}>
-          <span aria-hidden>Boca</span>
-          <div className={p.bar} role="presentation">
-            <i ref={bar} />
-          </div>
-        </div>
-        <span id={`${id}-md`} className="sr-only">
-          {desc}. Segura Espaço para simular.
-        </span>
-      </div>
-    );
+  const k = MOUTH_FX.findIndex((m) => m.id === mouthFx);
+  const desc = MOUTH_FX[k]?.desc;
+  // radiogroup: as setas escolhem logo (o Espaço fica para a boca, decisão 14)
+  const onKey = (e: KeyboardEvent) => {
+    const next = keyTarget(e.key, k, MOUTH_FX.length);
+    if (next === null) return;
+    e.preventDefault();
+    set({ mouthFx: MOUTH_FX[next].id });
+    opts.current[next]?.focus();
+  };
   return (
     <div>
-      <label className={p.mouthSel}>
-        {select}
-        <span className={p.sub} style={{ margin: 0 }}>
-          Efeito da boca
-        </span>
-      </label>
+      <div
+        className={p.pillWrap}
+        role="radiogroup"
+        aria-label="Efeito da boca"
+        aria-describedby={`${id}-md`}
+        onKeyDown={onKey}
+        data-testid={testId}
+      >
+        {MOUTH_FX.map((m, i) => (
+          <button
+            key={m.id}
+            ref={(el) => {
+              opts.current[i] = el;
+            }}
+            type="button"
+            role="radio"
+            aria-checked={mouthFx === m.id}
+            tabIndex={mouthFx === m.id ? 0 : -1}
+            className={p.pill}
+            onClick={() => set({ mouthFx: m.id as MouthFxId })}
+            data-testid={`mouth-${m.id}`}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
       <div className={p.meter}>
         <span>Boca</span>
         <div className={p.bar} role="presentation">
@@ -125,8 +120,8 @@ function MouthControl({ testId = 'mouth-fx', compact }: ControlProps) {
           à espera
         </span>
       </div>
-      <p id={`${id}-md`} className={p.desc} style={{ minHeight: 0, marginTop: 6 }}>
-        {desc}. Segura <kbd>Espaço</kbd> para simular.
+      <p id={`${id}-md`} className={p.hint}>
+        {desc}. Abre a boca para aplicar; segura <kbd>Espaço</kbd> para simular.
       </p>
     </div>
   );

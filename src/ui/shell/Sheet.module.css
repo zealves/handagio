@@ -1,0 +1,135 @@
+/* Em baixo (telemóvel, tablet em retrato): 45% da altura, expande a 85%. Sem fundo escuro: o
+   palco fica vivo por cima e por trás. */
+.sheet {
+  --h: 45dvh;
+  --drag: 0px;
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 20;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 640px;
+  height: var(--h);
+  max-height: calc(100dvh - 56px);
+  padding: 0 0 env(safe-area-inset-bottom);
+  border: 1px solid var(--line-strong);
+  border-bottom: 0;
+  border-radius: 20px 20px 0 0;
+  background: var(--glass-strong);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  color: var(--ink);
+  box-shadow: 0 -16px 50px rgba(0, 0, 0, 0.4);
+  transform: translateY(max(var(--drag), 0px));
+  transition:
+    transform var(--t-med) ease-out,
+    height var(--t-med) ease-out;
+}
+.sheet[open] {
+  display: flex;
+  flex-direction: column;
+}
+.sheet[data-expanded] {
+  --h: 85dvh;
+}
+.sheet[data-dragging] {
+  transition: none;
+}
+@starting-style {
+  .sheet[open] {
+    transform: translateY(100%);
+  }
+}
+
+/* À direita, por cima do palco (paisagem larga, desktop): o palco nunca encolhe. */
+.sheet[data-side] {
+  inset: 0 0 0 auto;
+  margin: 0;
+  width: min(380px, 100vw);
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) 0;
+  border: 0;
+  border-left: 1px solid var(--line-strong);
+  border-radius: 0;
+  box-shadow: -20px 0 60px rgba(0, 0, 0, 0.35);
+  transform: none;
+}
+@starting-style {
+  .sheet[data-side][open] {
+    transform: translateX(100%);
+  }
+}
+
+.grip {
+  flex: none;
+  display: grid;
+  place-items: center;
+  height: 24px;
+  cursor: grab;
+  touch-action: none;
+}
+.grip i {
+  width: 32px;
+  height: 4px;
+  border-radius: 99px;
+  background: var(--ink);
+  opacity: 0.4;
+}
+.head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.sheet[data-side] .head {
+  padding-top: 12px;
+}
+/* tabs em segmentado, como no protótipo */
+.tabs {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--tile-bg);
+  border: 1px solid var(--line);
+}
+.tab {
+  min-height: 40px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.tab:hover {
+  color: var(--ink);
+}
+.tab[aria-selected='true'] {
+  background: var(--bg-2);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px 16px 24px;
+  display: grid;
+  align-content: start;
+  gap: 18px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sheet {
+    transition: none;
+  }
+}

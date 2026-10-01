@@ -1,8 +1,8 @@
 .iconBtn {
   display: inline-grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 999px;
   border: 1px solid var(--line);
   background: var(--glass-strong);
@@ -27,8 +27,18 @@
   color: var(--magenta);
 }
 .small {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
+}
+/* ecrãs táteis: alvos de 44 px */
+@media (pointer: coarse) {
+  .small {
+    width: 44px;
+    height: 44px;
+  }
+  .toggle {
+    min-height: 44px;
+  }
 }
 
 .slider {

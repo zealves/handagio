@@ -127,3 +127,53 @@
   border-radius: 2px;
   opacity: 0.85;
 }
+
+/* "← Voltar" no telemóvel (ecrã inteiro); ✕ nos ecrãs maiores (modal) */
+.back {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 0 8px 0 0;
+  border: 0;
+  background: none;
+  color: var(--cyan);
+  font-size: 14px;
+}
+.details summary {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.details[open] summary {
+  margin-bottom: 8px;
+}
+@media (max-width: 639px) {
+  .dialog {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .head {
+    justify-content: flex-start;
+    gap: 8px;
+    padding: calc(4px + env(safe-area-inset-top)) 12px 4px;
+  }
+  .back {
+    display: inline-flex;
+  }
+  .closeX {
+    display: none;
+  }
+  .body {
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+  }
+}

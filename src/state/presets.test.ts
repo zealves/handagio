@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { INSTRUMENT_BY_ID } from '../audio/instruments';
 import { SCALES } from '../audio/theory';
-import { completePreset, FACTORY_PRESETS, pickSound } from './presets';
+import { completePreset, FACTORY_PRESETS, pickSound, presetMatches } from './presets';
 import { DEFAULT_PREFS, DEFAULT_SOUND } from './store';
 
 describe('presets', () => {
@@ -64,5 +64,25 @@ describe('presets', () => {
       61,
       ...DEFAULT_SOUND.customNotes.slice(1),
     ]);
+  });
+});
+
+describe('presetMatches', () => {
+  it('coincide quando todos os campos de som são iguais', () => {
+    const p = FACTORY_PRESETS['Piano calmo'];
+    expect(presetMatches({ ...DEFAULT_PREFS, ...p }, p)).toBe(true);
+    expect(presetMatches({ ...DEFAULT_PREFS, ...p, reverb: 0.1 }, p)).toBe(false);
+  });
+  it('as notas personalizadas comparam-se nota a nota', () => {
+    const p = { ...DEFAULT_SOUND, customNotes: [...DEFAULT_SOUND.customNotes] };
+    expect(presetMatches({ ...DEFAULT_PREFS }, p)).toBe(true);
+    const other = [...DEFAULT_SOUND.customNotes];
+    other[0] += 1;
+    expect(presetMatches({ ...DEFAULT_PREFS, customNotes: other }, p)).toBe(false);
+  });
+  it('presets antigos sem alguns campos completam-se antes de comparar', () => {
+    const { tonicAt: _t, ...old } = DEFAULT_SOUND;
+    void _t;
+    expect(presetMatches({ ...DEFAULT_PREFS }, old)).toBe(true);
   });
 });

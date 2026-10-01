@@ -1,10 +1,12 @@
 // Lógica pura do shell da interface (sem React nem DOM): pesquisa, rotação de
-// instrumentos, migração das preferências e fontes da composição de vídeo.
+// instrumentos, tabs da folha, dicas do primeiro uso, migração das preferências e fontes da
+// composição de vídeo.
 import { DEFAULT_CUSTOM_NOTES, LEGACY_CUSTOM_NOTES, normalizeCustomNotes } from '../../app/notes';
 import { INSTRUMENTS, type InstrumentInfo } from '../../audio/instruments';
 import { FAMILIES, type Family } from '../../audio/patches/types';
-import { CHORD_MODES, validChord, type ChordMode } from '../../audio/theory';
-import type { DrawerId } from '../../state/types';
+import { CHORD_MODES, SCALE_GROUPS, validChord, type ChordMode, type ScaleName } from '../../audio/theory';
+import { DEFAULT_SOUND } from '../../state/store';
+import type { CoachId, Engine, SheetTab } from '../../state/types';
 import { normalizeRanges } from '../../vision/adaptive';
 
 export const normalize = (s: string): string =>
@@ -63,22 +65,71 @@ export function nextInstrument(id: string, dir: 1 | -1, filter = 'Todos'): strin
   return list[(k + dir + list.length) % list.length].id;
 }
 
-export const DRAWER_IDS: DrawerId[] = [
-  'instrumentos',
-  'escala',
-  'efeitos',
-  'tempo',
-  'gravacoes',
-  'rato',
-];
-export const DRAWER_TITLES: Record<DrawerId, string> = {
-  instrumentos: 'Instrumentos',
-  escala: 'Escala e acordes',
+export const SHEET_TABS: SheetTab[] = ['som', 'notas', 'efeitos', 'estudio'];
+export const SHEET_TITLES: Record<SheetTab, string> = {
+  som: 'Som',
+  notas: 'Notas',
   efeitos: 'Efeitos',
-  tempo: 'Tempo e looper',
-  gravacoes: 'Gravações',
-  rato: 'Tocar com o rato',
+  estudio: 'Estúdio',
 };
+
+/** Tab que a tecla abre (1–4), ou `null`. */
+export function tabForKey(key: string): SheetTab | null {
+  const k = Number(key);
+  return Number.isInteger(k) && k >= 1 && k <= SHEET_TABS.length ? SHEET_TABS[k - 1] : null;
+}
+
+/** Escalas à vista com a lista fechada: as mais usadas (a ativa junta-se se for outra). */
+export const COMMON_SCALES: ScaleName[] = [
+  'Maior',
+  'Menor',
+  'Pentatónica',
+  'Blues',
+  'Menor harmónica',
+];
+
+export function visibleScales(active: ScaleName, expanded: boolean): ScaleName[] {
+  if (expanded) return SCALE_GROUPS.flatMap((g) => g.scales);
+  return COMMON_SCALES.includes(active) ? COMMON_SCALES : [...COMMON_SCALES, active];
+}
+
+/** Notas tocadas antes de sugerir a boca. */
+export const COACH_MOUTH_AFTER = 5;
+export const COACH_IDS: CoachId[] = ['hands', 'bend', 'mouth', 'touch'];
+
+/**
+ * Dica do primeiro uso a mostrar agora (ou `null`): com as mãos, "mostra as mãos" até as ver,
+ * "dobra um dedo" até à primeira nota e "abre a boca" depois de algumas notas (só com a deteção
+ * da cara); sem câmara, "toca nas teclas" até à primeira nota. As cumpridas não voltam.
+ */
+export function coachStep(c: {
+  engine: Engine;
+  done: readonly CoachId[];
+  handsSeen: boolean;
+  notes: number;
+  faceOk: boolean;
+}): CoachId | null {
+  const todo = (id: CoachId) => !c.done.includes(id);
+  if (c.engine === 'keyboard') return todo('touch') && c.notes === 0 ? 'touch' : null;
+  if (c.engine !== 'hands') return null;
+  if (todo('hands') && !c.handsSeen) return 'hands';
+  if (todo('bend') && c.notes === 0) return 'bend';
+  if (todo('mouth') && c.faceOk && c.notes >= COACH_MOUTH_AFTER) return 'mouth';
+  return null;
+}
+
+/**
+ * Valores de fábrica do que "Repor efeitos" repõe (função: o store importa este módulo, por isso
+ * os valores só se leem depois de ele carregar).
+ */
+export const effectDefaults = () => ({
+  reverb: DEFAULT_SOUND.reverb,
+  echo: DEFAULT_SOUND.echo,
+  filter: DEFAULT_SOUND.filter,
+  drive: DEFAULT_SOUND.drive,
+  pitch: DEFAULT_SOUND.pitch,
+  mouthFx: DEFAULT_SOUND.mouthFx,
+});
 
 /** Índices dos polegares (mão esquerda e direita). */
 const THUMB_IDS = [0, 5] as const;
@@ -168,6 +219,11 @@ export function sanitizePrefs<T extends Record<string, unknown>>(p: T): T {
   // intervalos aprendidos estragados (ou de outra versão) são esquecidos
   if ('learnedRanges' in p) out.learnedRanges = normalizeRanges(p.learnedRanges);
   if ('learnHand' in p && typeof p.learnHand !== 'boolean') out.learnHand = true;
+  if ('showFps' in p && typeof p.showFps !== 'boolean') out.showFps = false;
+  if ('coachDone' in p)
+    out.coachDone = Array.isArray(p.coachDone)
+      ? p.coachDone.filter((c): c is CoachId => COACH_IDS.includes(c as CoachId))
+      : [];
   return out as T;
 }
 

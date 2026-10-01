@@ -1,6 +1,6 @@
-// Escala e acordes, sempre à vista: modo das notas (Escala ou Personalizado), tónica, escala por
-// grupos, acordes, polegares e as notas que cada dedo toca (escritas, da esquerda para a direita).
-// No modo Personalizado, cada dedo abre um pequeno editor para escolher a sua nota.
+// Tab Notas: de onde vêm as notas (Escala ou Personalizadas), tónica, escala (as mais usadas e
+// "+ mais"), o que cada dedo toca (com a explicação do modo ativo), a pré-visualização das notas
+// de cada dedo e a oitava base. No modo Personalizado, cada dedo abre um pequeno editor.
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { session } from '../../app/session';
@@ -18,13 +18,12 @@ import {
   NOTE_NAMES,
   noteName,
   pitchClassName,
-  SCALE_GROUPS,
   type ChordMode,
 } from '../../audio/theory';
 import { useStore } from '../../state/store';
 import { activeScreenOrder, type TonicAt } from '../../vision/fingerMap';
-import { Toggle } from '../controls/Toggle';
 import { ChordGlyph } from '../shell/ChordGlyph';
+import { keyTarget, visibleScales } from '../shell/logic';
 import { FINGER_COLORS } from '../theme';
 import { Panel } from './Panel';
 import s from './panels.module.css';
@@ -37,12 +36,14 @@ const CONFIRM_MS = 3000;
 
 const NOTE_MODES: { id: NoteMode; label: string }[] = [
   { id: 'scale', label: 'Escala' },
-  { id: 'custom', label: 'Personalizado' },
+  { id: 'custom', label: 'Personalizadas' },
 ];
 const TONIC_AT: { id: TonicAt; label: string }[] = [
-  { id: 'left-pinky', label: 'Mindinho esquerdo' },
-  { id: 'right-index', label: 'Indicador direito' },
+  { id: 'left-pinky', label: 'Mindinho esq.' },
+  { id: 'right-index', label: 'Indicador dir.' },
 ];
+/** Oitavas base possíveis (as mesmas do antigo controlo deslizante). */
+const OCTAVES = [1, 2, 3, 4, 5, 6];
 
 /** Explicação de cada forma de tocar no modo Personalizado (sem escala, meios-tons fixos). */
 const CUSTOM_CHORD_HINT: Record<Exclude<ChordMode, 'off'>, string> = {
@@ -77,6 +78,8 @@ export function ScalePanel() {
   // "Copiar da escala": à espera do segundo clique, ou as notas já são iguais às da escala
   const [copyState, setCopyState] = useState<'confirm' | 'same' | null>(null);
   const confirmCopy = copyState === 'confirm';
+  const [moreScales, setMoreScales] = useState(false);
+  const chordRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const notesRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!copyState) return;
@@ -119,224 +122,317 @@ export function ScalePanel() {
     st.set({ customNotes: next });
   };
 
+  const chordK = CHORD_MODES.findIndex((c) => c.id === st.chord);
+  const chordMode = CHORD_MODES[chordK];
+  // radiogroups: as setas escolhem logo (o Espaço fica para a boca, decisão 14)
+  const onChordKey = (e: KeyboardEvent) => {
+    const next = keyTarget(e.key, chordK, CHORD_MODES.length);
+    if (next === null) return;
+    e.preventDefault();
+    st.set({ chord: CHORD_MODES[next].id });
+    chordRefs.current[next]?.focus();
+  };
+  const radioKeys =
+    <T,>(list: readonly T[], k: number, pick: (v: T) => void) =>
+    (e: KeyboardEvent) => {
+      const next = keyTarget(e.key, k, list.length);
+      if (next === null) return;
+      e.preventDefault();
+      pick(list[next]);
+      const btns = (e.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('[role="radio"]');
+      btns[next]?.focus();
+    };
+
   return (
-    <Panel title="Escala e acordes" testId="scale-panel">
-      <div className={s.field}>
-        <span id={`${id}-mode`}>Notas dos dedos</span>
-        <div
-          className={`${s.seg} ${s.segHalf}`}
-          role="radiogroup"
-          aria-labelledby={`${id}-mode`}
-          data-testid="note-mode"
-        >
-          {NOTE_MODES.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              role="radio"
-              aria-checked={st.noteMode === m.id}
-              onClick={() => {
-                // fechar o editor ao mudar de modo (senão roubava o foco ao voltar)
-                setEditing(null);
-                setCopyState(null);
-                st.set({ noteMode: m.id });
-              }}
-              data-testid={`note-mode-${m.id}`}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <p className={s.hint}>
-        {custom
-          ? 'Escolhes a nota exata de cada dedo. A altura da mão não escolhe a nota; arrastar depois de tocar continua a funcionar.'
-          : 'Cada dedo toca uma nota da escala, a subir da esquerda para a direita.'}
-      </p>
-
-      {!custom && (
-        <>
-          <div className={s.tonicRow} style={{ marginTop: 10 }}>
-            <label className={s.field}>
-              Tónica
-              <select value={st.root} onChange={(e) => st.set({ root: +e.target.value })}>
-                {NOTE_NAMES.map((n, i) => (
-                  <option key={n} value={i}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <div className={s.field} style={{ marginTop: 8 }}>
-            <span id={`${id}-tonic`}>Tónica no</span>
-            <div
-              className={`${s.seg} ${s.segHalf}`}
-              role="radiogroup"
-              aria-labelledby={`${id}-tonic`}
-              data-testid="tonic-at"
-            >
-              {TONIC_AT.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={st.tonicAt === t.id}
-                  onClick={() => st.set({ tonicAt: t.id })}
-                  data-testid={`tonic-at-${t.id}`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <p className={s.hint}>
-            A tónica é a nota de partida da escala.{' '}
-            {st.tonicAt === 'left-pinky'
-              ? 'O mindinho esquerdo toca-a e as notas sobem até ao mindinho direito.'
-              : 'O indicador direito toca-a; à esquerda as notas descem, à direita sobem.'}
-          </p>
-        </>
-      )}
-
-      <div className={s.field} style={{ marginTop: 10 }}>
-        <span id={`${id}-chord`}>Cada dedo toca…</span>
-        <div className={`${s.seg} ${s.segFull}`} role="radiogroup" aria-labelledby={`${id}-chord`}>
-          {CHORD_MODES.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              role="radio"
-              aria-checked={st.chord === c.id}
-              title={c.desc}
-              onClick={() => st.set({ chord: c.id as ChordMode })}
-              className={s.chordOpt}
-            >
-              <ChordGlyph mode={c.id} width={16} height={16} />
-              {c.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      {custom && st.chord !== 'off' && <p className={s.hint}>{CUSTOM_CHORD_HINT[st.chord]}</p>}
-
-      {!custom && (
-        <>
-          <div className={s.scaleList} role="radiogroup" aria-label="Escala">
-            {SCALE_GROUPS.map((g) => (
-              <div key={g.label} className={s.scaleGroup}>
-                <span className={s.scaleGroupLabel}>{g.label}</span>
-                <div className={s.scaleChips}>
-                  {g.scales.map((sc) => (
-                    <button
-                      key={sc}
-                      type="button"
-                      role="radio"
-                      className={s.chip}
-                      aria-pressed={st.scale === sc}
-                      aria-checked={st.scale === sc}
-                      onClick={() => st.set({ scale: sc })}
-                      data-testid={`scale-${sc}`}
-                    >
-                      {sc}
-                    </button>
-                  ))}
-                </div>
-              </div>
+    <Panel title="Notas" testId="scale-panel">
+      <div className={s.stack} style={{ gap: 18 }}>
+        <section className={s.section}>
+          <h3 className={s.label} id={`${id}-mode`}>
+            As notas vêm da
+          </h3>
+          <div
+            className={`${s.seg} ${s.segHalf}`}
+            role="radiogroup"
+            aria-labelledby={`${id}-mode`}
+            data-testid="note-mode"
+          >
+            {NOTE_MODES.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                role="radio"
+                aria-checked={st.noteMode === m.id}
+                onClick={() => {
+                  // fechar o editor ao mudar de modo (senão roubava o foco ao voltar)
+                  setEditing(null);
+                  setCopyState(null);
+                  st.set({ noteMode: m.id });
+                }}
+                data-testid={`note-mode-${m.id}`}
+              >
+                {m.label}
+              </button>
             ))}
           </div>
           <p className={s.hint}>
-            A escala escolhe que notas os dedos tocam. A Maior é o dó-ré-mi-fá-sol-lá-si; a
-            Pentatónica tem 5 notas (sem Fá nem Si, em Dó) e qualquer combinação soa bem.
+            {custom
+              ? 'Escolhes a nota exata de cada dedo. A altura da mão não escolhe a nota; arrastar depois de tocar continua a funcionar.'
+              : 'Cada dedo toca uma nota da escala, a subir da esquerda para a direita.'}
           </p>
-        </>
-      )}
+        </section>
 
-      <Toggle
-        label="Usar também os polegares"
-        checked={st.thumbs}
-        onChange={(v) => st.set({ thumbs: v })}
-        testId="thumbs"
-      />
-
-      <div
-        ref={notesRef}
-        className={s.fingerNotes}
-        aria-label="Notas de cada dedo, da esquerda para a direita"
-      >
-        {drum ? (
-          <p className={s.desc} style={{ margin: 0, minHeight: 0 }}>
-            Com percussão, cada dedo toca um som do kit.
-          </p>
-        ) : (
-          [order.filter((i) => i < 5), order.filter((i) => i >= 5)].map((hand, h) => (
-            <div key={h} className={s.handRow} aria-label={h ? 'Mão direita' : 'Mão esquerda'}>
-              {hand.map((i) =>
-                custom ? (
+        {!custom && (
+          <>
+            <section className={s.section}>
+              <h3 className={s.label} id={`${id}-root`}>
+                Tónica
+              </h3>
+              <div
+                className={s.pillRow}
+                role="radiogroup"
+                aria-labelledby={`${id}-root`}
+                onKeyDown={radioKeys(NOTE_NAMES, st.root, (n) =>
+                  st.set({ root: NOTE_NAMES.indexOf(n) }),
+                )}
+                data-testid="root"
+              >
+                {NOTE_NAMES.map((n, i) => (
                   <button
-                    key={i}
+                    key={n}
                     type="button"
-                    className={`${s.fingerNote} ${s.fingerNoteBtn}`}
-                    style={{ ['--c' as string]: FINGER_COLORS[i] }}
-                    aria-label={`${fingerText(i)}: ${noteName(st.customNotes[i])}. Mudar`}
-                    aria-expanded={editing === i}
-                    aria-controls={editing === i ? `${id}-editor` : undefined}
-                    onClick={() => setEditing(editing === i ? null : i)}
-                    data-testid={`finger-note-${i}`}
+                    role="radio"
+                    className={s.pill}
+                    aria-checked={st.root === i}
+                    tabIndex={st.root === i ? 0 : -1}
+                    onClick={() => st.set({ root: i })}
+                    data-testid={`root-${i}`}
                   >
-                    {label(notesOf(i))}
+                    {n}
                   </button>
-                ) : (
-                  <span
-                    key={i}
-                    className={s.fingerNote}
-                    style={{ ['--c' as string]: FINGER_COLORS[i] }}
-                    title={`${fingerText(i)}: ${notesOf(i).map(pitchClassName).join(' ')}`}
-                    data-testid={`finger-note-${i}`}
+                ))}
+              </div>
+            </section>
+
+            <section className={s.section}>
+              <h3 className={s.label} id={`${id}-scale`}>
+                Escala
+              </h3>
+              <div className={s.pillWrap} role="radiogroup" aria-labelledby={`${id}-scale`}>
+                {visibleScales(st.scale, moreScales).map((sc) => (
+                  <button
+                    key={sc}
+                    type="button"
+                    role="radio"
+                    className={s.pill}
+                    aria-checked={st.scale === sc}
+                    onClick={() => st.set({ scale: sc })}
+                    data-testid={`scale-${sc}`}
                   >
-                    {label(notesOf(i))}
-                  </span>
-                ),
+                    {sc}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className={s.pillMore}
+                  aria-expanded={moreScales}
+                  onClick={() => setMoreScales((x) => !x)}
+                  data-testid="scale-more"
+                >
+                  {moreScales ? '− menos' : '+ mais'}
+                </button>
+              </div>
+              <p className={s.hint}>
+                A escala escolhe que notas os dedos tocam. A Pentatónica tem 5 notas e qualquer
+                combinação soa bem.
+              </p>
+            </section>
+
+            <section className={s.section}>
+              <h3 className={s.label} id={`${id}-tonic`}>
+                Tónica no
+              </h3>
+              <div
+                className={`${s.seg} ${s.segHalf}`}
+                role="radiogroup"
+                aria-labelledby={`${id}-tonic`}
+                data-testid="tonic-at"
+              >
+                {TONIC_AT.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={st.tonicAt === t.id}
+                    onClick={() => st.set({ tonicAt: t.id })}
+                    data-testid={`tonic-at-${t.id}`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+              <p className={s.hint}>
+                {st.tonicAt === 'left-pinky'
+                  ? 'O mindinho esquerdo toca a tónica e as notas sobem até ao mindinho direito.'
+                  : 'O indicador direito toca a tónica; à esquerda as notas descem, à direita sobem.'}
+              </p>
+            </section>
+          </>
+        )}
+
+        <section className={s.section}>
+          <h3 className={s.label} id={`${id}-chord`}>
+            Cada dedo toca…
+          </h3>
+          <div
+            className={s.chordCards}
+            role="radiogroup"
+            aria-labelledby={`${id}-chord`}
+            onKeyDown={onChordKey}
+          >
+            {CHORD_MODES.map((c, i) => (
+              <button
+                key={c.id}
+                ref={(el) => {
+                  chordRefs.current[i] = el;
+                }}
+                type="button"
+                role="radio"
+                aria-checked={st.chord === c.id}
+                tabIndex={st.chord === c.id ? 0 : -1}
+                title={c.desc}
+                onClick={() => st.set({ chord: c.id as ChordMode })}
+                className={s.card}
+                data-testid={`chord-card-${c.id}`}
+              >
+                <ChordGlyph mode={c.id} width={24} height={24} />
+                {c.label}
+              </button>
+            ))}
+          </div>
+          <p className={s.cardActive} aria-live="polite">
+            <b>{chordMode.label}:</b>{' '}
+            {custom && st.chord !== 'off' ? CUSTOM_CHORD_HINT[st.chord] : chordMode.desc}
+          </p>
+        </section>
+
+        <section className={s.section}>
+          <h3 className={s.label}>
+            {custom
+              ? 'Os teus dedos tocam'
+              : `Em ${NOTE_NAMES[st.root]} ${st.scale}, os teus dedos tocam`}
+          </h3>
+          <div
+            ref={notesRef}
+            className={s.fingerNotes}
+            aria-label="Notas de cada dedo, da esquerda para a direita"
+          >
+            {drum ? (
+              <p className={s.desc} style={{ margin: 0, minHeight: 0 }}>
+                Com percussão, cada dedo toca um som do kit.
+              </p>
+            ) : (
+              [order.filter((i) => i < 5), order.filter((i) => i >= 5)].map((hand, h) => (
+                <div key={h} className={s.handRow} aria-label={h ? 'Mão direita' : 'Mão esquerda'}>
+                  {hand.map((i) =>
+                    custom ? (
+                      <button
+                        key={i}
+                        type="button"
+                        className={`${s.fingerNote} ${s.fingerNoteBtn}`}
+                        style={{ ['--c' as string]: FINGER_COLORS[i] }}
+                        aria-label={`${fingerText(i)}: ${noteName(st.customNotes[i])}. Mudar`}
+                        aria-expanded={editing === i}
+                        aria-controls={editing === i ? `${id}-editor` : undefined}
+                        onClick={() => setEditing(editing === i ? null : i)}
+                        data-testid={`finger-note-${i}`}
+                      >
+                        {label(notesOf(i))}
+                      </button>
+                    ) : (
+                      <span
+                        key={i}
+                        className={s.fingerNote}
+                        style={{ ['--c' as string]: FINGER_COLORS[i] }}
+                        title={`${fingerText(i)}: ${notesOf(i).map(pitchClassName).join(' ')}`}
+                        data-testid={`finger-note-${i}`}
+                      >
+                        {label(notesOf(i))}
+                      </span>
+                    ),
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+
+          {custom && !drum && (
+            <>
+              {editingActive ? (
+                <NoteEditor
+                  key={editing}
+                  id={`${id}-editor`}
+                  finger={editing}
+                  midi={st.customNotes[editing]}
+                  onPick={(m) => pick(editing, m)}
+                  onClose={closeEditor}
+                />
+              ) : (
+                <p className={s.hint}>Toca num dedo para escolher a nota dele.</p>
               )}
+              <div className={s.copyRow}>
+                <button
+                  type="button"
+                  className={s.btn}
+                  aria-pressed={confirmCopy}
+                  onClick={copyFromScale}
+                  data-testid="copy-from-scale"
+                >
+                  {confirmCopy ? 'Substituir as notas?' : 'Copiar da escala'}
+                </button>
+                <span className={s.hint} style={{ margin: 0 }} aria-live="polite">
+                  {confirmCopy
+                    ? 'Carrega outra vez para confirmar.'
+                    : copyState === 'same'
+                      ? 'Já são iguais às da escala.'
+                      : 'Põe em cada dedo a nota que tocaria no modo Escala.'}
+                </span>
+              </div>
+            </>
+          )}
+        </section>
+
+        {!custom && (
+          <section className={s.section}>
+            <h3 className={s.label} id={`${id}-oct`}>
+              Oitava base
+            </h3>
+            <div
+              className={s.pillWrap}
+              role="radiogroup"
+              aria-labelledby={`${id}-oct`}
+              onKeyDown={radioKeys(OCTAVES, OCTAVES.indexOf(st.octave), (o) =>
+                st.set({ octave: o }),
+              )}
+              data-testid="octave"
+            >
+              {OCTAVES.map((o) => (
+                <button
+                  key={o}
+                  type="button"
+                  role="radio"
+                  className={s.pill}
+                  aria-checked={st.octave === o}
+                  tabIndex={st.octave === o ? 0 : -1}
+                  onClick={() => st.set({ octave: o })}
+                  data-testid={`octave-${o}`}
+                >
+                  {o}
+                </button>
+              ))}
             </div>
-          ))
+          </section>
         )}
       </div>
-
-      {custom && !drum && (
-        <>
-          {editingActive ? (
-            <NoteEditor
-              key={editing}
-              id={`${id}-editor`}
-              finger={editing}
-              midi={st.customNotes[editing]}
-              onPick={(m) => pick(editing, m)}
-              onClose={closeEditor}
-            />
-          ) : (
-            <p className={s.hint}>Toca num dedo para escolher a nota dele.</p>
-          )}
-          <div className={s.copyRow}>
-            <button
-              type="button"
-              className={s.btn}
-              aria-pressed={confirmCopy}
-              onClick={copyFromScale}
-              data-testid="copy-from-scale"
-            >
-              {confirmCopy ? 'Substituir as notas?' : 'Copiar da escala'}
-            </button>
-            <span className={s.hint} style={{ margin: 0 }} aria-live="polite">
-              {confirmCopy
-                ? 'Carrega outra vez para confirmar.'
-                : copyState === 'same'
-                  ? 'Já são iguais às da escala.'
-                  : 'Põe em cada dedo a nota que tocaria no modo Escala.'}
-            </span>
-          </div>
-        </>
-      )}
     </Panel>
   );
 }

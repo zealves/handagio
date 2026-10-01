@@ -1,0 +1,77 @@
+/* Vidro opaco q.b., sem backdrop-filter: fica por cima do palco, que redesenha a 60 fps. */
+.strip {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  max-width: 100%;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  background: var(--glass-strong);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+  animation: rise var(--t-med) ease-out;
+}
+.strip[data-docked] {
+  align-items: center;
+  animation: none;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.title {
+  padding: 0 8px 0 6px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.opt {
+  flex: 1 1 0;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 2px;
+  min-width: 44px;
+  min-height: 52px;
+  padding: 4px 4px 3px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+}
+.strip[data-docked] .opt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+.opt:hover {
+  color: var(--ink);
+}
+.opt[aria-checked='true'] {
+  background: rgba(53, 224, 255, 0.14);
+  color: var(--cyan);
+}
+.opt:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 1px;
+}
+.label {
+  font-size: 10.5px;
+  line-height: 1.1;
+}
+.strip[data-docked] .label {
+  font-size: 13px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .strip {
+    animation: none;
+  }
+}

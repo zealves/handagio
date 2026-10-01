@@ -8,11 +8,12 @@ import type { TonicAt } from '../vision/fingerMap';
 import type { RecordingMeta } from './recordingsDb';
 import type {
   Calibration,
-  DrawerId,
+  CoachId,
   Engine,
   LoopBars,
   MouthFxId,
   Quantize,
+  SheetTab,
   ThemeName,
 } from './types';
 
@@ -61,6 +62,10 @@ export interface Prefs extends SoundSettings {
   /** Intervalos de dobra aprendidos por dedo (10; null = nada aprendido). Fora dos presets. */
   learnedRanges: (LearnedRange | null)[] | null;
   userPresets: Record<string, SoundSettings>;
+  /** Mostrar no HUD as imagens por segundo da deteção e o modo de deteção. */
+  showFps: boolean;
+  /** Dicas do primeiro uso já cumpridas (ou dispensadas). */
+  coachDone: CoachId[];
 }
 
 export interface Runtime {
@@ -72,9 +77,19 @@ export interface Runtime {
   recording: boolean;
   recordStart: number;
   settingsOpen: boolean;
-  drawer: DrawerId | null;
+  /** Tab aberta na folha de configuração (null = fechada). */
+  sheet: SheetTab | null;
+  /** Última tab aberta: a folha volta a ela quando abre sem uma tab escolhida. */
+  sheetTab: SheetTab;
+  /** Tira "Cada dedo toca…" aberta (no telemóvel; nos ecrãs largos está sempre à vista). */
+  chordStrip: boolean;
+  /** Teclado tátil (piano ou pads) à vista no fundo do palco. */
+  touchKeys: boolean;
+  /** Erro ao abrir a câmara (o cartão do palco oferece tentar outra vez ou tocar no ecrã). */
+  cameraError: string | null;
+  /** Aviso breve por cima das pills (por exemplo, depois de gravar), com uma tab para "Ver". */
+  notice: { text: string; tab?: SheetTab } | null;
   uiHidden: boolean;
-  engineOpen: boolean;
   faceState: 'waiting' | 'ok' | 'unavailable';
   looper: { state: 'idle' | 'armed' | 'recording' | 'playing'; layers: number; bar: number };
   calibrating: string | null;
@@ -128,6 +143,8 @@ export const DEFAULT_PREFS: Prefs = {
   learnHand: true,
   learnedRanges: null,
   userPresets: {},
+  showFps: false,
+  coachDone: [],
 };
 
 const PREF_KEYS = Object.keys(DEFAULT_PREFS) as (keyof Prefs)[];
@@ -144,9 +161,13 @@ export const useStore = create<Store>()(
       recording: false,
       recordStart: 0,
       settingsOpen: false,
-      drawer: null,
+      sheet: null,
+      sheetTab: 'som',
+      chordStrip: false,
+      touchKeys: false,
+      cameraError: null,
+      notice: null,
       uiHidden: false,
-      engineOpen: false,
       faceState: 'waiting',
       looper: { state: 'idle', layers: 0, bar: 0 },
       calibrating: null,
