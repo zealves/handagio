@@ -66,6 +66,12 @@ A interface começa quase vazia e revela o resto quando o procuras, pensada prim
 - **⛶ Ecrã inteiro** (tecla `E`) e **esconder a interface** (tecla `I`, ou nas definições): fica só o palco. Mexer o rato ou tocar no ecrã volta a mostrar o resto por 3 segundos.
 - **`,` e `.`** passam ao instrumento anterior ou seguinte; **`1`–`4`** abrem Som, Notas, Efeitos e Estúdio.
 
+### Línguas
+
+A app está em **português** e em **inglês**. Na primeira visita segue a língua do navegador (português para `pt-*`, inglês para as outras); muda-se em **⚙ › Aspeto › Idioma** ou no link do ecrã inicial, e a escolha fica guardada. Em português as notas são em solfejo (Dó, Ré, Mi… e "Sol 7"); em inglês, em letras (C, D, E… e "G7"). Só se descarrega a língua em uso.
+
+Para acrescentar uma língua: copiar `src/i18n/locales/en.ts` para `xx.ts` e traduzir, e juntar `xx` a `Lang`, `LANGS` e `LANG_NAMES` em `src/i18n/types.ts`. O TypeScript e o teste `src/i18n/data.test.ts` apontam o que faltar.
+
 ### Funcionalidades
 
 - 38 instrumentos: 35 melódicos (teclas, cordas, sopros, lâminas e sintetizadores, incluindo o theremin contínuo) e 3 kits de percussão (acústico, 808 e latino). Os 18 acústicos (piano, órgão, cordas, sopros, harpa, guitarras e xilofone) tocam gravações reais, cada um no seu registo.

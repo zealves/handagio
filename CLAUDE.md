@@ -1,6 +1,6 @@
 # Handagio
 
-Vision Sound Cam: instrumento musical controlado pela webcam. Dobrar um dedo toca uma nota, abrir a boca aplica um efeito. Vite + React 18 + TypeScript estrito, Zustand, MediaPipe `tasks-vision`, Web Audio nativa (sem Tone.js). Interface em português de Portugal.
+Vision Sound Cam: instrumento musical controlado pela webcam. Dobrar um dedo toca uma nota, abrir a boca aplica um efeito. Vite + React 18 + TypeScript estrito, Zustand, MediaPipe `tasks-vision`, Web Audio nativa (sem Tone.js). Interface em português de Portugal (base) e inglês.
 
 ## Comandos
 
@@ -28,6 +28,7 @@ Vision Sound Cam: instrumento musical controlado pela webcam. Dobrar um dedo toc
 - `src/vision` e `src/audio` não importam React.
 - Valores a 60 fps nunca vão para estado React: usar `live` e desenhar em canvas.
 - Fórmulas e valores dos sons sintetizados vêm de `reference/maos-musicais.html`; não aproximar. A deteção dos dedos partiu do protótipo mas foi afinada na v2.2 (suavização, limiares por dedo, disparo antecipado, período refratário e aprendizagem da mão; decisão 62 em `docs/DECISIONS.md`); as suas constantes estão nomeadas e comentadas em `src/vision/gestureEngine.ts` e `src/vision/adaptive.ts`. O polegar toca ao dobrar ou mover-se para baixo em relação à palma (decisão 65, `src/vision/thumbMotion.ts`). Os instrumentos acústicos usam amostras em `public/samples/` (ver `CREDITS.md`); `npm run prepare-samples` regenera-as.
+- Textos da interface: nunca escritos nos componentes. Vão para `src/i18n/locales/pt.ts` (a fonte de verdade) e para `en.ts`; nos componentes usa-se `useT()` e fora do React `t()`. Os dados com nome traduzem-se pelo id (`src/i18n/data.ts`); os ids guardados não mudam. Para uma língua nova: copiar `en.ts`, juntar o id a `Lang`/`LANGS`/`LANG_NAMES` (`src/i18n/types.ts`) e o teste `data.test.ts` aponta o que falta (decisão 66).
 - Decisões ambíguas ficam em `docs/DECISIONS.md` (numeradas).
 - Antes de cada commit: `npm run build && npm run lint && npm test`.
 - Commits em inglês, no formato Conventional Commits (`feat: …`, `fix: …`, `ci: …`, `docs: …`, `chore: …`), assunto no imperativo, minúsculas, sem ponto final, até ~72 caracteres; corpo opcional com bullets. Autor único: José Alves, sem `Co-Authored-By` nem outras linhas de atribuição.

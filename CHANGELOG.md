@@ -2,6 +2,13 @@
 
 Versões segundo [SemVer](https://semver.org/lang/pt-BR/). A mais recente fica no topo.
 
+## [3.2.0] — 2026-10-01
+
+- A app passa a estar também em inglês. Na primeira visita segue a língua do navegador; muda-se em ⚙ › Aspeto › Idioma ou no link do ecrã inicial, e a escolha fica guardada.
+- Em inglês as notas e os acordes usam letras (C, D, E… e "G7", "Dm", "Cmaj7"); em português continuam em solfejo (Dó, Ré, Mi… e "Sol 7").
+- Só se descarrega a língua em uso, e funciona sem rede depois da primeira vez.
+- A pesquisa de instrumentos encontra o nome em português e na língua atual.
+
 ## [3.1.0] — 2026-10-01
 
 - O polegar toca ao dobrar (para dentro da palma) ou ao mover-se para baixo, depressa e em relação à mão, em vez de encostar ao lado do indicador. Funciona com a mão rodada ou inclinada; para cima ou para fora não toca, e subir o polegar e voltar ao sítio também não.
