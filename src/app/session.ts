@@ -518,7 +518,12 @@ class Session {
     this.startLoop();
     const s = getState();
     setState({
-      game: { phase: 'setup', difficulty: s.gameDifficulty, fingers: [...s.gameFingers], result: null },
+      game: {
+        phase: 'setup',
+        difficulty: s.gameDifficulty,
+        fingers: [...s.gameFingers],
+        result: null,
+      },
       sheet: null,
     });
   }
@@ -527,7 +532,11 @@ class Session {
   startGame(difficulty: Difficulty): void {
     this.ensureAudio();
     this.startLoop();
-    if (this.game) this.endGame();
+    if (this.game) {
+      // recomeçar/começar outra ronda a meio não perde o atraso que a câmara já tinha aprendido
+      this.saveLearnedLag(this.game);
+      this.endGame();
+    }
     this.releaseAll();
     const s = getState();
     const cfg = DIFFICULTY[difficulty];
