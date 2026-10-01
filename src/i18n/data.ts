@@ -2,7 +2,8 @@
 // presets). Sem tradução para um id (por exemplo, um instrumento novo), fica o texto em português.
 import { DRUMS, INSTRUMENT_BY_ID } from '../audio/instruments';
 import type { Family } from '../audio/patches/types';
-import { CHORD_MODES, type ChordMode, type ScaleName } from '../audio/theory';
+import { CHORD_MODES, chordName, noteName, type ChordMode, type ScaleName } from '../audio/theory';
+import type { NoteSrc } from '../state/types';
 import { MOUTH_FX, type MouthFxId } from '../state/types';
 import { t } from './index';
 
@@ -45,4 +46,11 @@ export const cameraError = (code: string): string =>
 export function fingerName(i: number): string {
   const d = t().data;
   return `${i < 5 ? d.hands.left : d.hands.right} ${d.fingers[i % 5]}`;
+}
+
+/** A última nota na língua atual (ver `noteSrc`); sem origem (ou sem nota, "—"), o texto guardado. */
+export function noteText(src: NoteSrc | null, fallback: string): string {
+  if (!src || fallback === '—') return fallback;
+  if ('kit' in src) return padLabels(src.kit)[src.slot] ?? fallback;
+  return src.midis.length > 1 ? chordName(src.midis, src.chord) : noteName(src.midis[0]);
 }

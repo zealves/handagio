@@ -13,6 +13,7 @@ import type {
   Engine,
   LoopBars,
   MouthFxId,
+  NoteSrc,
   Quantize,
   SheetTab,
   ThemeName,
@@ -77,6 +78,11 @@ export interface Runtime {
   status: string;
   familyFilter: string;
   lastNote: string;
+  /**
+   * De onde veio a última nota (notas MIDI e forma de tocar, ou o pad de um kit), para o HUD a
+   * escrever na língua atual; `lastNote` fica com o texto do momento (dicas, testes).
+   */
+  noteSrc: NoteSrc | null;
   recording: boolean;
   recordStart: number;
   settingsOpen: boolean;
@@ -164,6 +170,7 @@ export const useStore = create<Store>()(
       status: '',
       familyFilter: 'Todos',
       lastNote: '—',
+      noteSrc: null,
       recording: false,
       recordStart: 0,
       settingsOpen: false,

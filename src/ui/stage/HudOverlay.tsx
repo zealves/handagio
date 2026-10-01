@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { session } from '../../app/session';
 import { useT } from '../../i18n';
+import { noteText } from '../../i18n/data';
 import { DEBUG } from '../../lib/debug';
 import { live } from '../../state/live';
 import { useStore } from '../../state/store';
@@ -38,7 +39,8 @@ function Fps() {
 }
 
 export function HudOverlay() {
-  const note = useStore((st) => st.lastNote);
+  const lastNote = useStore((st) => st.lastNote);
+  const noteSrc = useStore((st) => st.noteSrc);
   const recording = useStore((st) => st.recording);
   const since = useStore((st) => st.recordStart);
   const engine = useStore((st) => st.engine);
@@ -49,6 +51,8 @@ export function HudOverlay() {
   const cameraStarting = useStore((st) => st.cameraStarting);
   const set = useStore((st) => st.set);
   const h = useT().hud;
+  // na língua atual: ao mudar de língua, a nota que está no ecrã muda também
+  const note = noteText(noteSrc, lastNote);
   if (!started) return null;
   return (
     <div className={s.hud} data-testid="hud">

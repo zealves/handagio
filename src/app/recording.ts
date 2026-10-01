@@ -1,7 +1,7 @@
 // Controlo da gravação (sem React): começar/parar, guardar em IndexedDB, descarregar e partilhar.
 import { audio } from '../audio/engine';
 import { t } from '../i18n';
-import { instrumentText } from '../i18n/data';
+import { instrumentText, noteText } from '../i18n/data';
 import { extensionFor, Recorder } from '../audio/recorder';
 import { drawSize } from '../state/live';
 import {
@@ -57,7 +57,7 @@ export async function startRecording(): Promise<void> {
             hud: () => {
               const st = getState();
               return [
-                t().rec.hudNote(st.lastNote),
+                t().rec.hudNote(noteText(st.noteSrc, st.lastNote)),
                 t().rec.hudVoice(instrumentText(st.instrument).name),
               ];
             },

@@ -1438,6 +1438,31 @@ test.describe('English', () => {
     expect(errors, errors.join('\n')).toEqual([]);
   });
 
+  test('a nota do HUD muda de língua com o resto, sem tocar outra vez', async ({ page }) => {
+    const errors = watchConsole(page);
+    await page.goto('/?debug');
+    await markStarted(page);
+    await page.locator('body').click({ position: { x: 5, y: 300 } });
+    await page.keyboard.down('s');
+    await page.waitForTimeout(80);
+    await page.keyboard.up('s');
+    await expect(page.getByTestId('hud-note')).toHaveText(/^[A-G]♯?\d$/);
+    // acorde (Sétima) e um pad de percussão também seguem a língua
+    await page.getByTestId('settings-open').click();
+    await page.getByTestId('lang-pt').click();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('hud-note')).toHaveText(/^(Dó|Ré|Mi|Fá|Sol|Lá|Si)♯?\d$/);
+    await pinNotes(page, { instrument: 'drums' });
+    await page.getByTestId('touch-keys').click();
+    await page.getByTestId('pad-1').click();
+    await expect(page.getByTestId('hud-note')).toHaveText('Tarola');
+    await page.getByTestId('settings-open').click();
+    await page.getByTestId('lang-en').click();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('hud-note')).toHaveText('Snare');
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+
   test('o link do ecrã inicial muda de língua', async ({ page }) => {
     const errors = watchConsole(page);
     await page.goto('/?debug');

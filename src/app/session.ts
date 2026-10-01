@@ -208,7 +208,7 @@ class Session {
         when,
       ),
     );
-    if (midis.length > 1) setState({ lastNote: fx.label });
+    if (midis.length > 1) setState({ lastNote: fx.label, noteSrc: { midis, chord: s.chord } });
     const tip = live.fingers[i].tip;
     pushBurst({
       x: tip?.x ?? (i + 0.5) / 10,
@@ -251,7 +251,7 @@ class Session {
         color: FINGER_COLORS[i],
         held: false,
       });
-      setState({ lastNote: fx.label });
+      setState({ lastNote: fx.label, noteSrc: { midis: [m] } });
     }
   }
 
@@ -271,7 +271,7 @@ class Session {
     this.at(when, () => {
       // se a nota já foi solta antes de soar (quantização), a luz não fica presa
       live.notes.set(midi, { level: 1, color, held: held && audio.hasVoice(key) });
-      setState({ lastNote: noteName(midi) });
+      setState({ lastNote: noteName(midi), noteSrc: { midis: [midi] } });
     });
     if (!record) return;
     this.looper.record(this.clock.positionAt(when ?? audio.now), {
@@ -319,7 +319,7 @@ class Session {
 
   private showDrum(kitId: string, slot: number, vel: number, finger?: number): void {
     live.pads[slot] = 1;
-    setState({ lastNote: padLabels(kitId)[slot] });
+    setState({ lastNote: padLabels(kitId)[slot], noteSrc: { kit: kitId, slot } });
     const c = FINGER_COLORS[finger ?? [1, 2, 3, 4, 6, 7, 8, 9][slot] ?? 0];
     const tip = finger !== undefined ? live.fingers[finger].tip : null;
     pushBurst({ x: tip?.x ?? (slot + 0.5) / 8, y: tip?.y ?? 0.7, color: c, strength: vel });
