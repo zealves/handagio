@@ -28,12 +28,10 @@ function precachedSamples(): string[] {
 const LOCALE_RE = /\/src\/i18n\/locales\/([a-z]+)\.ts$/;
 const localeOf = (c: { type: string; facadeModuleId?: string | null }): string | null =>
   c.type === 'chunk' ? (c.facadeModuleId?.match(LOCALE_RE)?.[1] ?? null) : null;
-/** Língua mais provável na primeira visita: o seu chunk é pré-carregado pelo index.html. */
-const PRELOAD_LANG = 'pt';
-
 /**
- * Pré-carrega o chunk da língua mais provável (`modulepreload` no index.html), para o arranque
- * não esperar por mais uma ida à rede depois do JS principal.
+ * Pré-carrega só o chunk da língua que o arranque vai pedir (`modulepreload`), para não esperar
+ * por mais uma ida à rede depois do JS principal nem descarregar as outras línguas. O script
+ * repete a escolha de `detectLang` (src/i18n/index.ts): a guardada, senão a do navegador, senão en.
  */
 function preloadLocale(): Plugin {
   return {
@@ -42,12 +40,14 @@ function preloadLocale(): Plugin {
     transformIndexHtml: {
       order: 'post',
       handler(html, ctx) {
-        const chunk = Object.values(ctx.bundle ?? {}).find((c) => localeOf(c) === PRELOAD_LANG);
-        if (!chunk) return html;
-        return html.replace(
-          '</head>',
-          `  <link rel="modulepreload" crossorigin href="./${chunk.fileName}">\n  </head>`,
-        );
+        const urls: Record<string, string> = {};
+        for (const c of Object.values(ctx.bundle ?? {})) {
+          const lang = localeOf(c);
+          if (lang) urls[lang] = `./${c.fileName}`;
+        }
+        if (!Object.keys(urls).length) return html;
+        const script = `(function(){var m=${JSON.stringify(urls)},l;try{l=JSON.parse(localStorage.getItem('handagio:prefs')).state.lang}catch(e){}if(!m[l]){var n=navigator.languages||[navigator.language];for(var i=0;i<n.length;i++){var c=String(n[i]||'').toLowerCase().split('-')[0];if(m[c]){l=c;break}}}if(!m[l])l='en';var k=document.createElement('link');k.rel='modulepreload';k.crossOrigin='';k.href=m[l];document.head.appendChild(k)})()`;
+        return html.replace('</head>', `  <script>${script}</script>\n  </head>`);
       },
     },
   };

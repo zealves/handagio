@@ -18,7 +18,8 @@ let wanted: Lang | null = null;
 
 /**
  * Língua inicial: a guardada, se for uma das conhecidas; senão a primeira do navegador que se
- * conhece (pelo código de duas letras: pt-BR e PT são português); senão inglês.
+ * conhece (pelo código de duas letras: pt-BR e PT são português); senão inglês. O script de
+ * pré-carregamento do index.html (`preloadLocale`, vite.config.ts) repete estas regras.
  */
 export function detectLang(saved: unknown, navLangs: readonly string[]): Lang {
   if (isLang(saved)) return saved;
