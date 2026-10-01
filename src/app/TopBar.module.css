@@ -86,3 +86,12 @@
     display: none;
   }
 }
+/* telemóvel muito estreito (320 px): com o seletor de língua não cabe o nome, fica o logótipo */
+@media (max-width: 359px) {
+  .name {
+    display: none;
+  }
+  .actions {
+    gap: 6px;
+  }
+}

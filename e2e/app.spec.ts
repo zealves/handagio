@@ -544,10 +544,11 @@ test('ecrã inicial: só o Começar, a privacidade e o caminho sem câmara', asy
   await expect(page.getByTestId('start')).toHaveAccessibleName(/Começar/);
   await expect(page.getByText('O vídeo fica no teu dispositivo')).toBeVisible();
   await expect(page.getByTestId('start-touch')).toBeVisible();
-  // antes de começar não há pills, HUD nem botões no cabeçalho
+  // antes de começar não há pills nem HUD; no cabeçalho só o seletor de língua
   await expect(page.getByTestId('pills')).toHaveCount(0);
   await expect(page.getByTestId('hud')).toHaveCount(0);
-  await expect(page.getByRole('banner').getByRole('button')).toHaveCount(0);
+  await expect(page.getByRole('banner').getByRole('button')).toHaveCount(1);
+  await expect(page.getByTestId('lang-menu')).toHaveText('PT');
   // o botão é redondo, com pelo menos 72 px
   const play = (await page.getByTestId('start').locator('span').first().boundingBox())!;
   expect(play.width).toBeGreaterThanOrEqual(72);
@@ -935,10 +936,24 @@ for (const vp of VIEWPORTS) {
     );
     expect(overflow).toBeLessThanOrEqual(0);
     await expect(page.getByTestId('stage')).toBeInViewport();
-    for (const id of ['pills', 'pill-instrument', 'pill-scale', 'record', 'settings-open'])
+    for (const id of [
+      'pills',
+      'pill-instrument',
+      'pill-scale',
+      'record',
+      'settings-open',
+      'lang-menu',
+    ])
       await expect(page.getByTestId(id)).toBeInViewport({ ratio: 1 });
     // alvos de toque: pelo menos 44×44
-    for (const id of ['pill-instrument', 'pill-scale', 'record', 'settings-open', 'touch-keys']) {
+    for (const id of [
+      'pill-instrument',
+      'pill-scale',
+      'record',
+      'settings-open',
+      'touch-keys',
+      'lang-menu',
+    ]) {
       const b = (await page.getByTestId(id).boundingBox())!;
       expect(Math.min(b.width, b.height), id).toBeGreaterThanOrEqual(44);
     }
@@ -1460,6 +1475,33 @@ test.describe('English', () => {
     await page.getByTestId('lang-en').click();
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('hud-note')).toHaveText('Snare');
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+
+  test('o seletor do cabeçalho muda de língua, antes e depois de começar', async ({ page }) => {
+    const errors = watchConsole(page);
+    await page.goto('/?debug');
+    const menu = page.getByTestId('lang-menu');
+    await expect(menu).toHaveText('EN');
+    await menu.click();
+    await expect(page.getByTestId('lang-menu-en')).toBeFocused();
+    await expect(page.getByRole('menuitemradio')).toHaveText(['Português', 'English']);
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('Enter');
+    await expect(menu).toHaveText('PT');
+    await expect(menu).toBeFocused();
+    await expect(page.getByTestId('start')).toHaveAccessibleName(/Começar/);
+    // depois de começar continua lá; Esc e tocar fora fecham a lista
+    await markStarted(page);
+    await menu.click();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('menu')).toHaveCount(0);
+    await menu.click();
+    await page.mouse.click(200, 400);
+    await expect(page.getByRole('menu')).toHaveCount(0);
+    await menu.click();
+    await page.getByTestId('lang-menu-en').click();
+    await expect(page.getByTestId('pill-scale')).toHaveText('C · Major');
     expect(errors, errors.join('\n')).toEqual([]);
   });
 
