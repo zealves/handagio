@@ -19,7 +19,7 @@ Vision Sound Cam: instrumento musical controlado pela webcam. Dobrar um dedo toc
 - `src/app/session.ts` orquestra tudo (sem React): câmara → `HandTracker`/`FaceTracker` → `GestureEngine` → `AudioEngine`, com o seu próprio rAF. Também tem o modo teclado, o relógio, a quantização, o looper e a calibração.
 - `src/state/store.ts` (Zustand, `persist`) guarda preferências e estado de baixa frequência. `src/state/live.ts` guarda valores a 60 fps lidos pelos canvas.
 - `src/ui/frame.ts` tem um único rAF partilhado por todos os canvas (`useCanvas`, `useFrame`).
-- `src/ui/shell/` tem a barra de controlo, as gavetas (`<dialog>`, conteúdo só montado quando abertas), o seletor de instrumentos, o registo de efeitos e os atalhos (`I`, `E`, `,`, `.`); a lógica pura está em `logic.ts`.
+- `src/ui/shell/` tem o fundo do palco (`Dock`: mensagens, dicas, tira `ChordStrip`, pills, teclado tátil), a folha de configuração (`Sheet`, `<dialog>` não modal com 4 tabs, conteúdo só montado quando aberta), o seletor de instrumentos, os sons guardados, o registo de efeitos e os atalhos (`I`, `E`, `,`, `.`, `C`, `1`–`4`); a lógica pura está em `logic.ts` e as media queries partilhadas em `media.ts`.
 - Pontos do MediaPipe convertidos para espelho (`x → 1 − x`) à entrada; o overlay não é espelhado.
 - Diagnóstico: com `?debug` (ou em dev) existe `window.__vsc` com `session`, `audio`, `live`, `store` e `syntheticHand`; `session.feedHands()` injeta mãos no pipeline real (usado no e2e e no GIF).
 

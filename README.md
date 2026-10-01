@@ -10,19 +10,21 @@ Um instrumento musical que se toca com as mãos à frente da webcam. Cada dedo t
 
 ## Como usar
 
-1. Abre a app e carrega em **Ligar câmara e som**. Permite o acesso à câmara.
+1. Abre a app e carrega em **▶ Começar**. Permite o acesso à câmara. Sem câmara, escolhe **Tocar no ecrã**.
 2. Mostra as duas mãos à câmara, com os dedos esticados.
-3. Dobra um dedo para tocar a nota dele. O mindinho esquerdo é a nota mais grave e o mindinho direito a mais aguda. Os polegares estão desligados por defeito (liga-os em **Escala e acordes → Usar também os polegares**); o polegar toca ao encostar ao lado do indicador.
+3. Dobra um dedo para tocar a nota dele. O mindinho esquerdo é a nota mais grave e o mindinho direito a mais aguda. Os polegares estão desligados por defeito (liga-os em **Definições → Mãos → Usar também os polegares**); o polegar toca ao encostar ao lado do indicador.
 4. Quanto mais depressa dobras, mais forte soa. Sobe ou desce a mão para mudar o tom.
-5. Abre a boca para aplicar o efeito escolhido no rodapé ou na gaveta **Efeitos** (wah, filtro, distorção, eco, vibrato, robô, tremolo ou expressão).
+5. Abre a boca para aplicar o efeito escolhido na tab **Efeitos** (wah, filtro, distorção, eco, vibrato, robô, tremolo ou expressão).
+
+Na primeira vez, uma dica de cada vez por cima das pills ensina estes passos (mostrar as mãos, dobrar um dedo, abrir a boca) e não volta a aparecer.
 
 A app aprende a tua mão enquanto tocas: vai vendo até onde cada dedo estica e dobra e ajusta-se sozinha, para o anelar e o mindinho tocarem com menos esforço (desliga em **Definições → Mãos → Aprender a minha mão enquanto toco**; **Repor calibração** esquece o que aprendeu).
 
-Sem câmara, toca com o teclado: **A S D F** (mão esquerda) e **J K L Ç** (mão direita); **G** e **H** são os polegares. Segura **Espaço** para simular a boca aberta. O teclado de piano e os pads também se tocam com o rato ou com toque.
+Sem câmara, toca com o teclado: **A S D F** (mão esquerda) e **J K L Ç** (mão direita); **G** e **H** são os polegares. Segura **Espaço** para simular a boca aberta. O teclado de piano e os pads (botão ⌨ no cabeçalho) também se tocam com o rato ou com toque.
 
 ### Como os dedos tocam notas
 
-Na gaveta **Escala e acordes** escolhes como cada dedo sabe que nota tocar. A fila "notas de cada dedo", no fundo da gaveta, mostra sempre o que cada dedo toca, da esquerda para a direita.
+Na tab **Notas** escolhes como cada dedo sabe que nota tocar. A fila "os teus dedos tocam" mostra sempre o que cada dedo toca (com o nome do acorde), da esquerda para a direita.
 
 - **Escala** (por defeito): os dedos tocam as notas de uma escala, uma a seguir à outra, a subir do mindinho esquerdo para o mindinho direito.
   - A **escala** é a lista de notas que se podem tocar. Por defeito é **Dó Maior** (dó-ré-mi-fá-sol-lá-si). Na Pentatónica (5 notas por oitava, sem Fá nem Si em Dó) qualquer combinação soa bem.
@@ -30,8 +32,8 @@ Na gaveta **Escala e acordes** escolhes como cada dedo sabe que nota tocar. A fi
   - Por defeito (Dó Maior, tónica no mindinho esquerdo), os 8 dedos tocam `Dó4 Ré4 Mi4 Fá4 | Sol4 Lá4 Si4 Dó5` (mão esquerda | mão direita), do mindinho esquerdo ao mindinho direito.
   - Exemplo, Dó Pentatónica com a tónica no indicador direito: `Ré3 Mi3 Sol3 Lá3 | Dó4 Ré4 Mi4 Sol4`. Com a tónica no mindinho esquerdo: `Dó4 Ré4 Mi4 Sol4 | Lá4 Dó5 Ré5 Mi5`.
   - A mão esquerda e a direita reconhecem-se pela forma da mão, não pelo lado do ecrã: com uma só mão à vista, o mindinho esquerdo continua a tocar a nota do mindinho esquerdo.
-  - A **oitava base** (nas definições) sobe ou desce tudo.
-- **Altura da mão e arrastar** (nas definições, secção Tocar), duas opções independentes:
+  - A **oitava base** (na tab Notas) sobe ou desce tudo.
+- **Altura da mão e arrastar** (nas definições, secção Mãos), duas opções independentes:
   - **A altura da mão escolhe a nota** (desligada por defeito, só no modo Escala): a altura do pulso quando dobras o dedo sobe ou desce a nota pela escala, cerca de um grau por cada 10% do ecrã acima ou abaixo do meio.
   - **Arrastar a nota depois de tocar** (ligada por defeito): com o dedo dobrado, sobe ou desce a mão para dobrar o tom a partir da nota que tocaste, cerca de 2 meios-tons por cada 10% do ecrã, até uma oitava para cada lado. Um tremor pequeno não conta. Só se ouve nos instrumentos de nota longa (violino, flauta, órgão, sopros…), e funciona também no modo Personalizado.
 - **Personalizado**: escolhes a nota exata de cada dedo. Toca num dedo da fila, escolhe a nota (Dó a Si) e a oitava, e ouves logo como soa; Por defeito, as notas são as mesmas do modo Escala por defeito (`Dó4 … Dó5`); **Copiar da escala** começa pelas notas que o modo Escala está a tocar. Aqui a altura da mão não escolhe a nota (arrastar depois de tocar continua a funcionar), e os acordes são sempre maiores (Acorde: a nota e as que ficam 4 e 7 meios-tons acima).
@@ -39,9 +41,19 @@ Na gaveta **Escala e acordes** escolhes como cada dedo sabe que nota tocar. A fi
 
 ### Interface
 
-O palco da câmara ocupa todo o espaço livre, com margens mínimas e seja qual for a proporção da câmara (também num tablet em paisagem); por cima fica uma barra de controlo fina com o instrumento, a escala, o tempo, gravar, o looper e um menu **⋯** com o resto. Por baixo do palco, um rodapé com todos os efeitos identificados: Reverb, Eco, Filtro, Drive e Pitch em knobs pequenos, com o nome por baixo (o valor aparece ao passar o rato ou com o foco), e o efeito da boca com o seu medidor. No telemóvel e em janelas com menos de 600 px de altura o rodapé esconde-se e os efeitos ficam na gaveta Efeitos, pelo menu ⋯. O que não cabe na barra fica em gavetas (Instrumentos, Escala e acordes, Efeitos, Tempo e looper, Gravações, Tocar com o rato), abertas uma de cada vez. O palco mostra só as tuas mãos e as partículas (tu não apareces, nem na gravação: a câmara serve só para a deteção) e, por baixo, uma faixa com as ondas do som.
+A interface começa quase vazia e revela o resto quando o procuras, pensada primeiro para o telemóvel e o tablet (alvos de toque de 44 px):
 
-- **Cada dedo toca…** (coluna à esquerda do palco, tecla `C` ou menu ⋯ no telemóvel), da mais simples à mais rica:
+- **Início:** só o botão **▶ Começar**, a nota de privacidade e **Sem câmara? Tocar no ecrã**.
+- **A tocar:** o palco ocupa todo o espaço livre e mostra só as tuas mãos e as partículas (tu não apareces, nem na gravação: a câmara serve só para a deteção), com as ondas do som no fundo. No canto, a nota que soa e, quando há, a gravação e o looper. No cabeçalho: ⌨ teclado no ecrã, ⛶ ecrã inteiro (a partir de 640 px), ● gravar e ⚙ definições.
+- **Pills** no fundo do palco: o **instrumento** e a **tónica · escala** abrem a folha de configuração na tab certa; a pill do **acorde** abre a tira "Cada dedo toca…". Deslizar para cima sobre as pills abre a folha na última tab.
+- **Folha de configuração**, com 4 tabs. No telemóvel e no tablet em retrato fica em baixo (a pega expande-a ou fecha-a); em paisagem e no desktop fica à direita, por cima do palco, que nunca muda de tamanho. Não escurece o palco: continuas a tocar e a ouvir enquanto mexes. Fecha com um toque fora, `Esc` ou ✕.
+  - **Som:** sons guardados (as predefinições: tocar carrega, **+ Guardar** guarda o atual) e os instrumentos em cartões, por família, com pesquisa.
+  - **Notas:** Escala ou Personalizadas, tónica, escala (as mais usadas e **+ mais**), tónica no dedo, cada dedo toca…, a pré-visualização das notas de cada dedo e a oitava base.
+  - **Efeitos:** o efeito da boca com o medidor, os knobs Reverb, Eco, Filtro, Drive e Pitch, e **Repor efeitos**.
+  - **Estúdio:** tempo, metrónomo, quantização, looper e as gravações. Ao parar uma gravação, o aviso **Ver** abre-o.
+- **Definições (⚙):** mãos (calibração, sensibilidades, polegares, aprender a mão, altura da mão, arrastar), câmara, som (volume, silenciar), aspeto (tema, esconder a interface, mostrar FPS), atalhos e créditos. No telemóvel ocupam o ecrã inteiro.
+
+- **Cada dedo toca…** (tira por cima das pills, sempre à vista em ecrãs largos; tecla `C`), da mais simples à mais rica:
   - **Uma nota**: a melodia;
   - **Oitava**: a nota e a mesma uma oitava acima;
   - **Quinta**: nota, quinta e oitava (o "power chord");
@@ -50,9 +62,9 @@ O palco da câmara ocupa todo o espaço livre, com margens mínimas e seja qual 
   - **Sétima**: 4 notas, com a 7.ª;
   - **Nona**: 5 notas, com a 7.ª e a 9.ª.
 
-  Cada opção tem um desenho com um ponto por nota; a explicação aparece ao passar o rato ou por um instante depois de tocar. Em ecrãs baixos a coluna mostra só os desenhos, em duas colunas.
-- **⛶ Ecrã inteiro** (tecla `E`) e **esconder a interface** (tecla `I`, ou no menu ⋯): fica só o palco. Mexer o rato ou tocar no ecrã volta a mostrar a barra por 3 segundos.
-- **`,` e `.`** passam ao instrumento anterior ou seguinte sem abrir a gaveta.
+  Cada opção tem um desenho com um ponto por nota. No telemóvel, escolher fecha a tira e mostra a explicação por um instante; a explicação completa está sempre à vista na tab Notas.
+- **⛶ Ecrã inteiro** (tecla `E`) e **esconder a interface** (tecla `I`, ou nas definições): fica só o palco. Mexer o rato ou tocar no ecrã volta a mostrar o resto por 3 segundos.
+- **`,` e `.`** passam ao instrumento anterior ou seguinte; **`1`–`4`** abrem Som, Notas, Efeitos e Estúdio.
 
 ### Funcionalidades
 
@@ -107,7 +119,7 @@ src/
   state/    store Zustand (preferências persistidas), store transitório a 60 fps, presets, IndexedDB
   vision/   câmara, HandLandmarker, FaceLandmarker, dobra dos dedos, gestos, modo movimento, calibração
   audio/    motor Web Audio, patches, kits, efeitos, teoria, metrónomo, looper, gravação, analisador
-  ui/       palco (overlay, HUD, partículas), barra e gavetas (shell/), painéis, teclado, pads, controlos, ícones
+  ui/       palco (overlay, HUD, partículas), pills, tira e folha (shell/), painéis, teclado, pads, controlos, ícones
 docs/       DECISIONS.md, ARCHITECTURE.md
 ```
 
