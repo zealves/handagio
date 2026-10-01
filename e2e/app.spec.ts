@@ -1553,6 +1553,29 @@ test.describe('sem internet', () => {
     expect(errors, errors.join('\n')).toEqual([]);
   });
 
+  test('sem rede logo a seguir à primeira visita, também em inglês, a app abre', async ({
+    browser,
+  }) => {
+    for (const locale of ['pt-PT', 'en-US']) {
+      const context = await browser.newContext({ locale, serviceWorkers: 'allow' });
+      const page = await context.newPage();
+      const errors = watchConsole(page);
+      await page.goto('/?debug');
+      // a primeira visita não é controlada pelo service worker: só a instalação guarda ficheiros
+      await page.evaluate(async () => {
+        await navigator.serviceWorker.ready;
+      });
+      await context.setOffline(true);
+      await page.reload();
+      await expect(page.getByTestId('start'), locale).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByTestId('start')).toHaveAccessibleName(
+        locale === 'en-US' ? /Start/ : /Começar/,
+      );
+      expect(errors, errors.join('\n')).toEqual([]);
+      await context.close();
+    }
+  });
+
   test('funciona offline depois do primeiro carregamento', async ({ page, context }) => {
     const errors = watchConsole(page);
     await page.goto('/?debug');

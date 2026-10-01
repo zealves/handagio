@@ -5,7 +5,7 @@ import { App } from './app/App';
 import { session } from './app/session';
 import { audio } from './audio/engine';
 import { samples } from './audio/samples/loader';
-import { detectLang, installLangSync, setLang } from './i18n';
+import { detectLang, installLangSync, LANGS, setLang } from './i18n';
 import { DEBUG } from './lib/debug';
 import { live } from './state/live';
 import { useStore } from './state/store';
@@ -43,7 +43,16 @@ function savedLang(): unknown {
 
 // a app só monta depois de a língua chegar (um chunk pequeno; o pt é pré-carregado no index.html)
 async function boot(): Promise<void> {
-  await setLang(detectLang(savedLang(), navigator.languages ?? [navigator.language]));
+  const first = detectLang(savedLang(), navigator.languages ?? [navigator.language]);
+  // se o chunk da língua não chegar (sem rede e fora da cache), tenta as outras antes de desistir
+  for (const lang of [first, ...LANGS.filter((l) => l !== first)]) {
+    try {
+      await setLang(lang);
+      break;
+    } catch (e) {
+      console.warn(`[i18n] a língua ${lang} não carregou`, e);
+    }
+  }
   installLangSync();
   createRoot(document.getElementById('root')!).render(
     <StrictMode>

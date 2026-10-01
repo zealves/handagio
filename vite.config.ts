@@ -24,7 +24,7 @@ function precachedSamples(): string[] {
   return ['samples/manifest.json', ...notes.map((n) => `samples/${DEFAULT_SAMPLED}/${n}.mp3`)];
 }
 
-/** Chunks das línguas (src/i18n/locales/*.ts): ficam fora do pré-cache e só se pedem a usada. */
+/** Chunks das línguas (src/i18n/locales/*.ts): o arranque só pede (e pré-carrega) a usada. */
 const LOCALE_RE = /\/src\/i18n\/locales\/([a-z]+)\.ts$/;
 const localeOf = (c: { type: string; facadeModuleId?: string | null }): string | null =>
   c.type === 'chunk' ? (c.facadeModuleId?.match(LOCALE_RE)?.[1] ?? null) : null;
@@ -59,10 +59,10 @@ function serviceWorker(): Plugin {
     name: 'handagio-service-worker',
     apply: 'build',
     generateBundle(_, bundle) {
-      // as línguas não entram: cada uma fica guardada quando é pedida (ver o `fetch` do sw)
-      const files = Object.keys(bundle).filter(
-        (f) => !f.endsWith('.map') && f !== 'index.html' && !localeOf(bundle[f]),
-      );
+      // as línguas também entram (poucos KB cada): o arranque só pede a usada, mas na primeira
+      // visita a página ainda não é controlada pelo sw e o chunk pedido não ficava guardado; sem
+      // rede, a seguir, a app não arrancava (revisão final da decisão 66)
+      const files = Object.keys(bundle).filter((f) => !f.endsWith('.map') && f !== 'index.html');
       const statics = ['manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
       const sampleFiles = precachedSamples();
       const precache = ['./', 'index.html', ...statics, ...MEDIAPIPE, ...sampleFiles, ...files];
