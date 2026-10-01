@@ -1,0 +1,49 @@
+// Modo de jogo: pontos, combo, multiplicador e resultado da ronda.
+import { COMBO_STEP, MAX_MULTIPLIER, POINTS } from './config';
+import type { GameResult, Judgement } from './types';
+
+export class Score {
+  points = 0;
+  combo = 0;
+  maxCombo = 0;
+  perfect = 0;
+  good = 0;
+  miss = 0;
+  private offsetSum = 0;
+
+  /** ×1, ×2 a partir de 10 seguidos, ×3 a partir de 20, ×4 a partir de 30. */
+  get multiplier(): number {
+    return Math.min(MAX_MULTIPLIER, 1 + Math.floor(this.combo / COMBO_STEP));
+  }
+
+  /** Um acerto; devolve os pontos ganhos (com o multiplicador de antes deste acerto). */
+  hit(j: Judgement, offset: number): number {
+    const pts = POINTS[j] * this.multiplier;
+    this.points += pts;
+    this.combo++;
+    this.maxCombo = Math.max(this.maxCombo, this.combo);
+    if (j === 'perfect') this.perfect++;
+    else this.good++;
+    this.offsetSum += offset;
+    return pts;
+  }
+
+  missed(): void {
+    this.miss++;
+    this.combo = 0;
+  }
+
+  result(total: number): Omit<GameResult, 'best'> {
+    const hits = this.perfect + this.good;
+    return {
+      points: this.points,
+      accuracy: total ? (this.perfect + 0.5 * this.good) / total : 0,
+      maxCombo: this.maxCombo,
+      perfect: this.perfect,
+      good: this.good,
+      miss: this.miss,
+      total,
+      meanOffsetMs: hits ? Math.round((this.offsetSum / hits) * 1000) : null,
+    };
+  }
+}
