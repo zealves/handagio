@@ -440,11 +440,11 @@ test('aprender a mão: toggle nas Definições e Repor calibração esquece o ap
   const toggle = settings.getByTestId('learn-hand');
   await expect(toggle).toBeChecked();
   await expect(settings.getByTestId('learned-bars').locator('span[role="img"]')).toHaveCount(8);
-  // com os polegares, os 10 dedos (os polegares também aprendem)
+  // com os polegares continuam 8: os polegares não aprendem (tocam ao mexer-se, decisão 65)
   await page.evaluate(() =>
     (window as unknown as Dbg).__vsc.store.getState().set({ thumbs: true }),
   );
-  await expect(settings.getByTestId('learned-bars').locator('span[role="img"]')).toHaveCount(10);
+  await expect(settings.getByTestId('learned-bars').locator('span[role="img"]')).toHaveCount(8);
   await page.evaluate(() =>
     (window as unknown as Dbg).__vsc.store.getState().set({ thumbs: false }),
   );
@@ -1208,6 +1208,149 @@ test.describe('tablet 820×1180 (toque)', () => {
     expect(overlaps(box, (await page.getByTestId('record').boundingBox())!)).toBe(false);
     expect(errors, errors.join('\n')).toEqual([]);
   });
+});
+
+type VoicesVsc = Vsc & { audio: { activeVoices: number } };
+
+test('Uma nota com quantização: um toque mais curto do que um passo ainda soa', async ({
+  page,
+}) => {
+  const errors = watchConsole(page);
+  await page.goto('/?debug');
+  await page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.session.ensureAudio());
+  await pinNotes(page, {
+    started: true,
+    instrument: 'synth',
+    chord: 'off',
+    bpm: 60,
+    quantize: '1/16',
+    noteMode: 'scale',
+  });
+  const r = await page.evaluate(async () => {
+    const v = (window as unknown as { __vsc: VoicesVsc }).__vsc;
+    const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+    await sleep(300);
+    // tecla S (um dedo) premida ~30 ms: a 60 BPM uma semicolcheia dura 250 ms
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }));
+    const voices = v.audio.activeVoices;
+    await sleep(30);
+    window.dispatchEvent(new KeyboardEvent('keyup', { key: 's' }));
+    let level = 0;
+    const t0 = performance.now();
+    while (performance.now() - t0 < 700) {
+      level = Math.max(level, v.audio.analyser.level());
+      await sleep(5);
+    }
+    return { voices, level, after: v.audio.activeVoices };
+  });
+  // a nota, agendada para o passo seguinte, não é cortada ao soltar (PENDING_HOLD, decisão 57)
+  expect(r.voices).toBe(1);
+  expect(r.level).toBeGreaterThan(0.01);
+  expect(r.after).toBe(0);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('Nona: um dedo toca 5 vozes', async ({ page }) => {
+  const errors = watchConsole(page);
+  await page.goto('/?debug');
+  await page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.session.ensureAudio());
+  await pinNotes(page, { started: true, instrument: 'synth', chord: 'ninth', noteMode: 'scale' });
+  await expect(page.getByTestId('chord-ninth')).toHaveAttribute('aria-checked', 'true');
+  const r = await page.evaluate(async () => {
+    const v = (window as unknown as { __vsc: VoicesVsc }).__vsc;
+    const wait = () => new Promise((res) => setTimeout(res, 33));
+    const open = [v.syntheticHand(false, 0.3), v.syntheticHand(false, 0.7)];
+    const bent = [
+      v.syntheticHand([false, false, true, false, false], 0.3),
+      v.syntheticHand(false, 0.7),
+    ];
+    for (const hands of [open, open, open, open, bent, bent, bent, bent]) {
+      v.session.feedHands(hands);
+      await wait();
+    }
+    const held = v.audio.activeVoices;
+    const note = v.store.getState().lastNote;
+    for (let k = 0; k < 4; k++) {
+      v.session.feedHands(open);
+      await wait();
+    }
+    return { held, note, after: v.audio.activeVoices };
+  });
+  expect(r.held).toBe(5);
+  expect(r.note).toMatch(/9/);
+  expect(r.after).toBe(0);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+/** Diagnóstico com a pose da mão sintética e o estado ao vivo dos dedos. */
+type ThumbVsc = Vsc & {
+  syntheticHand(closed: boolean[] | boolean, x?: number, y?: number, pose?: object): unknown;
+  live: { fingers: { down: boolean; curl: number }[] };
+};
+
+test('polegar: mexer-se para qualquer lado toca a nota do polegar e parar solta', async ({
+  page,
+}) => {
+  const errors = watchConsole(page);
+  await page.goto('/?debug');
+  await page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.session.ensureAudio());
+  await pinNotes(page, {
+    started: true,
+    instrument: 'synth',
+    chord: 'off',
+    noteMode: 'scale',
+    thumbs: true,
+    calibration: null,
+    learnHand: false,
+    lastNote: '—',
+  });
+  const r = await page.evaluate(async () => {
+    const v = (window as unknown as { __vsc: ThumbVsc }).__vsc;
+    const wait = () => new Promise((res) => setTimeout(res, 33));
+    // mão esquerda inclinada e rodada, com o polegar entre o repouso (0) e encostado (1)
+    const pose = { rot: 25, tilt: 45 };
+    const hands = (thumb: number) => [
+      v.syntheticHand(false, 0.3, 0.8, { ...pose, thumb }),
+      v.syntheticHand(false, 0.7),
+    ];
+    const feed = async (thumb: number, n: number) => {
+      for (let k = 0; k < n; k++) {
+        v.session.feedHands(hands(thumb));
+        await wait();
+      }
+    };
+    await feed(0, 10);
+    const idle = v.store.getState().lastNote;
+    await feed(0.5, 1);
+    await feed(1, 4);
+    const held = {
+      note: v.store.getState().lastNote,
+      midi: v.audio.voiceMidi(0),
+      down: v.live.fingers[0].down,
+      curl: v.live.fingers[0].curl,
+    };
+    // parado, a nota solta sozinha; voltar ao sítio de partida não toca outra vez
+    await feed(1, 26);
+    const stopped = { midi: v.audio.voiceMidi(0), down: v.live.fingers[0].down };
+    v.store.getState().set({ lastNote: '—' });
+    await feed(0, 15);
+    return {
+      idle,
+      held,
+      stopped,
+      back: v.store.getState().lastNote,
+      others: [1, 2, 3, 4].some((i) => v.live.fingers[i].down),
+    };
+  });
+  expect(r.idle).toBe('—');
+  expect(r.held.note).not.toBe('—');
+  expect(r.held.midi).not.toBeNull();
+  expect(r.held.down).toBe(true);
+  expect(r.held.curl).toBeGreaterThan(0.65);
+  expect(r.stopped).toEqual({ midi: null, down: false });
+  expect(r.back).toBe('—');
+  expect(r.others).toBe(false);
+  expect(errors, errors.join('\n')).toEqual([]);
 });
 
 test.describe('instrumentos gravados', () => {

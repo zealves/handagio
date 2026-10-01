@@ -100,7 +100,7 @@
   outline-offset: 2px;
 }
 
-/* Intervalo aprendido de cada dedo (8 barrinhas, ou 10 com os polegares) */
+/* Intervalo aprendido de cada dedo (8 barrinhas: os polegares não aprendem) */
 .bars {
   display: flex;
   gap: 6px;

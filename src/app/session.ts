@@ -130,7 +130,7 @@ class Session {
       continuous: instrumentInfo(s.instrument).kind === 'continuous',
       calibration: s.calibration,
       learn: s.learnHand,
-      // o polegar mede-se em unidades quadradas (ver `thumbGap`)
+      // o polegar mede-se em unidades quadradas (ver `palmCoords`)
       videoW: live.videoW,
       videoH: live.videoH,
     };
@@ -861,16 +861,15 @@ class Session {
       }
     };
     try {
-      await step('open', 'Mostra as duas mãos, estica bem todos os dedos e afasta o polegar.');
-      await step('closed', 'Agora dobra todos os dedos e encosta o polegar ao lado do indicador.');
+      await step('open', 'Mostra as duas mãos e estica bem todos os dedos.');
+      await step('closed', 'Agora dobra todos os dedos.');
     } finally {
       this.cal = null;
     }
     const { calibration } = collector.result();
-    // os polegares desligados também são calibrados, mas a mensagem só conta os dedos que tocam
-    const thumbs = getState().thumbs;
+    // os polegares não usam a calibração (tocam ao mexer-se, decisão 65): a mensagem conta os 8 dedos
     const fingers = calibration.closed.filter(
-      (c, i) => c - calibration.open[i] > 0.2 && isActive(i, thumbs),
+      (c, i) => c - calibration.open[i] > 0.2 && isActive(i, false),
     ).length;
     if (fingers >= 4) {
       setState({

@@ -12,7 +12,7 @@ Um instrumento musical que se toca com as mãos à frente da webcam. Cada dedo t
 
 1. Abre a app e carrega em **▶ Começar**. Permite o acesso à câmara. Sem câmara, escolhe **Tocar no ecrã**.
 2. Mostra as duas mãos à câmara, com os dedos esticados.
-3. Dobra um dedo para tocar a nota dele. O mindinho esquerdo é a nota mais grave e o mindinho direito a mais aguda. Os polegares estão desligados por defeito (liga-os em **Definições → Mãos → Usar também os polegares**); o polegar toca ao encostar ao lado do indicador.
+3. Dobra um dedo para tocar a nota dele. O mindinho esquerdo é a nota mais grave e o mindinho direito a mais aguda. Os polegares estão desligados por defeito (liga-os em **Definições → Mãos → Usar também os polegares**); o polegar toca ao mexer-se depressa, para qualquer lado.
 4. Quanto mais depressa dobras, mais forte soa. Sobe ou desce a mão para mudar o tom.
 5. Abre a boca para aplicar o efeito escolhido na tab **Efeitos** (wah, filtro, distorção, eco, vibrato, robô, tremolo ou expressão).
 
@@ -37,7 +37,7 @@ Na tab **Notas** escolhes como cada dedo sabe que nota tocar. A fila "os teus de
   - **A altura da mão escolhe a nota** (desligada por defeito, só no modo Escala): a altura do pulso quando dobras o dedo sobe ou desce a nota pela escala, cerca de um grau por cada 10% do ecrã acima ou abaixo do meio.
   - **Arrastar a nota depois de tocar** (ligada por defeito): com o dedo dobrado, sobe ou desce a mão para dobrar o tom a partir da nota que tocaste, cerca de 2 meios-tons por cada 10% do ecrã, até uma oitava para cada lado. Um tremor pequeno não conta. Só se ouve nos instrumentos de nota longa (violino, flauta, órgão, sopros…), e funciona também no modo Personalizado.
 - **Personalizado**: escolhes a nota exata de cada dedo. Toca num dedo da fila, escolhe a nota (Dó a Si) e a oitava, e ouves logo como soa; Por defeito, as notas são as mesmas do modo Escala por defeito (`Dó4 … Dó5`); **Copiar da escala** começa pelas notas que o modo Escala está a tocar. Aqui a altura da mão não escolhe a nota (arrastar depois de tocar continua a funcionar), e os acordes são sempre maiores (Acorde: a nota e as que ficam 4 e 7 meios-tons acima).
-- **Polegares**: com **Usar também os polegares**, tocam 10 dedos em vez de 8. O polegar não dobra como os outros dedos, anda para o lado: o polegar toca ao encostar ao lado do indicador (como quem carrega num botão com o polegar) e solta ao afastar. Só toca se ficar encostado um instante, e não toca quando é o indicador que dobra e vem ter com ele. A calibração pede o polegar afastado no primeiro passo e encostado ao lado do indicador no segundo, e a app também aprende os polegares enquanto tocas; se tocar sem querer ou custar a tocar, ajusta **Sensibilidade dos polegares** nas definições (secção Mãos).
+- **Polegares**: com **Usar também os polegares**, tocam 10 dedos em vez de 8. O polegar não dobra como os outros dedos: toca ao **mexer-se depressa em relação à mão, para qualquer lado** (como um toque), e a nota solta quando ele para. A medida é feita num referencial preso à palma, por isso funciona com a mão rodada ou inclinada; com a mão completamente de lado não há medida. Voltar ao sítio de partida logo a seguir não toca outra vez, e com outro dedo da mesma mão a tocar o polegar precisa de um movimento maior. Os polegares não precisam de calibração nem aprendem; se tocarem sem querer ou custarem a tocar, ajusta **Sensibilidade dos polegares** nas definições (secção Mãos).
 
 ### Interface
 

@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CalibrationCollector } from './calibration';
-import { thresholds, THUMB_HYSTERESIS, thumbThresholds } from './gestureEngine';
-import { curls } from './fingerCurl';
-import { syntheticHand } from './testHands';
+import { thresholds } from './gestureEngine';
 
 describe('calibração', () => {
   it('calcula referências por dedo e ignora extremos', () => {
@@ -33,27 +31,5 @@ describe('calibração', () => {
     expect(t.on).toBeLessThan(0.8);
     expect(t.off).toBeLessThan(t.on);
     expect(t.off).toBeGreaterThan(0.3);
-  });
-
-  it('polegares: afastado no passo esticado e encostado ao indicador no passo dobrado', () => {
-    const c = new CalibrationCollector();
-    const at = (closed: boolean, thumb: number) => [
-      ...curls(syntheticHand(closed, 0.3, 0.8, { thumb })),
-      ...curls(syntheticHand(closed, 0.7, 0.8, { thumb })),
-    ];
-    for (let k = 0; k < 20; k++) {
-      c.add('open', at(false, k % 2 ? 0.1 : 0));
-      c.add('closed', at(true, k % 2 ? 0.9 : 1));
-    }
-    const { calibration, fingers } = c.result();
-    expect(fingers).toBe(10);
-    for (const i of [0, 5]) {
-      expect(calibration.open[i]).toBeLessThan(0.05);
-      expect(calibration.closed[i]).toBeGreaterThan(0.9);
-      const t = thumbThresholds(i, 0.5, calibration);
-      const span = calibration.closed[i] - calibration.open[i];
-      expect(t.on).toBeCloseTo(calibration.open[i] + span * 0.6);
-      expect(t.off).toBeCloseTo(t.on - THUMB_HYSTERESIS);
-    }
   });
 });

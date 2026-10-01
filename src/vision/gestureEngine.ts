@@ -2,7 +2,8 @@
 // Partiu de processHands() no protótipo; desde a v2.2 a deteção dos dedos (suavização,
 // limiares por dedo, disparo antecipado, período refratário e aprendizagem) foi afinada para
 // ser mais rápida e mais fácil (docs/DECISIONS.md, 62). Os polegares têm regras próprias: tocam
-// ao encostar ao lado do indicador, com confirmação e sem disparo antecipado (63).
+// ao mexer-se em relação à palma, para qualquer lado (`ThumbMotion`, 65), com confirmação e sem
+// disparo antecipado.
 import { clamp } from '../audio/theory';
 import { Emitter } from '../lib/emitter';
 import type { Calibration } from '../state/types';
@@ -13,9 +14,10 @@ import {
   usableRange,
   type LearnedRange,
 } from './adaptive';
-import { curls, dist3, squarePt } from './fingerCurl';
+import { curls } from './fingerCurl';
 import { isActive, TIP_IDS } from './fingerMap';
-import type { AssignedHands, HandLandmarks } from './types';
+import { ThumbMotion } from './thumbMotion';
+import type { AssignedHands } from './types';
 
 export interface GestureEvents extends Record<string, unknown> {
   /** Dedo dobrou: velocity 0.2..1, shift em graus da escala (altura do pulso). */
@@ -40,7 +42,7 @@ export interface GestureOptions {
   learn?: boolean;
   /**
    * Tamanho do vídeo (px): o MediaPipe normaliza o x pela largura e o y pela altura, e a medida do
-   * polegar precisa de unidades quadradas (ver `thumbGap`). Sem isto, conta como quadrado.
+   * polegar precisa de unidades quadradas (ver `palmCoords`). Sem isto, conta como quadrado.
    */
   videoW?: number;
   videoH?: number;
@@ -53,7 +55,7 @@ export const aspectOf = (o: Pick<GestureOptions, 'videoW' | 'videoH'>): number =
 export interface FingerLive {
   /**
    * Dobra suavizada (0..1): é a que passa os limiares e a que os canvas desenham. Nos polegares é
-   * a pressão (0 afastado, 1 encostado ao lado do indicador; ver `thumbGap`).
+   * a pressão de movimento (0 parado, 1 a mexer-se; ver `ThumbMotion`).
    */
   curl: number;
   prevCurl: number;
@@ -261,11 +263,9 @@ export function dragSemitones(y0: number, y: number): number {
 }
 
 /**
- * Polegares: o `on` da pressão (0 afastado, 1 encostado ao lado do indicador) com a sensibilidade
- * neutra: a ponta tem de percorrer 65% do caminho entre afastado (`GAP_OPEN`) e encostado
- * (`GAP_TOUCH`). Chega para tocar sem esmagar e fica acima de um polegar relaxado perto da mão
- * (0.6 na primeira versão; a revisão pediu 0.65 para os polegares que repousam a 0.4–0.5).
- * Substitui o `THUMB_ON_EXTRA` da medida antiga.
+ * Polegares: o `on` da pressão de movimento (ver `ThumbMotion`: 0 parado, 1 afastado
+ * `THUMB_MOVE_FULL` do repouso) com a sensibilidade neutra: um movimento de ~0,21 palmas, para
+ * qualquer lado. Desde a decisão 65; antes era a pressão de encostar ao indicador (decisão 63).
  */
 export const THUMB_ON = 0.65;
 /**
@@ -284,42 +284,18 @@ export const THUMB_HYSTERESIS = 0.25;
 /** Polegares: quanto o `on` desce por cada unidade de sensibilidade (a inclinação dos dedos). */
 export const THUMB_SENS_SPAN = 0.45;
 /**
- * Polegares, proteção contra o indicador: o polegar só começa a confirmar (e continua) se, nos
- * últimos `THUMB_GUARD_S` segundos, a dobra crua do indicador da mesma mão subiu no máximo
- * `THUMB_INDEX_RISE_MAX`, ou se a ponta do polegar se mexeu mais do que o ponto do segmento 5–6
- * mais perto dela, em coordenadas da mão (relativas ao pulso, a dividir pela palma). Ao dobrar, o
- * indicador aproxima o segmento de um polegar parado e a pressão sobe sem o polegar se mexer.
- * Quando a proteção trava o polegar, ele só volta a poder tocar depois de visto afastado (o portão
- * `armed`): senão, ao parar o indicador, o polegar tocava uns fotogramas depois. A janela é em
- * segundos (~4–5 fotogramas a 30 fps) e não em fotogramas: com 4 fotogramas a 60 fps, uma dobra
- * de 500 ms do indicador subia pouco em cada janela e o polegar parado tocava.
- */
-export const THUMB_GUARD_S = 0.15;
-export const THUMB_INDEX_RISE_MAX = 0.08;
-/**
- * Polegares, proteção contra o indicador (revisão, ronda 1): o indicador também conta como
- * "a mexer" enquanto está em baixo (a tocar) ou se subiu mais de `THUMB_INDEX_RECENT_RISE` no
- * último `THUMB_INDEX_RECENT_S`; e nesse caso a ponta do polegar tem de se ter mexido mais do que o
- * segmento 5–6 e ainda `THUMB_MOVE_MARGIN` palmas. Com o indicador parado dobrado, ou a dobrar
- * devagar (1–2 s), e o polegar à frente do plano da mão, a pressão subia sem a proteção ver o
- * indicador a subir.
- */
-export const THUMB_INDEX_RECENT_S = 1;
-/**
  * Polegares: além do `on`, a pressão crua tem de estar pelo menos `THUMB_MIN_RISE` acima do
  * repouso (a mediana da pressão crua abaixo do `on` no último `REST_WINDOW_S`) quando começa a
- * confirmar; `THUMB_MIN_RISE_BUSY` se o médio, o anelar ou o mindinho da mesma mão estiverem em
- * baixo ou tiverem subido mais de `THUMB_BUSY_RISE` nos últimos `THUMB_BUSY_S` (o polegar
- * relaxado vai atrás deles). No simulador da revisão, um polegar que repousa a 0.3–0.4 e é
- * arrastado pelos outros dedos a tocar chegava ao `on` dezenas de vezes em 20 min; um encostar de
- * propósito sobe muito mais do que isso.
+ * confirmar; `THUMB_MIN_RISE_BUSY` se o indicador, o médio, o anelar ou o mindinho da mesma mão
+ * estiverem em baixo ou tiverem subido mais de `THUMB_BUSY_RISE` nos últimos `THUMB_BUSY_S` (o
+ * polegar relaxado vai atrás deles). Na pressão de movimento (decisão 65) o repouso fica perto de
+ * 0, por isso o `THUMB_MIN_RISE` quase nunca pesa; o `THUMB_MIN_RISE_BUSY` fica acima do `on`:
+ * com outro dedo a tocar, só conta um movimento de ~0,26 palmas (em vez de ~0,21).
  */
 export const THUMB_MIN_RISE = 0.4;
-export const THUMB_MIN_RISE_BUSY = 0.55;
+export const THUMB_MIN_RISE_BUSY = 0.95;
 export const THUMB_BUSY_S = 0.3;
 export const THUMB_BUSY_RISE = 0.15;
-export const THUMB_INDEX_RECENT_RISE = 0.15;
-export const THUMB_MOVE_MARGIN = 0.04;
 /**
  * Polegares: confirmação do disparo. O polegar tem de ficar acima do limiar em fotogramas de
  * deteção seguidos: dispara ao `THUMB_DWELL_MIN`.º fotograma se já esteve acima pelo menos
@@ -333,8 +309,6 @@ export const THUMB_DWELL_MIN = 2;
 export const THUMB_DWELL_S = 0.05;
 /** Sensibilidade dos polegares neutra (a que não desloca o limiar calibrado). */
 export const THUMB_SENS_NEUTRAL = 0.5;
-/** Calibrado, o limiar do polegar nunca passa de 85% do caminho entre afastado e encostado. */
-const THUMB_CAL_MAX = 0.85;
 
 /** limiar = 0.75 − sens × 0.45 */
 export const onThreshold = (sens: number): number => 0.75 - sens * 0.45;
@@ -417,51 +391,12 @@ const thumbOn = (thumbSens: number): number =>
   THUMB_ON - (thumbSens - THUMB_SENS_NEUTRAL) * THUMB_SENS_SPAN;
 
 /**
- * Limiares de um polegar, na pressão (ver `thumbGap`). Prioridade como nos dedos: calibração
- * (afastado/encostado) > intervalo aprendido > `THUMB_ON` com a sensibilidade dos polegares.
- * - Calibrado: a fórmula da calibração dos dedos, com o ponto neutro dos polegares, e nunca acima
- *   de `THUMB_CAL_MAX` do caminho, para um polegar encostado continuar a disparar.
- * - Aprendido: o `on` fica a `THUMB_ON` do caminho entre `lo` e `hi` (e o `off` a
- *   `THUMB_ON − THUMB_HYSTERESIS`), com os limites da aprendizagem dos dedos (`LEARN_ON_MIN`,
- *   `LEARN_ON_MAX`, `LEARN_MIN_HYST`), e NUNCA abaixo do `on` sem aprendizagem: um polegar
- *   parado já espalha a pressão o suficiente para a aprendizagem ligar sem toques de propósito,
- *   e baixar o `on` multiplicava os disparos sozinhos (revisão, ronda 1). A aprendizagem só
- *   serve para subir o `on` de um polegar que repousa perto do indicador.
+ * Limiares de um polegar, na pressão de movimento (ver `ThumbMotion`): só a sensibilidade dos
+ * polegares. A calibração e a aprendizagem mediam o polegar afastado e encostado ao indicador, que
+ * deixou de contar (decisão 65); um movimento não tem um "esticado" e um "dobrado" a aprender.
  * Nunca há disparo antecipado (`early` = `on`).
  */
-export function thumbThresholds(
-  i: number,
-  thumbSens: number,
-  cal?: Calibration | null,
-  learned?: LearnedRange | null,
-): Thresholds {
-  if (calibrated(i, cal)) {
-    const span = cal.closed[i] - cal.open[i];
-    // a mesma fórmula da calibração, com o ponto neutro dos polegares (0.5)
-    const base = thresholds(i, thumbSens + (0.55 - THUMB_SENS_NEUTRAL), cal);
-    const on = clamp(Math.min(base.on, cal.open[i] + span * THUMB_CAL_MAX), 0.15, 0.95);
-    return {
-      on,
-      off: Math.max(cal.open[i] + span * 0.15, on - THUMB_HYSTERESIS),
-      full: on,
-      early: on,
-      rest: cal.open[i],
-    };
-  }
-  if (usableRange(learned)) {
-    const span = learned.hi - learned.lo;
-    const shift = (thumbSens - THUMB_SENS_NEUTRAL) * THUMB_SENS_SPAN;
-    const on = clamp(
-      Math.max(thumbOn(thumbSens), learned.lo + span * THUMB_ON - shift),
-      LEARN_ON_MIN,
-      LEARN_ON_MAX,
-    );
-    const off = Math.min(
-      learned.lo + span * (THUMB_ON - THUMB_HYSTERESIS) - shift,
-      on - LEARN_MIN_HYST,
-    );
-    return { on, off, full: on, early: on, rest: learned.lo };
-  }
+export function thumbThresholds(thumbSens: number): Thresholds {
   const on = thumbOn(thumbSens);
   return { on, off: on - THUMB_HYSTERESIS, full: on, early: on, rest: 0 };
 }
@@ -529,11 +464,8 @@ export class GestureEngine extends Emitter<GestureEvents> {
   private base = new Array<number>(10).fill(0);
   /** Fotogramas que a aprendizagem ainda ignora em cada mão. */
   private learnSkip = [0, 0];
-  /**
-   * Polegares: ponta do polegar e pontos 5 e 6 dos fotogramas dos últimos `THUMB_GUARD_S` de cada
-   * mão (e do anterior a esses), em coordenadas da mão, com a idade (s) de cada um (ver `thumbFree`).
-   */
-  private thumbHist: { pts: HandPts; age: number }[][] = [[], []];
+  /** Polegares: pressão de movimento de cada mão (ver `ThumbMotion`). */
+  private thumbMotion = [new ThumbMotion(), new ThumbMotion()];
   /** Polegares: repouso (mínimo recente da pressão crua) quando começou a confirmar a nota. */
   private thumbRest = new Array<number>(10).fill(0);
 
@@ -566,6 +498,7 @@ export class GestureEngine extends Emitter<GestureEvents> {
       const lm = hands[h];
       if (!lm) {
         this.handFrames[h] = 0;
+        this.thumbMotion[h].reset();
         for (let j = 0; j < 5; j++) {
           const i = h * 5 + j;
           const f = this.fingers[i];
@@ -592,12 +525,10 @@ export class GestureEngine extends Emitter<GestureEvents> {
         this.handFrames[h] = 0;
         // as notas deste lado eram da outra mão
         if (swap) for (let j = 0; j < 5; j++) this.release(h * 5 + j);
-        this.thumbHist[h].length = 0;
+        this.thumbMotion[h].reset();
       }
-      const th = this.thumbHist[h];
-      for (const e of th) e.age += dt;
-      th.push({ pts: handPts(lm, aspect), age: 0 });
-      while (th.length > 2 && th[1].age >= THUMB_GUARD_S - 1e-9) th.shift();
+      // polegar: em vez de encostar ao indicador, o movimento em relação à palma (decisão 65)
+      cs[0] = this.thumbMotion[h].update(lm, aspect, dt);
       this.handFrames[h]++;
       const score = scores[h];
       const skipping = this.learnSkip[h] > 0;
@@ -702,11 +633,12 @@ export class GestureEngine extends Emitter<GestureEvents> {
         }
         const tip = lm[TIP_IDS[j]];
         f.tip = { x: tip.x, y: tip.y };
-        if (learnHere) this.adaptive.observe(i, f.raw, dt);
+        // os polegares não aprendem: a pressão de movimento não tem um intervalo próprio
+        if (learnHere && j > 0) this.adaptive.observe(i, f.raw, dt);
         const learned = o.learn ? this.adaptive.ranges[i] : null;
         const { on, off, full, early, rest } =
           j === 0
-            ? thumbThresholds(i, o.thumbSensitivity ?? THUMB_SENS_NEUTRAL, o.calibration, learned)
+            ? thumbThresholds(o.thumbSensitivity ?? THUMB_SENS_NEUTRAL)
             : thresholds(i, o.sensitivity, o.calibration, learned);
 
         if (!this.armed[i] && (j === 0 ? f.curl < off : f.raw < Math.max(off, early)))
@@ -721,12 +653,6 @@ export class GestureEngine extends Emitter<GestureEvents> {
           if (f.curl <= on) {
             f.dwell = 0;
             f.dwellT = 0;
-          } else if (!this.thumbFree(h)) {
-            // foi o indicador que se aproximou (ver THUMB_GUARD_S): não toca, e só volta a
-            // poder tocar depois de o polegar ser visto afastado (abaixo do `off`)
-            f.dwell = 0;
-            f.dwellT = 0;
-            this.armed[i] = false;
           } else if (f.dwell > 0) {
             f.dwell++;
             f.dwellT += dt;
@@ -741,6 +667,7 @@ export class GestureEngine extends Emitter<GestureEvents> {
             f.dwellT = 0;
             f.dwellVel = f.vel;
             this.thumbRest[i] = this.slowRest[i];
+            this.thumbMotion[h].markStart();
           }
           if (f.dwell >= THUMB_DWELL || (f.dwell >= THUMB_DWELL_MIN && f.dwellT >= THUMB_DWELL_S)) {
             f.dwell = 0;
@@ -784,6 +711,11 @@ export class GestureEngine extends Emitter<GestureEvents> {
             (j === 0 ? Math.max(off, Math.min(on, this.thumbRest[i] + THUMB_REST_RELEASE)) : off)
         ) {
           this.release(i);
+          if (j === 0) {
+            // o repouso volta a de onde o polegar partiu; só volta a tocar depois de parar
+            this.thumbMotion[h].release();
+            this.armed[i] = false;
+          }
         } else if (f.down && o.glide) {
           // relativo ao ponto de partida: soma-se à nota que foi tocada
           f.bend += (dragSemitones(f.y0, wristY) - f.bend) * DRAG_SMOOTH;
@@ -826,29 +758,6 @@ export class GestureEngine extends Emitter<GestureEvents> {
     return null;
   }
 
-  /**
-   * Proteção do polegar da mão h contra o indicador (ver `THUMB_GUARD_S` e
-   * `THUMB_INDEX_RECENT_S`): com o indicador quieto é verdadeiro; com o indicador a subir, em
-   * baixo ou a ter subido há pouco, só é verdadeiro se a ponta do polegar se mexeu mais do que o
-   * ponto do segmento 5–6 mais perto dela, mais `THUMB_MOVE_MARGIN`.
-   */
-  private thumbFree(h: number): boolean {
-    const idx = h * 5 + 1;
-    if (
-      this.riseSince(idx, THUMB_GUARD_S) <= THUMB_INDEX_RISE_MAX &&
-      !this.fingers[idx].down &&
-      this.riseSince(idx, THUMB_INDEX_RECENT_S) <= THUMB_INDEX_RECENT_RISE
-    )
-      return true;
-    const hist = this.thumbHist[h];
-    if (hist.length < 2) return true;
-    const old = hist[0].pts;
-    const cur = hist[hist.length - 1].pts;
-    const t = segmentT(cur.tip, cur.a, cur.b);
-    const seg = dist(lerp(cur.a, cur.b, t), lerp(old.a, old.b, t));
-    return dist(cur.tip, old.tip) > seg + THUMB_MOVE_MARGIN;
-  }
-
   /** Uma dobra crua do dedo i solto para a estimativa do tremor. */
   private sampleJitter(i: number, d: number): void {
     const w = this.jDelta[i];
@@ -882,7 +791,7 @@ export class GestureEngine extends Emitter<GestureEvents> {
 
   /** O médio, o anelar ou o mindinho da mão h estão a tocar ou a dobrar (ver `THUMB_BUSY_S`). */
   private othersBusy(h: number): boolean {
-    for (let q = 2; q < 5; q++) {
+    for (let q = 1; q < 5; q++) {
       const k = h * 5 + q;
       if (this.fingers[k].down || this.riseSince(k, THUMB_BUSY_S) > THUMB_BUSY_RISE) return true;
     }
@@ -993,44 +902,6 @@ export class GestureEngine extends Emitter<GestureEvents> {
     this.fingers.forEach((f) => Object.assign(f, newFinger()));
     this.handFrames = [0, 0];
     this.armed.fill(false);
-    this.thumbHist = [[], []];
+    this.thumbMotion.forEach((m) => m.reset());
   }
-}
-
-/** Vetor 3D em coordenadas da mão (relativo ao pulso, em palmas, z atenuado como em `dist3`). */
-type V3 = [number, number, number];
-/** Ponta do polegar (4) e os pontos 5 e 6 do indicador, em coordenadas da mão. */
-interface HandPts {
-  tip: V3;
-  a: V3;
-  b: V3;
-}
-
-function handPts(lm: HandLandmarks, aspect: number): HandPts {
-  const w = squarePt(lm[0], aspect);
-  const palm = dist3(w, squarePt(lm[9], aspect)) || 1;
-  const v = (k: number): V3 => {
-    const p = squarePt(lm[k], aspect);
-    return [(p.x - w.x) / palm, (p.y - w.y) / palm, ((p.z - w.z) * 0.6) / palm];
-  };
-  return { tip: v(4), a: v(5), b: v(6) };
-}
-
-const lerp = (a: V3, b: V3, t: number): V3 => [
-  a[0] + (b[0] - a[0]) * t,
-  a[1] + (b[1] - a[1]) * t,
-  a[2] + (b[2] - a[2]) * t,
-];
-const dist = (a: V3, b: V3): number => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-
-/** Parâmetro (0..1) do ponto do segmento a–b mais perto de p. */
-function segmentT(p: V3, a: V3, b: V3): number {
-  const ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
-  const len2 = ab[0] * ab[0] + ab[1] * ab[1] + ab[2] * ab[2];
-  if (len2 <= 0) return 0;
-  return clamp(
-    ((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1] + (p[2] - a[2]) * ab[2]) / len2,
-    0,
-    1,
-  );
 }

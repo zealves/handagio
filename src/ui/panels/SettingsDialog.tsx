@@ -117,8 +117,8 @@ export function SettingsDialog() {
             {st.engine !== 'hands'
               ? 'A calibração fica disponível quando a deteção das mãos estiver ligada.'
               : st.calibration
-                ? 'Limiares calibrados para ti. Para recalibrar: 3 s com os dedos esticados e o polegar afastado, e 3 s com os dedos dobrados e o polegar encostado ao lado do indicador.'
-                : 'Estica os dedos e afasta o polegar durante 3 s; depois dobra os dedos e encosta o polegar ao lado do indicador durante 3 s. Os limiares ajustam-se à tua mão.'}
+                ? 'Limiares calibrados para ti. Para recalibrar: 3 s com os dedos esticados e 3 s com os dedos dobrados. Os polegares não precisam de calibração.'
+                : 'Estica os dedos durante 3 s e depois dobra-os durante 3 s. Os limiares ajustam-se à tua mão (os polegares não precisam de calibração).'}
           </p>
           <Toggle
             label="Aprender a minha mão enquanto toco"
@@ -133,7 +133,7 @@ export function SettingsDialog() {
           {st.learnHand && st.learnedRanges && (
             <details className={s.details}>
               <summary>Ver o intervalo aprendido</summary>
-              <LearnedBars ranges={st.learnedRanges} thumbs={st.thumbs} />
+              <LearnedBars ranges={st.learnedRanges} />
             </details>
           )}
           <Slider
@@ -162,8 +162,8 @@ export function SettingsDialog() {
                 testId="thumb-sensitivity"
               />
               <p className={s.hint}>
-                O polegar toca ao encostar ao lado do indicador. Se os polegares tocam sem querer,
-                baixa. Se custam a tocar, sobe.
+                O polegar toca ao mexer-se depressa, para qualquer lado, também com a mão inclinada.
+                Se os polegares tocam sem querer, baixa. Se custam a tocar, sobe.
               </p>
             </>
           )}
@@ -343,16 +343,16 @@ export function SettingsDialog() {
 
 /**
  * Barrinhas com o intervalo aprendido de cada dedo ativo, pela ordem do ecrã (0 = esticado, em
- * baixo; 1 = dobrado): 8 sem polegares, 10 com (nos polegares, 0 afastado e 1 encostado).
+ * baixo; 1 = dobrado): os 8 dedos que dobram (os polegares não aprendem, ver decisão 65).
  */
-function LearnedBars({ ranges, thumbs }: { ranges: (LearnedRange | null)[]; thumbs: boolean }) {
+function LearnedBars({ ranges }: { ranges: (LearnedRange | null)[] }) {
   return (
     <div
       className={s.bars}
       data-testid="learned-bars"
       aria-label="Intervalo aprendido de cada dedo"
     >
-      {activeScreenOrder(thumbs).map((i) => {
+      {activeScreenOrder(false).map((i) => {
         const r = ranges[i];
         const title = r
           ? `${fingerLabel(i)}: ${Math.round(r.lo * 100)}–${Math.round(r.hi * 100)}%`
@@ -360,7 +360,7 @@ function LearnedBars({ ranges, thumbs }: { ranges: (LearnedRange | null)[]; thum
         return (
           <span
             key={i}
-            className={i === (thumbs ? 0 : 1) ? `${s.bar} ${s.barGap}` : s.bar}
+            className={i === 1 ? `${s.bar} ${s.barGap}` : s.bar}
             title={title}
             role="img"
             aria-label={title}
