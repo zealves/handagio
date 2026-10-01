@@ -2,6 +2,12 @@
 
 Versões segundo [SemVer](https://semver.org/lang/pt-BR/). A mais recente fica no topo.
 
+## [3.1.0] — 2026-10-01
+
+- O polegar toca ao dobrar (para dentro da palma) ou ao mover-se para baixo, depressa e em relação à mão, em vez de encostar ao lado do indicador. Funciona com a mão rodada ou inclinada; para cima ou para fora não toca, e subir o polegar e voltar ao sítio também não.
+- É um toque: a nota solta quando o polegar para. Com outro dedo da mesma mão a tocar, o polegar precisa de um movimento maior.
+- Os polegares deixam de precisar de calibração e de aprender; "Calibrar mãos" já não pede o polegar afastado nem encostado.
+
 ## [3.0.0] — 2026-10-01
 
 Interface redesenhada com revelação progressiva, pensada primeiro para o telemóvel e o tablet. Todas as funcionalidades continuam; o desenho das mãos e das notas não muda.
