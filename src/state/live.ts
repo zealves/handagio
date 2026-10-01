@@ -2,6 +2,7 @@
 // Nunca passa por estado React.
 import { newFinger, type FingerLive } from '../vision/gestureEngine';
 import type { Pt } from '../vision/types';
+import type { GameRun } from '../game/run';
 
 export interface FingerFx {
   flash: number; // 1 no disparo, decai para 0
@@ -46,6 +47,8 @@ export const live = {
   step: -1,
   /** Contador de fotogramas de deteção (para o HUD). */
   fps: 0,
+  /** Ronda do modo de jogo a decorrer (lida pelo canvas da pista); null fora do jogo. */
+  game: null as GameRun | null,
 };
 
 /** Resolução de desenho: a proporção da câmara com o lado maior a `DRAW_SIZE`. */

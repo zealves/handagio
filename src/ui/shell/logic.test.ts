@@ -353,3 +353,33 @@ describe('sanitizePrefs (dicas e FPS)', () => {
     expect(sanitizePrefs({ showFps: 1 })).toEqual({ showFps: false });
   });
 });
+
+describe('sanitizePrefs: modo de jogo', () => {
+  it('mantém valores válidos', () => {
+    const p = {
+      gameBest: { easy: 1200, medium: 0, hard: 50 },
+      gameDifficulty: 'hard',
+      gameLagMs: 90,
+    };
+    expect(sanitizePrefs(p)).toEqual(p);
+  });
+  it('corrige recordes, dificuldade e atraso estragados', () => {
+    expect(
+      sanitizePrefs({
+        gameBest: { easy: -3, medium: 'x', hard: 12.7 },
+        gameDifficulty: 'insane',
+        gameLagMs: 999,
+      }),
+    ).toEqual({
+      gameBest: { easy: 0, medium: 0, hard: 12 },
+      gameDifficulty: 'easy',
+      gameLagMs: 250,
+    });
+    expect(sanitizePrefs({ gameBest: null, gameLagMs: 'a' })).toEqual({
+      gameBest: { easy: 0, medium: 0, hard: 0 },
+      gameLagMs: 120,
+    });
+    // o atraso fica em passos de 10 ms
+    expect(sanitizePrefs({ gameLagMs: 134 }).gameLagMs).toBe(130);
+  });
+});

@@ -30,3 +30,10 @@ export interface Calibration {
   open: number[]; // dobra média com os dedos esticados (10)
   closed: number[]; // dobra média com os dedos dobrados (10)
 }
+
+/** Modo de jogo na interface (o `GameRun` a 60 fps fica em `live.game`). */
+export interface GameUi {
+  phase: 'setup' | 'playing' | 'over';
+  difficulty: import('../game/types').Difficulty;
+  result: import('../game/types').GameResult | null;
+}

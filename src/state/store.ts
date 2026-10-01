@@ -3,6 +3,8 @@ import { persist } from 'zustand/middleware';
 import type { ChordMode, ScaleName } from '../audio/theory';
 import { DEFAULT_CUSTOM_NOTES, type NoteMode } from '../app/notes';
 import { migratePrefs, sanitizePrefs } from '../ui/shell/logic';
+import { GAME_INPUT_LAG_MS } from '../game/config';
+import type { Difficulty } from '../game/types';
 import type { LearnedRange } from '../vision/adaptive';
 import type { TonicAt } from '../vision/fingerMap';
 import type { Lang } from '../i18n/types';
@@ -11,6 +13,7 @@ import type {
   Calibration,
   CoachId,
   Engine,
+  GameUi,
   LoopBars,
   MouthFxId,
   NoteSrc,
@@ -70,6 +73,12 @@ export interface Prefs extends SoundSettings {
   coachDone: CoachId[];
   /** Língua da interface (a inicial vem de `detectLang`, em main.tsx). */
   lang: Lang;
+  /** Modo de jogo: recorde (pontos) por dificuldade. Fora dos presets. */
+  gameBest: Record<Difficulty, number>;
+  /** Última dificuldade escolhida. */
+  gameDifficulty: Difficulty;
+  /** Atraso da câmara descontado aos toques (ms). */
+  gameLagMs: number;
 }
 
 export interface Runtime {
@@ -108,6 +117,8 @@ export interface Runtime {
   recordings: RecordingMeta[];
   /** Estado do carregamento das amostras por instrumento (sem `idle`). */
   sampleStatus: Record<string, 'loading' | 'ready' | 'error'>;
+  /** Modo de jogo: cartão de entrada, a jogar ou resultado (null = fora do jogo). */
+  game: GameUi | null;
 }
 
 export type Store = Prefs &
@@ -157,6 +168,9 @@ export const DEFAULT_PREFS: Prefs = {
   showFps: false,
   coachDone: [],
   lang: 'pt',
+  gameBest: { easy: 0, medium: 0, hard: 0 },
+  gameDifficulty: 'easy',
+  gameLagMs: GAME_INPUT_LAG_MS,
 };
 
 const PREF_KEYS = Object.keys(DEFAULT_PREFS) as (keyof Prefs)[];
@@ -188,6 +202,7 @@ export const useStore = create<Store>()(
       lastRecordingId: null,
       recordings: [],
       sampleStatus: {},
+      game: null,
       set: (p) => set(p),
     }),
     {
