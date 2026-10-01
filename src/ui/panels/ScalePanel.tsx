@@ -15,7 +15,7 @@ import { instrumentInfo } from '../../audio/instruments';
 import {
   CHORD_MODES,
   chordName,
-  NOTE_NAMES,
+  noteNames,
   noteName,
   pitchClassName,
   type ChordMode,
@@ -191,12 +191,12 @@ export function ScalePanel() {
                 className={s.pillRow}
                 role="radiogroup"
                 aria-labelledby={`${id}-root`}
-                onKeyDown={radioKeys(NOTE_NAMES, st.root, (n) =>
-                  st.set({ root: NOTE_NAMES.indexOf(n) }),
+                onKeyDown={radioKeys(noteNames(), st.root, (n) =>
+                  st.set({ root: noteNames().indexOf(n) }),
                 )}
                 data-testid="root"
               >
-                {NOTE_NAMES.map((n, i) => (
+                {noteNames().map((n, i) => (
                   <button
                     key={n}
                     type="button"
@@ -319,7 +319,7 @@ export function ScalePanel() {
           <h3 className={s.label}>
             {custom
               ? 'Os teus dedos tocam'
-              : `Em ${NOTE_NAMES[st.root]} ${st.scale}, os teus dedos tocam`}
+              : `Em ${noteNames()[st.root]} ${st.scale}, os teus dedos tocam`}
           </h3>
           <div
             ref={notesRef}
@@ -501,7 +501,7 @@ function NoteEditor({ id, finger, midi, onPick, onClose }: EditorProps) {
         <strong className="tnum">{noteName(midi)}</strong>
       </div>
       <div ref={grid} className={s.noteGrid} role="radiogroup" aria-label="Nota">
-        {NOTE_NAMES.map((n, k) => (
+        {noteNames().map((n, k) => (
           <button
             key={n}
             type="button"

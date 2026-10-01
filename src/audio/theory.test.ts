@@ -144,3 +144,37 @@ describe('formas de tocar novas', () => {
     expect(validChord(3)).toBe('off');
   });
 });
+
+import { EN_NAMING, noteNames, PT_NAMING, setNaming, pitchClassName } from './theory';
+describe('nomenclatura por língua', () => {
+  it('inglês: letras e símbolos compactos', () => {
+    setNaming(EN_NAMING);
+    try {
+      expect(noteName(60)).toBe('C4');
+      expect(pitchClassName(61)).toBe('C♯');
+      expect(noteNames()[9]).toBe('A');
+      expect(chordName([60, 64, 67])).toBe('C');
+      expect(chordName([62, 65, 69])).toBe('Dm');
+      expect(chordName([67, 71, 74, 77])).toBe('G7');
+      expect(chordName([60, 64, 67, 71])).toBe('Cmaj7');
+      expect(chordName([71, 74, 77, 81])).toBe('Bm7♭5');
+      expect(chordName([71, 74, 77])).toBe('Bdim');
+      expect(chordName([60, 64, 68])).toBe('Caug');
+      expect(chordName([60, 67, 72])).toBe('C5');
+      expect(chordName([69, 81])).toBe('A');
+      expect(chordName([60, 65, 67], 'sus4')).toBe('C sus4');
+      expect(chordName([67, 71, 74, 77, 81])).toBe('G9');
+      expect(chordName([62, 65, 69, 72, 76])).toBe('Dm9');
+      expect(chordName([60, 64, 67, 71, 74])).toBe('Cmaj7(9)');
+    } finally {
+      setNaming(PT_NAMING);
+    }
+  });
+  it('português: o de sempre', () => {
+    expect(chordName([60, 64, 68])).toBe('Dó aum');
+    expect(chordName([67, 71, 74, 77, 81])).toBe('Sol 9');
+    expect(chordName([62, 65, 69, 72, 76])).toBe('Ré m9');
+    expect(chordName([60, 64, 67, 71, 74])).toBe('Dó 7M(9)');
+    expect(chordName([60, 65, 67], 'sus4')).toBe('Dó sus4');
+  });
+});

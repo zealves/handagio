@@ -4,7 +4,7 @@
 import { useEffect, useRef, type PointerEvent } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { instrumentInfo } from '../../audio/instruments';
-import { CHORD_MODES, NOTE_NAMES } from '../../audio/theory';
+import { CHORD_MODES, noteNames } from '../../audio/theory';
 import { useStore } from '../../state/store';
 import { DrumPads } from '../bottom/DrumPads';
 import { PianoKeyboard } from '../bottom/PianoKeyboard';
@@ -142,13 +142,13 @@ function Pills() {
         aria-haspopup="dialog"
         aria-expanded={st.sheet === 'notas'}
         aria-label={
-          st.custom ? 'Notas: personalizadas' : `Notas: ${NOTE_NAMES[st.root]} ${st.scale}`
+          st.custom ? 'Notas: personalizadas' : `Notas: ${noteNames()[st.root]} ${st.scale}`
         }
         onClick={() => toggleSheet('notas')}
         data-testid="pill-scale"
       >
         <span className={s.label}>
-          {st.custom ? 'Notas personalizadas' : `${NOTE_NAMES[st.root]} · ${st.scale}`}
+          {st.custom ? 'Notas personalizadas' : `${noteNames()[st.root]} · ${st.scale}`}
         </span>
       </button>
       {!wide && (

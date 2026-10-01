@@ -2,6 +2,7 @@
 // principal não leva nenhuma). `t()` serve o código sem React; `useT()` os componentes, que voltam
 // a desenhar quando a língua muda. Decisão 66 em docs/DECISIONS.md.
 import { useSyncExternalStore } from 'react';
+import { setNaming } from '../audio/theory';
 import { useStore } from '../state/store';
 import { isLang, type Lang, type Messages } from './types';
 
@@ -46,6 +47,7 @@ export async function setLang(lang: Lang): Promise<void> {
   if (wanted !== lang) return;
   current = m;
   currentLang = lang;
+  setNaming(m.naming);
   applyPage(m);
   if (useStore.getState().lang !== lang) useStore.getState().set({ lang });
   listeners.forEach((fn) => fn());

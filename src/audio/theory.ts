@@ -1,20 +1,50 @@
-// Teoria musical: escalas, graus, midi↔frequência e nomes das notas em português.
+// Teoria musical: escalas, graus, midi↔frequência e nomes das notas e dos acordes (na
+// nomenclatura da língua, ver `setNaming`).
 // Valores copiados do protótipo (reference/maos-musicais.html).
 
-export const NOTE_NAMES = [
-  'Dó',
-  'Dó♯',
-  'Ré',
-  'Ré♯',
-  'Mi',
-  'Fá',
-  'Fá♯',
-  'Sol',
-  'Sol♯',
-  'Lá',
-  'Lá♯',
-  'Si',
-] as const;
+/**
+ * Nomenclatura das notas e dos acordes de uma língua (decisão 66). O português usa o solfejo e
+ * separa a qualidade com um espaço ("Ré m", "Sol 7", "Dó 7M"); o inglês usa letras e símbolos
+ * compactos ("Dm", "G7", "Cmaj7"). O suspenso leva sempre um espaço ("Dó sus4", "C sus4").
+ */
+export interface Naming {
+  /** As 12 notas, de Dó (C) a Si (B), com sustenidos. */
+  notes: readonly string[];
+  /** Entre a nota e a qualidade ("" ou " "). */
+  sep: string;
+  minor: string;
+  maj7: string;
+  dim: string;
+  aug: string;
+}
+
+export const PT_NAMING: Naming = {
+  notes: ['Dó', 'Dó♯', 'Ré', 'Ré♯', 'Mi', 'Fá', 'Fá♯', 'Sol', 'Sol♯', 'Lá', 'Lá♯', 'Si'],
+  sep: ' ',
+  minor: 'm',
+  maj7: '7M',
+  dim: 'dim',
+  aug: 'aum',
+};
+
+export const EN_NAMING: Naming = {
+  notes: ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'],
+  sep: '',
+  minor: 'm',
+  maj7: 'maj7',
+  dim: 'dim',
+  aug: 'aug',
+};
+
+let naming: Naming = PT_NAMING;
+
+/** Muda a nomenclatura (a i18n chama isto ao carregar uma língua). */
+export function setNaming(n: Naming): void {
+  naming = n;
+}
+
+/** Os nomes das 12 notas na língua atual (Dó…Si ou C…B). */
+export const noteNames = (): readonly string[] => naming.notes;
 
 export const SCALES = {
   Maior: [0, 2, 4, 5, 7, 9, 11],
@@ -60,13 +90,13 @@ export const freqToMidi = (f: number): number => 69 + 12 * Math.log2(f / 440);
 
 export function noteName(m: number): string {
   const r = Math.round(m);
-  return NOTE_NAMES[((r % 12) + 12) % 12] + (Math.floor(r / 12) - 1);
+  return naming.notes[((r % 12) + 12) % 12] + (Math.floor(r / 12) - 1);
 }
 
 /** Nome sem oitava ("Dó♯"). */
 export function pitchClassName(m: number): string {
   const r = Math.round(m);
-  return NOTE_NAMES[((r % 12) + 12) % 12];
+  return naming.notes[((r % 12) + 12) % 12];
 }
 
 export const scaleLength = (s: ScaleName): number => SCALES[s].length;
@@ -145,17 +175,21 @@ const INTERVAL_NAMES = ['1', '♭2', '2', '♭3', '3', '4', '♯4', '5', '♭6',
 const intervalName = (st: number): string =>
   st >= 12 ? String(Number(INTERVAL_NAMES[st - 12].replace(/\D/g, '')) + 7) : INTERVAL_NAMES[st];
 
-/** Nome da tríade ou da tétrade (sem a nona). */
-function baseName(r: string, iv: number[]): string {
-  const minor = iv[1] === 3;
-  const dim = minor && iv[2] === 6;
-  const aug = !minor && iv[2] === 8;
-  if (iv[3] === undefined) return r + (dim ? ' dim' : aug ? ' aum' : minor ? ' m' : '');
+/** Qualidade da tríade ou da tétrade, sem a nona ("" maior, "m", "7", "m7♭5", "7M"…). */
+function quality(iv: number[]): string {
+  const { minor: m, dim, aug, maj7 } = naming;
+  const isMinor = iv[1] === 3;
+  const isDim = isMinor && iv[2] === 6;
+  const isAug = !isMinor && iv[2] === 8;
+  if (iv[3] === undefined) return isDim ? dim : isAug ? aug : isMinor ? m : '';
   const s = iv[3];
-  if (dim) return r + (s === 9 ? ' dim7' : ' m7♭5');
-  if (minor) return r + (s === 11 ? ' m7M' : ' m7');
-  return r + (aug ? ' aum' : '') + (s === 11 ? ' 7M' : ' 7');
+  if (isDim) return s === 9 ? `${dim}7` : `${m}7♭5`;
+  if (isMinor) return s === 11 ? `${m}${maj7}` : `${m}7`;
+  return (isAug ? aug : '') + (s === 11 ? maj7 : '7');
 }
+
+/** Nota + qualidade com o separador da língua ("Ré m", "Dm"; maior sem qualidade: "Dó", "C"). */
+const withQuality = (r: string, q: string): string => (q ? r + naming.sep + q : r);
 
 /**
  * Nome curto de um acorde: fundamental + qualidade (ex.: "Ré m", "Sol 7", "Si m7♭5", "Dó sus4",
@@ -173,11 +207,12 @@ export function chordName(ms: number[], mode?: ChordMode): string {
     const fifth = iv[2] === 6 ? '♭5' : iv[2] === 8 ? '♯5' : '';
     return `${r} ${fourth}${fifth}`;
   }
-  if (iv[1] === 7) return `${r} 5`;
-  const base = baseName(r, iv);
-  if (iv[4] === undefined) return base;
+  if (iv[1] === 7) return withQuality(r, '5');
+  const q = quality(iv);
+  if (iv[4] === undefined) return withQuality(r, q);
   // nona: "Sol 9" e "Ré m9" quando a 7.ª é menor e a 9.ª maior; senão junta-se a nona: "Dó 7M(9)"
   const ninth = iv[4] - 12;
-  if (ninth === 2 && (base.endsWith(' 7') || base.endsWith(' m7'))) return base.slice(0, -1) + '9';
-  return `${base}(${ninth === 1 ? '♭9' : ninth === 3 ? '♯9' : '9'})`;
+  if (ninth === 2 && (q === '7' || q === `${naming.minor}7`))
+    return withQuality(r, q.slice(0, -1) + '9');
+  return `${withQuality(r, q)}(${ninth === 1 ? '♭9' : ninth === 3 ? '♯9' : '9'})`;
 }
