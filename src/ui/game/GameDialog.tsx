@@ -14,6 +14,9 @@ export function GameDialog() {
   const set = useStore((st) => st.set);
   const tr = useT().game;
   const ref = useRef<HTMLDialogElement>(null);
+  // só conta como "fora" se o gesto também começou no fundo (senão arrastar o atraso e largar
+  // por cima dele, fora do cartão, saía do jogo sem querer)
+  const downOnBackdrop = useRef(false);
   const id = useId();
   const open = game !== null && game.phase !== 'playing';
 
@@ -36,7 +39,12 @@ export function GameDialog() {
       className={s.dialog}
       aria-labelledby={`${id}-t`}
       onClose={onClose}
-      onClick={(e) => e.target === ref.current && session.stopGame()}
+      onPointerDown={(e) => {
+        downOnBackdrop.current = e.target === ref.current;
+      }}
+      onClick={(e) => {
+        if (downOnBackdrop.current && e.target === ref.current) session.stopGame();
+      }}
       data-testid="game-dialog"
     >
       {open && !r && (

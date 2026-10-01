@@ -49,11 +49,14 @@ export function HudOverlay() {
   const showFps = useStore((st) => st.showFps);
   const cameraError = useStore((st) => st.cameraError);
   const cameraStarting = useStore((st) => st.cameraStarting);
+  const inGame = useStore((st) => st.game !== null);
   const set = useStore((st) => st.set);
   const h = useT().hud;
   // na língua atual: ao mudar de língua, a nota que está no ecrã muda também
   const note = noteText(noteSrc, lastNote);
-  if (!started) return null;
+  // a pista do jogo tem a sua própria pontuação e os chips (loop, câmara…) ficariam por cima
+  // e, no caso da câmara, com ações que não fazem sentido a meio de uma ronda
+  if (!started || inGame) return null;
   return (
     <div className={s.hud} data-testid="hud">
       <span className={s.chip}>

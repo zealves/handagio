@@ -60,6 +60,9 @@ test.describe('modo de jogo', () => {
     );
     await startEasy(page);
     await expect(page.getByTestId('pills')).toHaveCount(0);
+    // o HUD (nota, loop, câmara…) ficaria por cima da pontuação e com ações que não fazem
+    // sentido a meio de uma ronda
+    await expect(page.getByTestId('hud')).toHaveCount(0);
     const r = await hitNotes(page, 3);
     expect(r.hits).toBe(r.count);
     expect(r.voice).toBe(true);

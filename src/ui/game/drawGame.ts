@@ -26,6 +26,13 @@ const MISS_FADE_S = 0.5;
 /** Largura mínima (px) de uma faixa para escrever o nome do dedo. */
 const LABEL_MIN_LANE = 56;
 const MISS_COLOR = '#ff5c7a';
+/**
+ * Profundidade máxima de uma nota falhada: sem isto, `depth` continua a avançar com `dt` e, com
+ * atrasos típicos (~120 ms) e janelas curtas (Difícil), a nota já teria passado o fundo do canvas
+ * quando é marcada como falhada, pelo que o desvanecer nunca se via. Ligeiramente a mais da linha
+ * de impacto (1 = a linha), para o falhado se ver a apagar junto dela.
+ */
+const MISS_MAX_DEPTH = 1.04;
 
 /** Profundidade 0 (topo) … 1 (linha) de uma nota que chega daqui a `dt` s, com perspetiva. */
 export function depth(dt: number, lead: number): number {
@@ -89,7 +96,7 @@ export function drawGame(
       alpha = 1 - (now - run.judgedAt[k]) / MISS_FADE_S;
       if (alpha <= 0) continue;
     } else if (st === NOTE_PENDING && dt < -0.4) continue;
-    const e = depth(dt, lead);
+    const e = st === NOTE_MISS ? Math.min(depth(dt, lead), MISS_MAX_DEPTH) : depth(dt, lead);
     if (e < 0) continue;
     const lane = run.chart.notes[k].lane;
     const lw = widthAt(e) / n;
