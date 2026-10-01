@@ -18,20 +18,25 @@ export const COACH_TEXT: Record<CoachId, string> = {
 };
 
 export function useCoach(): { id: CoachId | null; dismiss: () => void } {
-  const engine = useStore((st) => st.engine);
+  // enquanto a câmara arranca, nenhuma dica (a do teclado já não serve, a das mãos ainda não)
+  const engine = useStore((st) => (st.cameraStarting ? 'none' : st.engine));
   const done = useStore((st) => st.coachDone);
   const faceOk = useStore((st) => st.faceState === 'ok');
   const set = useStore((st) => st.set);
   const [handsSeen, setHandsSeen] = useState(false);
   const [mouthSeen, setMouthSeen] = useState(false);
-  const [notes, setNotes] = useState(0);
+  // as notas contam por motor: as tocadas no teclado não cumprem "dobra um dedo"
+  const [count, setCount] = useState({ engine, n: 0 });
+  const notes = count.engine === engine ? count.n : 0;
   const seen = useRef({ hands: false, mouth: false });
 
   // cada nota nova conta (o nome repete-se, mas para "algumas notas" chega)
   useEffect(
     () =>
       useStore.subscribe((st, prev) => {
-        if (st.lastNote !== prev.lastNote && st.lastNote !== '—') setNotes((n) => n + 1);
+        if (st.lastNote === prev.lastNote || st.lastNote === '—') return;
+        const e = st.cameraStarting ? 'none' : st.engine;
+        setCount((c) => (c.engine === e ? { engine: e, n: c.n + 1 } : { engine: e, n: 1 }));
       }),
     [],
   );

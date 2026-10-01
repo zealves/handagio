@@ -340,6 +340,15 @@ test('liga a câmara, toca todos os instrumentos e grava', async ({ page }) => {
   await notice.getByRole('button', { name: 'Ver' }).click();
   await expect(page.getByTestId('tab-estudio')).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByTestId('recording-item')).toHaveCount(1, { timeout: 10_000 });
+  // com o Estúdio já aberto, o "Ver" da gravação seguinte não o fecha
+  await page.getByTestId('record').click();
+  await page.waitForTimeout(1000);
+  await page.getByTestId('record').click();
+  await pinNotes(page, { status: '' });
+  await expect(notice).toContainText('Gravação 2 guardada', { timeout: 10_000 });
+  await notice.getByRole('button', { name: 'Ver' }).click();
+  await expect(page.getByTestId('sheet')).toBeVisible();
+  await expect(page.getByTestId('recording-item')).toHaveCount(2, { timeout: 10_000 });
   await page.keyboard.press('Escape');
 
   expect(errors, errors.join('\n')).toEqual([]);
@@ -517,6 +526,14 @@ test('esconder interface com I e voltar com Esc', async ({ page }) => {
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('dock')).toHaveCSS('opacity', '1');
   await expect(page.getByRole('banner')).toBeVisible();
+  // com a interface escondida e a folha aberta, um Esc só fecha a folha
+  await page.keyboard.press('i');
+  await page.keyboard.press('2');
+  await expect(page.getByTestId('sheet')).toBeVisible();
+  await page.getByTestId('tab-notas').focus();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('sheet')).toBeHidden();
+  expect(await uiField(page, 'uiHidden')).toBe(true);
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
@@ -611,6 +628,14 @@ test('dicas: mãos, depois dobrar; cumpridas não voltam', async ({ page }) => {
     }
   });
   await expect(coach).toContainText('Dobra um dedo');
+  // uma nota do teclado do computador não conta como dobrar um dedo
+  await pinNotes(page, { engine: 'keyboard' });
+  await page.keyboard.down('s');
+  await page.waitForTimeout(60);
+  await page.keyboard.up('s');
+  await pinNotes(page, { engine: 'hands', status: '' });
+  await expect(coach).toContainText('Dobra um dedo');
+  expect(await uiField(page, 'coachDone')).not.toContain('bend');
   await pinNotes(page, { status: '' });
   await playSynthetic(page);
   await pinNotes(page, { status: '' });
@@ -717,7 +742,14 @@ test('desktop: a folha fica à direita, por cima do palco, que não encolhe', as
   await page.getByTestId('pill-instrument').click();
   const sheet = await stableBox(page.getByTestId('sheet'));
   expect(sheet.x + sheet.width).toBeCloseTo(1440, 0);
-  expect(sheet.height).toBeCloseTo(900, 0);
+  expect(sheet.y + sheet.height).toBeCloseTo(900, 0);
+  // começa por baixo do cabeçalho: gravar e as definições continuam à mão
+  for (const id of ['record', 'settings-open'])
+    expect(overlaps(sheet, (await page.getByTestId(id).boundingBox())!), id).toBe(false);
+  await page.getByTestId('record').click();
+  await expect(page.getByTestId('record')).toHaveAttribute('aria-pressed', 'true');
+  await page.getByTestId('record').click();
+  await expect(page.getByTestId('record')).toHaveAttribute('aria-pressed', 'false');
   expect(sheet.width).toBeLessThanOrEqual(400);
   await expect(page.getByTestId('sheet-grip')).toHaveCount(0);
   expect(await page.getByTestId('stage').boundingBox()).toEqual(before);
@@ -1172,7 +1204,8 @@ test.describe('tablet 820×1180 (toque)', () => {
     await page.getByTestId('pill-instrument').tap();
     const box = await stableBox(page.getByTestId('sheet'));
     expect(box.x + box.width).toBeCloseTo(1180, 0);
-    expect(box.height).toBeCloseTo(820, 0);
+    expect(box.y + box.height).toBeCloseTo(820, 0);
+    expect(overlaps(box, (await page.getByTestId('record').boundingBox())!)).toBe(false);
     expect(errors, errors.join('\n')).toEqual([]);
   });
 });

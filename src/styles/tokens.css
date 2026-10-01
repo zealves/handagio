@@ -21,6 +21,8 @@
   /* barra vertical (paisagem baixa): largura e distância à borda do palco; o HUD usa-as */
   --vbar-w: 96px;
   --vbar-inset: 8px;
+  /* altura do cabeçalho com a margem de cima e o espaço até ao palco (App.module.css) */
+  --header-h: calc(56px + env(safe-area-inset-top));
   --t-fast: 150ms;
   --t-med: 220ms;
   --font-title: 'Sora', 'Space Grotesk', system-ui, sans-serif;
@@ -50,6 +52,13 @@
   --tile-bg: rgba(255, 255, 255, 0.6);
   --canvas-bg: linear-gradient(180deg, #121a36, #1a2446);
   color-scheme: light;
+}
+
+/* paisagem baixa: margens mais pequenas à volta do cabeçalho */
+@media (max-height: 499px) and (orientation: landscape) {
+  :root {
+    --header-h: calc(48px + env(safe-area-inset-top));
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

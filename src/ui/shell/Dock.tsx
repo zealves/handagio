@@ -36,12 +36,7 @@ function Message() {
     return () => clearTimeout(t);
   }, [notice, set]);
 
-  if (status)
-    return (
-      <div className={s.msg} role="status" data-testid="status">
-        {status}
-      </div>
-    );
+  // o aviso é breve e responde a uma ação: passa à frente de uma mensagem de estado que fique
   if (notice)
     return (
       <div className={s.msg} role="status" data-testid="notice">
@@ -51,14 +46,22 @@ function Message() {
             type="button"
             className={s.msgAction}
             onClick={() => {
-              set({ notice: null });
-              toggleSheet(notice.tab!);
+              set({ notice: null, sheet: notice.tab, sheetTab: notice.tab, chordStrip: false });
             }}
             data-sheet-keep=""
           >
             Ver
           </button>
         )}
+      </div>
+    );
+  if (status)
+    return (
+      <div className={s.msg} role="status" data-testid="status">
+        <span>{status}</span>
+        <IconButton small label="Fechar a mensagem" onClick={() => set({ status: '' })}>
+          <IconClose width={14} height={14} />
+        </IconButton>
       </div>
     );
   if (coach.id && !sheetOpen)

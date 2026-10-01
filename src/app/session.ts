@@ -607,21 +607,30 @@ class Session {
     this.ensureAudio();
     if (this.cameraBusy) return;
     this.cameraBusy = true;
-    setState({ started: true, cameraError: null, status: 'A pedir acesso à câmara…' });
+    setState({
+      started: true,
+      cameraError: null,
+      cameraStarting: true,
+      status: 'A pedir acesso à câmara…',
+    });
     this.startLoop();
     try {
       await this.openCamera();
     } catch (e) {
       const msg = e instanceof CameraError ? e.message : 'A câmara não arrancou.';
       this.cameraBusy = false;
-      setState({ engine: 'keyboard', cameraError: msg, status: '' });
+      setState({ engine: 'keyboard', cameraError: msg, cameraStarting: false, status: '' });
       return;
     }
     // com a câmara ligada, o teclado tátil (de quem começou sem câmara) sai do caminho
     setState({ touchKeys: false, status: 'Câmara ligada. A carregar o detetor de dedos…' });
     try {
       await this.hands.init(LOAD_TIMEOUT_MS);
-      setState({ engine: 'hands', status: 'Pronto. Mostra as mãos e dobra os dedos.' });
+      setState({
+        engine: 'hands',
+        cameraStarting: false,
+        status: 'Pronto. Mostra as mãos e dobra os dedos.',
+      });
       setTimeout(() => {
         if (getState().engine !== 'hands') return;
         if (this.detections === 0) this.useMotion();
@@ -684,6 +693,7 @@ class Session {
     this.motion ??= new MotionDetector(live.fingers, this.gesture);
     setState({
       engine: 'motion',
+      cameraStarting: false,
       status:
         'Modo movimento: o detetor de dedos não carregou, por isso cada coluna do ecrã é um dedo. Mexe a mão numa coluna para tocar.',
     });

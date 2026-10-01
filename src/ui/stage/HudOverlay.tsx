@@ -48,6 +48,7 @@ export function HudOverlay() {
   const loop = useStore((st) => st.looper.state);
   const showFps = useStore((st) => st.showFps);
   const cameraError = useStore((st) => st.cameraError);
+  const cameraStarting = useStore((st) => st.cameraStarting);
   const set = useStore((st) => st.set);
   if (!started) return null;
   return (
@@ -72,7 +73,7 @@ export function HudOverlay() {
           <IconLoop width={14} height={14} /> Loop: <b>{LOOP_LABEL[loop]}</b>
         </button>
       )}
-      {engine === 'keyboard' && !cameraError && (
+      {engine === 'keyboard' && !cameraError && !cameraStarting && (
         <button
           type="button"
           className={`${s.chip} ${s.btn}`}

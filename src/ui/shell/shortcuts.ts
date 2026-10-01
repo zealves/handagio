@@ -9,7 +9,8 @@ import { toggleSheet } from './sheetActions';
 
 export function installShortcuts(): () => void {
   const down = (e: KeyboardEvent) => {
-    if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+    // já tratado (por exemplo, o Esc que fechou a folha não volta a mostrar a interface)
+    if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
     if (isTypingTarget(e.target as HTMLElement | null)) return;
     const st = getState();
     if (st.settingsOpen) return;

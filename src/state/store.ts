@@ -87,6 +87,8 @@ export interface Runtime {
   touchKeys: boolean;
   /** Erro ao abrir a câmara (o cartão do palco oferece tentar outra vez ou tocar no ecrã). */
   cameraError: string | null;
+  /** A câmara e o detetor estão a arrancar (o HUD esconde "Ligar câmara" e as dicas esperam). */
+  cameraStarting: boolean;
   /** Aviso breve por cima das pills (por exemplo, depois de gravar), com uma tab para "Ver". */
   notice: { text: string; tab?: SheetTab } | null;
   uiHidden: boolean;
@@ -166,6 +168,7 @@ export const useStore = create<Store>()(
       chordStrip: false,
       touchKeys: false,
       cameraError: null,
+      cameraStarting: false,
       notice: null,
       uiHidden: false,
       faceState: 'waiting',

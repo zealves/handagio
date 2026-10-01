@@ -143,3 +143,12 @@
     grid-auto-rows: 52px;
   }
 }
+/* paisagem baixa (telemóvel deitado): o teclado tátil não chega ao HUD */
+@media (max-height: 499px) and (orientation: landscape) {
+  .piano {
+    height: 64px;
+  }
+  .pads {
+    grid-auto-rows: 36px;
+  }
+}
