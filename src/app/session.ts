@@ -118,6 +118,8 @@ class Session {
     );
     this.gesture.on('noteOff', ({ finger }) => this.fingerOff(finger));
     this.gesture.on('glide', ({ finger, pitch }) => {
+      // no jogo a nota é a da partitura: o arrastar não a pode desafinar (ver gestureOptions)
+      if (this.game) return;
       // `pitch` é o desvio em meios-tons em relação à nota tocada (já com a altura e o acorde)
       this.fingerNote[finger]?.forEach((m, k) => audio.glide(voiceKey(finger, k), m + pitch));
     });
@@ -137,13 +139,15 @@ class Session {
     // no modo Personalizado as notas são exatas: a altura da mão não as escolhe (o arrastar
     // continua, a partir da nota do dedo)
     const custom = s.noteMode === 'custom';
+    // no jogo o dedo não escolhe a nota (é a da partitura): sem altura, arrastar nem contínuo
+    // (sem isto o teremim nunca chamaria fingerOn, e o juiz nunca julgaria nada)
     return {
       sensitivity: s.sensitivity,
       thumbSensitivity: s.thumbSensitivity,
       thumbs: s.thumbs,
-      heightPitch: s.heightPitch && !custom,
-      glide: s.glide,
-      continuous: instrumentInfo(s.instrument).kind === 'continuous',
+      heightPitch: s.heightPitch && !custom && !this.game,
+      glide: s.glide && !this.game,
+      continuous: instrumentInfo(s.instrument).kind === 'continuous' && !this.game,
       calibration: s.calibration,
       learn: s.learnHand,
       // o polegar mede-se em unidades quadradas (ver `palmCoords`)
