@@ -204,6 +204,37 @@ const en = {
     } as Record<string, string>,
     unknown: (code: string) => `The camera did not start (${code}). Try again.`,
   },
+  status: {
+    askCamera: 'Asking for camera access…',
+    cameraOn: 'Camera on. Loading the finger detector…',
+    ready: 'Ready. Show your hands and bend your fingers.',
+    cameraFailed: 'The camera did not start.',
+    motion:
+      'Motion mode: the finger detector did not load, so each column of the screen is a finger. Move your hand in a column to play.',
+    calibNeedsHands: 'Calibration needs hand detection. Turn on the camera first.',
+    calibOpen: 'Show both hands and stretch all your fingers.',
+    calibClosed: 'Now bend all your fingers.',
+    calibCount: (text: string, k: number) => `${text} ${k}…`,
+    calibDone: (n: number) =>
+      `Calibrated for ${n} fingers. You can calibrate again or reset it in the settings.`,
+    calibFailed:
+      'I could not see your fingers well. Put your hands in front of the camera in good light and try again.',
+    recUnsupported: 'This browser cannot record (MediaRecorder unavailable).',
+    recFailed: 'Recording did not start in this browser.',
+  },
+  rec: {
+    name: (n: number, video: boolean) => `Recording ${n}${video ? ' (video)' : ''}`,
+    saved: (name: string) => `${name} saved`,
+    shareText: 'Music made with my hands on Handagio.',
+    hudNote: (note: string) => `Note: ${note}`,
+    hudVoice: (voice: string) => `Voice: ${voice}`,
+  },
+  coach: {
+    hands: 'Show both hands to the camera',
+    bend: 'Bend a finger to play',
+    mouth: 'Open your mouth for an effect 👄',
+    touch: 'Tap the keys to hear them',
+  },
   meta: {
     htmlLang: 'en',
     title: 'Handagio — Vision Sound Cam',

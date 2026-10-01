@@ -10,13 +10,6 @@ import { COACH_IDS, coachStep } from './logic';
 /** Abertura da boca a partir da qual a dica da boca se dá por cumprida. */
 const MOUTH_DONE = 0.35;
 
-export const COACH_TEXT: Record<CoachId, string> = {
-  hands: 'Mostra as duas mãos à câmara',
-  bend: 'Dobra um dedo para tocar',
-  mouth: 'Abre a boca para um efeito 👄',
-  touch: 'Toca nas teclas para ouvir',
-};
-
 export function useCoach(): { id: CoachId | null; dismiss: () => void } {
   // enquanto a câmara arranca, nenhuma dica (a do teclado já não serve, a das mãos ainda não)
   const engine = useStore((st) => (st.cameraStarting ? 'none' : st.engine));

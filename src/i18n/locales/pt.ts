@@ -95,6 +95,37 @@ const pt = {
     } as Record<string, string>,
     unknown: (code: string) => `A câmara não arrancou (${code}). Tenta outra vez.`,
   },
+  status: {
+    askCamera: 'A pedir acesso à câmara…',
+    cameraOn: 'Câmara ligada. A carregar o detetor de dedos…',
+    ready: 'Pronto. Mostra as mãos e dobra os dedos.',
+    cameraFailed: 'A câmara não arrancou.',
+    motion:
+      'Modo movimento: o detetor de dedos não carregou, por isso cada coluna do ecrã é um dedo. Mexe a mão numa coluna para tocar.',
+    calibNeedsHands: 'A calibração precisa da deteção das mãos. Liga a câmara primeiro.',
+    calibOpen: 'Mostra as duas mãos e estica bem todos os dedos.',
+    calibClosed: 'Agora dobra todos os dedos.',
+    calibCount: (text: string, k: number) => `${text} ${k}…`,
+    calibDone: (n: number) =>
+      `Calibração feita para ${n} dedos. Podes voltar a calibrar ou repor nas definições.`,
+    calibFailed:
+      'Não consegui ver bem os dedos. Põe as mãos à frente da câmara com boa luz e tenta outra vez.',
+    recUnsupported: 'Este navegador não consegue gravar (MediaRecorder indisponível).',
+    recFailed: 'A gravação não arrancou neste navegador.',
+  },
+  rec: {
+    name: (n: number, video: boolean) => `Gravação ${n}${video ? ' (vídeo)' : ''}`,
+    saved: (name: string) => `${name} guardada`,
+    shareText: 'Música feita com as mãos no Handagio.',
+    hudNote: (note: string) => `Nota: ${note}`,
+    hudVoice: (voice: string) => `Voz: ${voice}`,
+  },
+  coach: {
+    hands: 'Mostra as duas mãos à câmara',
+    bend: 'Dobra um dedo para tocar',
+    mouth: 'Abre a boca para um efeito 👄',
+    touch: 'Toca nas teclas para ouvir',
+  },
   meta: {
     htmlLang: 'pt-PT',
     title: 'Handagio — Vision Sound Cam',

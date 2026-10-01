@@ -1,6 +1,7 @@
 // Controlo da gravação (sem React): começar/parar, guardar em IndexedDB, descarregar e partilhar.
 import { audio } from '../audio/engine';
-import { instrumentInfo } from '../audio/instruments';
+import { t } from '../i18n';
+import { instrumentText } from '../i18n/data';
 import { extensionFor, Recorder } from '../audio/recorder';
 import { drawSize } from '../state/live';
 import {
@@ -36,7 +37,7 @@ export async function refreshRecordings(): Promise<void> {
 export async function startRecording(): Promise<void> {
   if (busy || getState().recording) return;
   if (!Recorder.supported) {
-    setState({ status: 'Este navegador não consegue gravar (MediaRecorder indisponível).' });
+    setState({ status: t().status.recUnsupported });
     return;
   }
   session.ensureAudio();
@@ -55,7 +56,10 @@ export async function startRecording(): Promise<void> {
             layers: () => compositeSources(stageCanvases).layers,
             hud: () => {
               const st = getState();
-              return [`Nota: ${st.lastNote}`, `Voz: ${instrumentInfo(st.instrument).name}`];
+              return [
+                t().rec.hudNote(st.lastNote),
+                t().rec.hudVoice(instrumentText(st.instrument).name),
+              ];
             },
           }
         : undefined,
@@ -63,7 +67,7 @@ export async function startRecording(): Promise<void> {
     setState({ recording: true, recordStart: Date.now() });
   } catch (e) {
     console.warn('[gravação] não arrancou', e);
-    setState({ status: 'A gravação não arrancou neste navegador.' });
+    setState({ status: t().status.recFailed });
   }
 }
 
@@ -76,7 +80,7 @@ export async function stopRecording(): Promise<void> {
     const n = getState().recordings.length + 1;
     const rec: Recording = {
       id: `${createdAt}-${Math.random().toString(36).slice(2, 7)}`,
-      name: `Gravação ${n}${res.kind === 'video' ? ' (vídeo)' : ''}`,
+      name: t().rec.name(n, res.kind === 'video'),
       blob: res.blob,
       mime: res.mime,
       kind: res.kind,
@@ -87,7 +91,7 @@ export async function stopRecording(): Promise<void> {
     setState({
       recording: false,
       lastRecordingId: rec.id,
-      notice: { text: `${rec.name} guardada`, tab: 'estudio' },
+      notice: { text: t().rec.saved(rec.name), tab: 'estudio' },
     });
     await refreshRecordings();
   } finally {
@@ -130,7 +134,7 @@ export async function shareRecording(
   const data = {
     files: [file],
     title: 'Handagio',
-    text: 'Música feita com as mãos no Handagio.',
+    text: t().rec.shareText,
   };
   if (navigator.canShare?.(data)) {
     try {

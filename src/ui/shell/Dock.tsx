@@ -13,7 +13,8 @@ import { instrumentIcon } from '../icons/InstrumentIcons';
 import { IconClose } from '../icons/UiIcons';
 import { ChordGlyph } from './ChordGlyph';
 import { ChordStrip } from './ChordStrip';
-import { COACH_TEXT, useCoach } from './coach';
+import { useCoach } from './coach';
+import { useT } from '../../i18n';
 import { useMedia, WIDE } from './media';
 import { toggleSheet } from './sheetActions';
 import { chordText, instrumentText, scaleLabel } from '../../i18n/data';
@@ -31,6 +32,7 @@ function Message() {
   const sheetOpen = useStore((st) => st.sheet !== null);
   const set = useStore((st) => st.set);
   const coach = useCoach();
+  const tr = useT();
   useEffect(() => {
     if (!notice) return;
     const t = setTimeout(() => set({ notice: null }), notice.tab ? NOTICE_ACTION_MS : NOTICE_MS);
@@ -68,7 +70,7 @@ function Message() {
   if (coach.id && !sheetOpen)
     return (
       <div className={`${s.msg} ${s.coach}`} role="status" data-testid="coach">
-        <span>{COACH_TEXT[coach.id]}</span>
+        <span>{tr.coach[coach.id]}</span>
         <IconButton small label="Dispensar as dicas" onClick={coach.dismiss}>
           <IconClose width={14} height={14} />
         </IconButton>

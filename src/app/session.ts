@@ -2,6 +2,7 @@
 // separado do render da interface.
 import { audio } from '../audio/engine';
 import { DRUMS, instrumentInfo, isSampled } from '../audio/instruments';
+import { t } from '../i18n';
 import { cameraError, padLabels } from '../i18n/data';
 import { samples } from '../audio/samples/loader';
 import { Looper, type LoopEvent } from '../audio/looper';
@@ -611,30 +612,30 @@ class Session {
       started: true,
       cameraError: null,
       cameraStarting: true,
-      status: 'A pedir acesso à câmara…',
+      status: t().status.askCamera,
     });
     this.startLoop();
     try {
       await this.openCamera();
     } catch (e) {
-      const msg = e instanceof CameraError ? cameraError(e.code) : 'A câmara não arrancou.';
+      const msg = e instanceof CameraError ? cameraError(e.code) : t().status.cameraFailed;
       this.cameraBusy = false;
       setState({ engine: 'keyboard', cameraError: msg, cameraStarting: false, status: '' });
       return;
     }
     // com a câmara ligada, o teclado tátil (de quem começou sem câmara) sai do caminho
-    setState({ touchKeys: false, status: 'Câmara ligada. A carregar o detetor de dedos…' });
+    setState({ touchKeys: false, status: t().status.cameraOn });
     try {
       await this.hands.init(LOAD_TIMEOUT_MS);
       setState({
         engine: 'hands',
         cameraStarting: false,
-        status: 'Pronto. Mostra as mãos e dobra os dedos.',
+        status: t().status.ready,
       });
       setTimeout(() => {
         if (getState().engine !== 'hands') return;
         if (this.detections === 0) this.useMotion();
-        else if (getState().status.startsWith('Pronto')) setState({ status: '' });
+        else if (getState().status === t().status.ready) setState({ status: '' });
       }, NO_RESULT_MS);
     } catch (e) {
       console.info('[visão] detetor de mãos indisponível, a usar o modo movimento.', e);
@@ -685,7 +686,7 @@ class Session {
       this.motion?.reset();
     } catch (e) {
       setState({
-        status: e instanceof CameraError ? cameraError(e.code) : 'A câmara não arrancou.',
+        status: e instanceof CameraError ? cameraError(e.code) : t().status.cameraFailed,
       });
     }
   }
@@ -696,8 +697,7 @@ class Session {
     setState({
       engine: 'motion',
       cameraStarting: false,
-      status:
-        'Modo movimento: o detetor de dedos não carregou, por isso cada coluna do ecrã é um dedo. Mexe a mão numa coluna para tocar.',
+      status: t().status.motion,
     });
   }
 
@@ -850,7 +850,7 @@ class Session {
   async calibrate(): Promise<void> {
     if (this.cal) return;
     if (getState().engine !== 'hands') {
-      setState({ status: 'A calibração precisa da deteção das mãos. Liga a câmara primeiro.' });
+      setState({ status: t().status.calibNeedsHands });
       return;
     }
     this.releaseAll();
@@ -858,13 +858,16 @@ class Session {
     const step = async (phase: CalPhase, text: string) => {
       this.cal = { collector, phase };
       for (let k = 3; k > 0; k--) {
-        setState({ calibrating: `${text} ${k}…`, status: `${text} ${k}…` });
+        setState({
+          calibrating: t().status.calibCount(text, k),
+          status: t().status.calibCount(text, k),
+        });
         await new Promise((r) => setTimeout(r, 1000));
       }
     };
     try {
-      await step('open', 'Mostra as duas mãos e estica bem todos os dedos.');
-      await step('closed', 'Agora dobra todos os dedos.');
+      await step('open', t().status.calibOpen);
+      await step('closed', t().status.calibClosed);
     } finally {
       this.cal = null;
     }
@@ -877,13 +880,12 @@ class Session {
       setState({
         calibration,
         calibrating: null,
-        status: `Calibração feita para ${fingers} dedos. Podes voltar a calibrar ou repor nas definições.`,
+        status: t().status.calibDone(fingers),
       });
     } else {
       setState({
         calibrating: null,
-        status:
-          'Não consegui ver bem os dedos. Põe as mãos à frente da câmara com boa luz e tenta outra vez.',
+        status: t().status.calibFailed,
       });
     }
     setTimeout(() => {
