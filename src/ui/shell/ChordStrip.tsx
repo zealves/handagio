@@ -5,20 +5,10 @@ import { useEffect, useRef, type KeyboardEvent } from 'react';
 import { CHORD_MODES } from '../../audio/theory';
 import { useStore } from '../../state/store';
 import { ChordGlyph } from './ChordGlyph';
+import { chordText } from '../../i18n/data';
 import { keyTarget } from './logic';
 import { useMedia, WIDE } from './media';
 import s from './ChordStrip.module.css';
-
-/** Rótulos curtos para caberem 7 opções em 375 px. */
-const SHORT: Record<string, string> = {
-  off: 'Nota',
-  octave: 'Oitava',
-  power: 'Quinta',
-  triad: 'Acorde',
-  sus4: 'Sus',
-  seventh: 'Sétima',
-  ninth: 'Nona',
-};
 
 export function ChordStrip() {
   const chord = useStore((st) => st.chord);
@@ -59,7 +49,8 @@ export function ChordStrip() {
     const m = CHORD_MODES[k];
     set({ chord: m.id });
     if (docked) return;
-    set({ notice: { text: `${m.label}: ${m.desc}` } });
+    const txt = chordText(m.id);
+    set({ notice: { text: `${txt.label}: ${txt.desc}` } });
     // com as setas fica aberta, para se poder continuar a escolher
     if (!fromKey) {
       set({ chordStrip: false });
@@ -100,15 +91,15 @@ export function ChordStrip() {
           type="button"
           role="radio"
           aria-checked={chord === m.id}
-          aria-label={m.label}
-          title={`${m.label}: ${m.desc}`}
+          aria-label={chordText(m.id).label}
+          title={`${chordText(m.id).label}: ${chordText(m.id).desc}`}
           tabIndex={chord === m.id ? 0 : -1}
           className={s.opt}
           onClick={() => pick(i)}
           data-testid={`chord-${m.id}`}
         >
           <ChordGlyph mode={m.id} width={22} height={22} />
-          <span className={s.label}>{docked ? m.label : SHORT[m.id]}</span>
+          <span className={s.label}>{docked ? chordText(m.id).label : chordText(m.id).short}</span>
         </button>
       ))}
     </div>

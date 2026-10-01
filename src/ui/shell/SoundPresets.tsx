@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { completePreset, FACTORY_PRESETS, pickSound, presetMatches } from '../../state/presets';
+import { presetLabel } from '../../i18n/data';
 import { getState, useStore } from '../../state/store';
 import { IconClose, IconPlus } from '../icons/UiIcons';
 import p from '../panels/panels.module.css';
@@ -114,7 +115,7 @@ export function SoundPresets() {
                 }}
                 data-testid={`preset-${n}`}
               >
-                {n}
+                {presetLabel(n)}
               </button>
               {mine && (
                 <button

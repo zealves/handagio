@@ -7,6 +7,7 @@ import { MOUTH_FX, type MouthFxId } from '../../state/types';
 import { Knob } from '../controls/Knob';
 import { useFrame } from '../frame';
 import p from '../panels/panels.module.css';
+import { mouthText } from '../../i18n/data';
 import { keyTarget } from './logic';
 
 export interface ControlProps {
@@ -74,7 +75,7 @@ function MouthControl({ testId = 'mouth-fx' }: ControlProps) {
     }
   });
   const k = MOUTH_FX.findIndex((m) => m.id === mouthFx);
-  const desc = MOUTH_FX[k]?.desc;
+  const desc = mouthText(mouthFx).desc;
   // radiogroup: as setas escolhem logo (o Espaço fica para a boca, decisão 14)
   const onKey = (e: KeyboardEvent) => {
     const next = keyTarget(e.key, k, MOUTH_FX.length);
@@ -107,7 +108,7 @@ function MouthControl({ testId = 'mouth-fx' }: ControlProps) {
             onClick={() => set({ mouthFx: m.id as MouthFxId })}
             data-testid={`mouth-${m.id}`}
           >
-            {m.label}
+            {mouthText(m.id).label}
           </button>
         ))}
       </div>

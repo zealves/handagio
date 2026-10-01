@@ -5,6 +5,7 @@ import { DRUMS } from '../../audio/instruments';
 import { live } from '../../state/live';
 import { useStore } from '../../state/store';
 import { useFrame } from '../frame';
+import { instrumentText, padLabels } from '../../i18n/data';
 import { FINGER_COLORS } from '../theme';
 import s from './bottom.module.css';
 
@@ -12,7 +13,7 @@ const PAD_FINGER = [1, 2, 3, 4, 6, 7, 8, 9];
 
 export function DrumPads() {
   const instrument = useStore((st) => st.instrument);
-  const kit = DRUMS[instrument] ?? DRUMS.drums;
+  const kitId = DRUMS[instrument] ? instrument : 'drums';
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
 
   useFrame(() => {
@@ -37,27 +38,33 @@ export function DrumPads() {
   };
 
   return (
-    <div className={s.pads} role="group" aria-label={`Pads de percussão: ${kit.name}`}>
-      {kit.labels.slice(0, 8).map((label, k) => (
-        <button
-          key={k}
-          ref={(el) => {
-            refs.current[k] = el;
-          }}
-          type="button"
-          className={s.pad}
-          style={{ ['--c' as string]: FINGER_COLORS[PAD_FINGER[k]] }}
-          onPointerDown={(e) => {
-            e.preventDefault();
-            session.padDown(k);
-          }}
-          onKeyDown={(e) => onKey(e, k)}
-          aria-label={`Pad ${k + 1}: ${label}`}
-          data-testid={`pad-${k}`}
-        >
-          {label}
-        </button>
-      ))}
+    <div
+      className={s.pads}
+      role="group"
+      aria-label={`Pads de percussão: ${instrumentText(kitId).name}`}
+    >
+      {padLabels(kitId)
+        .slice(0, 8)
+        .map((label, k) => (
+          <button
+            key={k}
+            ref={(el) => {
+              refs.current[k] = el;
+            }}
+            type="button"
+            className={s.pad}
+            style={{ ['--c' as string]: FINGER_COLORS[PAD_FINGER[k]] }}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              session.padDown(k);
+            }}
+            onKeyDown={(e) => onKey(e, k)}
+            aria-label={`Pad ${k + 1}: ${label}`}
+            data-testid={`pad-${k}`}
+          >
+            {label}
+          </button>
+        ))}
     </div>
   );
 }

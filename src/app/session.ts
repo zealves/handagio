@@ -2,6 +2,7 @@
 // separado do render da interface.
 import { audio } from '../audio/engine';
 import { DRUMS, instrumentInfo, isSampled } from '../audio/instruments';
+import { cameraError, padLabels } from '../i18n/data';
 import { samples } from '../audio/samples/loader';
 import { Looper, type LoopEvent } from '../audio/looper';
 import { Clock, quantizeTime, STEPS_PER_BAR, STEPS_PER_BEAT, TapTempo } from '../audio/metronome';
@@ -184,7 +185,7 @@ class Session {
     if (info.kind === 'drum') {
       const slot = slotOf(i, s.thumbs);
       this.playDrum(slot, velocity, i, when);
-      fx.label = DRUMS[info.id].labels[slot];
+      fx.label = padLabels(info.id)[slot];
       return;
     }
     if (info.kind === 'continuous') return;
@@ -316,9 +317,8 @@ class Session {
   }
 
   private showDrum(kitId: string, slot: number, vel: number, finger?: number): void {
-    const kit = DRUMS[kitId];
     live.pads[slot] = 1;
-    setState({ lastNote: kit.labels[slot] });
+    setState({ lastNote: padLabels(kitId)[slot] });
     const c = FINGER_COLORS[finger ?? [1, 2, 3, 4, 6, 7, 8, 9][slot] ?? 0];
     const tip = finger !== undefined ? live.fingers[finger].tip : null;
     pushBurst({ x: tip?.x ?? (slot + 0.5) / 8, y: tip?.y ?? 0.7, color: c, strength: vel });
@@ -617,7 +617,7 @@ class Session {
     try {
       await this.openCamera();
     } catch (e) {
-      const msg = e instanceof CameraError ? e.message : 'A câmara não arrancou.';
+      const msg = e instanceof CameraError ? cameraError(e.code) : 'A câmara não arrancou.';
       this.cameraBusy = false;
       setState({ engine: 'keyboard', cameraError: msg, cameraStarting: false, status: '' });
       return;
@@ -684,7 +684,9 @@ class Session {
       await this.openCamera();
       this.motion?.reset();
     } catch (e) {
-      setState({ status: e instanceof CameraError ? e.message : 'A câmara não arrancou.' });
+      setState({
+        status: e instanceof CameraError ? cameraError(e.code) : 'A câmara não arrancou.',
+      });
     }
   }
 

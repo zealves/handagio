@@ -6,7 +6,8 @@ import { IconButton } from '../controls/IconButton';
 import { Slider } from '../controls/Slider';
 import { Toggle } from '../controls/Toggle';
 import type { LearnedRange } from '../../vision/adaptive';
-import { activeScreenOrder, fingerLabel } from '../../vision/fingerMap';
+import { activeScreenOrder } from '../../vision/fingerMap';
+import { fingerName } from '../../i18n/data';
 import { FINGER_COLORS } from '../theme';
 import { IconBack, IconClose } from '../icons/UiIcons';
 import { FINE_POINTER, useMedia } from '../shell/media';
@@ -355,8 +356,8 @@ function LearnedBars({ ranges }: { ranges: (LearnedRange | null)[] }) {
       {activeScreenOrder(false).map((i) => {
         const r = ranges[i];
         const title = r
-          ? `${fingerLabel(i)}: ${Math.round(r.lo * 100)}–${Math.round(r.hi * 100)}%`
-          : `${fingerLabel(i)}: ainda a aprender`;
+          ? `${fingerName(i)}: ${Math.round(r.lo * 100)}–${Math.round(r.hi * 100)}%`
+          : `${fingerName(i)}: ainda a aprender`;
         return (
           <span
             key={i}

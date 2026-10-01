@@ -16,6 +16,7 @@ import { ChordStrip } from './ChordStrip';
 import { COACH_TEXT, useCoach } from './coach';
 import { useMedia, WIDE } from './media';
 import { toggleSheet } from './sheetActions';
+import { chordText, instrumentText, scaleLabel } from '../../i18n/data';
 import s from './Dock.module.css';
 
 /** Duração do aviso (com "Ver" fica mais tempo, para dar tempo de tocar). */
@@ -124,7 +125,7 @@ function Pills() {
         className={s.pill}
         aria-haspopup="dialog"
         aria-expanded={st.sheet === 'som'}
-        aria-label={`Instrumento: ${info.name}${loading ? ' (a carregar)' : failed ? ' (erro ao carregar)' : ''}`}
+        aria-label={`Instrumento: ${instrumentText(info.id).name}${loading ? ' (a carregar)' : failed ? ' (erro ao carregar)' : ''}`}
         title="Instrumentos (, e . para mudar)"
         onClick={() => toggleSheet('som')}
         data-testid="pill-instrument"
@@ -134,7 +135,7 @@ function Pills() {
           {loading && <span className={s.ring} aria-hidden />}
           {failed && <span className={s.errDot} aria-hidden />}
         </span>
-        <span className={s.label}>{info.name}</span>
+        <span className={s.label}>{instrumentText(info.id).name}</span>
       </button>
       <button
         type="button"
@@ -142,13 +143,15 @@ function Pills() {
         aria-haspopup="dialog"
         aria-expanded={st.sheet === 'notas'}
         aria-label={
-          st.custom ? 'Notas: personalizadas' : `Notas: ${noteNames()[st.root]} ${st.scale}`
+          st.custom
+            ? 'Notas: personalizadas'
+            : `Notas: ${noteNames()[st.root]} ${scaleLabel(st.scale)}`
         }
         onClick={() => toggleSheet('notas')}
         data-testid="pill-scale"
       >
         <span className={s.label}>
-          {st.custom ? 'Notas personalizadas' : `${noteNames()[st.root]} · ${st.scale}`}
+          {st.custom ? 'Notas personalizadas' : `${noteNames()[st.root]} · ${scaleLabel(st.scale)}`}
         </span>
       </button>
       {!wide && (
@@ -156,8 +159,8 @@ function Pills() {
           type="button"
           className={`${s.pill} ${s.pillIcon}`}
           aria-expanded={st.chordStrip}
-          aria-label={`Cada dedo toca: ${chord.label}`}
-          title={`Cada dedo toca: ${chord.label} (C)`}
+          aria-label={`Cada dedo toca: ${chordText(chord.id).label}`}
+          title={`Cada dedo toca: ${chordText(chord.id).label} (C)`}
           onClick={() => st.set({ chordStrip: !st.chordStrip, sheet: null })}
           data-chord-keep=""
           data-testid="pill-chord"

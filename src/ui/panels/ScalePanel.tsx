@@ -24,6 +24,7 @@ import { useStore } from '../../state/store';
 import { activeScreenOrder, type TonicAt } from '../../vision/fingerMap';
 import { ChordGlyph } from '../shell/ChordGlyph';
 import { keyTarget, visibleScales } from '../shell/logic';
+import { chordText, scaleLabel } from '../../i18n/data';
 import { FINGER_COLORS } from '../theme';
 import { Panel } from './Panel';
 import s from './panels.module.css';
@@ -44,19 +45,6 @@ const TONIC_AT: { id: TonicAt; label: string }[] = [
 ];
 /** Oitavas base possíveis (as mesmas do antigo controlo deslizante). */
 const OCTAVES = [1, 2, 3, 4, 5, 6];
-
-/** Explicação de cada forma de tocar no modo Personalizado (sem escala, meios-tons fixos). */
-const CUSTOM_CHORD_HINT: Record<Exclude<ChordMode, 'off'>, string> = {
-  octave: 'A Oitava junta à nota do dedo a mesma nota 12 meios-tons acima.',
-  power: 'A Quinta junta à nota do dedo a quinta (7 meios-tons acima) e a oitava (12 acima).',
-  triad:
-    'Sem escala, o Acorde é sempre maior: a nota do dedo e as que ficam 4 e 7 meios-tons acima.',
-  sus4: 'O Suspenso junta à nota do dedo as que ficam 5 e 7 meios-tons acima.',
-  seventh:
-    'Sem escala, a Sétima é sempre um acorde maior com sétima: a nota do dedo e as que ficam 4, 7 e 10 meios-tons acima.',
-  ninth:
-    'Sem escala, a Nona junta à Sétima a nona: a nota do dedo e as que ficam 4, 7, 10 e 14 meios-tons acima.',
-};
 
 export function ScalePanel() {
   const st = useStore(
@@ -228,7 +216,7 @@ export function ScalePanel() {
                     onClick={() => st.set({ scale: sc })}
                     data-testid={`scale-${sc}`}
                   >
-                    {sc}
+                    {scaleLabel(sc)}
                   </button>
                 ))}
                 <button
@@ -299,19 +287,19 @@ export function ScalePanel() {
                 role="radio"
                 aria-checked={st.chord === c.id}
                 tabIndex={st.chord === c.id ? 0 : -1}
-                title={c.desc}
+                title={chordText(c.id).desc}
                 onClick={() => st.set({ chord: c.id as ChordMode })}
                 className={s.card}
                 data-testid={`chord-card-${c.id}`}
               >
                 <ChordGlyph mode={c.id} width={24} height={24} />
-                {c.label}
+                {chordText(c.id).label}
               </button>
             ))}
           </div>
           <p className={s.cardActive} aria-live="polite">
-            <b>{chordMode.label}:</b>{' '}
-            {custom && st.chord !== 'off' ? CUSTOM_CHORD_HINT[st.chord] : chordMode.desc}
+            <b>{chordText(chordMode.id).label}:</b>{' '}
+            {custom ? chordText(chordMode.id).custom : chordText(chordMode.id).desc}
           </p>
         </section>
 
@@ -319,7 +307,7 @@ export function ScalePanel() {
           <h3 className={s.label}>
             {custom
               ? 'Os teus dedos tocam'
-              : `Em ${noteNames()[st.root]} ${st.scale}, os teus dedos tocam`}
+              : `Em ${noteNames()[st.root]} ${scaleLabel(st.scale)}, os teus dedos tocam`}
           </h3>
           <div
             ref={notesRef}

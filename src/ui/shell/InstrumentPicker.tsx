@@ -7,6 +7,7 @@ import { FAMILIES } from '../../audio/patches/types';
 import { useStore } from '../../state/store';
 import { instrumentIcon } from '../icons/InstrumentIcons';
 import p from '../panels/panels.module.css';
+import { familyLabel, instrumentText } from '../../i18n/data';
 import { IconSearch } from '../icons/UiIcons';
 import { filterByFamily, groupByFamily, searchInstruments } from './logic';
 import { FINE_POINTER, useMedia } from './media';
@@ -33,7 +34,8 @@ function Card({
 }) {
   const loading = status === 'loading';
   const failed = status === 'error';
-  const desc = failed ? LOAD_ERROR_DESC : info.desc;
+  const txt = instrumentText(info.id);
+  const desc = failed ? LOAD_ERROR_DESC : txt.desc;
   return (
     <button
       type="button"
@@ -41,7 +43,7 @@ function Card({
       aria-pressed={active}
       aria-busy={loading || undefined}
       onClick={() => onPick(info.id)}
-      title={`${info.name}${info.sampled ? ' (gravado)' : ''}: ${desc}`}
+      title={`${txt.name}${info.sampled ? ' (gravado)' : ''}: ${desc}`}
       data-row=""
       data-testid={testId}
     >
@@ -50,7 +52,7 @@ function Card({
         {loading && <span className={s.ring} aria-hidden />}
         {failed && <span className={s.errDot} aria-hidden />}
       </span>
-      <span className={s.name}>{info.name}</span>
+      <span className={s.name}>{txt.name}</span>
       {info.sampled && <span className={s.sampled}>gravado</span>}
       <span className="sr-only">{desc}</span>
     </button>
@@ -79,7 +81,10 @@ export function InstrumentPicker() {
     // Ao clicar num instrumento cuja amostra falhou, tenta descarregá-la outra vez.
     if (sampleStatus[id] === 'error') session.loadSamples(id);
   };
-  const found = searchInstruments(q, filterByFamily(filter));
+  const found = searchInstruments(q, filterByFamily(filter), (i) => {
+    const x = instrumentText(i.id);
+    return `${x.name} ${x.desc} ${familyLabel(i.family)}`;
+  });
   const groups = groupByFamily(found);
 
   // setas entre cartões (← → um a um, ↑ ↓ uma linha); ↓ no campo de pesquisa salta para o primeiro
@@ -126,7 +131,7 @@ export function InstrumentPicker() {
               onClick={() => set({ familyFilter: f })}
               data-testid={`family-${f}`}
             >
-              {f}
+              {f === 'Todos' ? 'Todos' : familyLabel(f)}
             </button>
           ))}
         </div>
@@ -160,9 +165,9 @@ export function InstrumentPicker() {
       )}
       <div ref={list} className={s.list}>
         {groups.map((g) => (
-          <section key={g.family} aria-label={g.family}>
+          <section key={g.family} aria-label={familyLabel(g.family)}>
             <h4 className={s.group}>
-              {g.family} <span>{g.items.length}</span>
+              {familyLabel(g.family)} <span>{g.items.length}</span>
             </h4>
             <div className={p.cards}>
               {g.items.map((i) => (

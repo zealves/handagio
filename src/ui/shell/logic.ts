@@ -24,14 +24,19 @@ export const filterByFamily = (
   list: InstrumentInfo[] = INSTRUMENTS,
 ): InstrumentInfo[] => (filter === 'Todos' ? list : list.filter((i) => i.family === filter));
 
+/**
+ * Pesquisa sem acentos nem maiúsculas no nome, na família e na descrição em português e, com
+ * `textOf`, também nos textos da língua atual (para "violin" e "violino" encontrarem o violino).
+ */
 export function searchInstruments(
   query: string,
   list: InstrumentInfo[] = INSTRUMENTS,
+  textOf: (i: InstrumentInfo) => string = () => '',
 ): InstrumentInfo[] {
   const terms = normalize(query).split(/\s+/).filter(Boolean);
   if (!terms.length) return list;
   return list.filter((i) => {
-    const hay = normalize(`${i.name} ${i.family} ${i.desc}`);
+    const hay = normalize(`${i.name} ${i.family} ${i.desc} ${textOf(i)}`);
     return terms.every((t) => hay.includes(t));
   });
 }
