@@ -1,5 +1,5 @@
 // Modo de jogo: o juiz compara os toques com os tempos das notas (em segundos de áudio).
-import { GOOD_S, PERFECT_S } from './config';
+import { GOOD_S, NEAR_S, PERFECT_S } from './config';
 import type { Judgement } from './types';
 
 export const NOTE_PENDING = 0;
@@ -8,9 +8,14 @@ export const NOTE_GOOD = 2;
 export const NOTE_MISS = 3;
 
 export interface Hit {
+  kind: Judgement;
   index: number;
-  judgement: Judgement;
   /** Toque − nota (s): positivo = tarde. */
+  offset: number;
+}
+/** Toque perto de uma nota mas fora da janela: não gasta a nota. */
+export interface Near {
+  kind: 'early' | 'late';
   offset: number;
 }
 
@@ -40,26 +45,35 @@ export class Judge {
   }
 
   /**
-   * Toque numa faixa no instante `t`: julga a nota mais antiga por julgar dessa faixa que esteja
-   * dentro da janela do Bom. Fora dela (toque solto) devolve null e não mexe em nada.
+   * Toque numa faixa no instante `t`. Dá um acerto na nota mais antiga por julgar da faixa
+   * dentro da janela do Bom; senão "Cedo"/"Tarde" com a nota mais próxima até `NEAR_S`; senão
+   * null (toque solto). Só um acerto muda o estado.
    */
-  press(lane: number, t: number): Hit | null {
+  press(lane: number, t: number): Hit | Near | null {
     const list = this.byLane[lane];
     if (!list) return null;
-    while (this.laneFrom[lane] < list.length && this.state[list[this.laneFrom[lane]]] !== NOTE_PENDING)
+    while (
+      this.laneFrom[lane] < list.length &&
+      this.state[list[this.laneFrom[lane]]] !== NOTE_PENDING
+    )
       this.laneFrom[lane]++;
+    let late: number | null = null;
     for (let j = this.laneFrom[lane]; j < list.length; j++) {
       const k = list[j];
+      // o sweep pode marcar notas mais à frente fora da ordem da faixa
       if (this.state[k] !== NOTE_PENDING) continue;
       const offset = t - this.times[k];
-      if (offset > GOOD_S) continue;
-      if (offset < -GOOD_S) return null;
-      const judgement: Judgement = Math.abs(offset) <= PERFECT_S ? 'perfect' : 'good';
-      this.state[k] = judgement === 'perfect' ? NOTE_PERFECT : NOTE_GOOD;
+      if (offset > GOOD_S) {
+        if (offset <= NEAR_S) late = offset;
+        continue;
+      }
+      if (offset < -GOOD_S) return nearer(offset >= -NEAR_S ? offset : null, late);
+      const kind: Judgement = Math.abs(offset) <= PERFECT_S ? 'perfect' : 'good';
+      this.state[k] = kind === 'perfect' ? NOTE_PERFECT : NOTE_GOOD;
       this.left--;
-      return { index: k, judgement, offset };
+      return { kind, index: k, offset };
     }
-    return null;
+    return nearer(null, late);
   }
 
   /** Marca como falhadas as notas que passaram a janela do Bom até `t`; devolve os índices. */
@@ -74,4 +88,11 @@ export class Judge {
     }
     return out;
   }
+}
+
+/** O mais próximo entre um "cedo" e um "tarde" (em empate, tarde). */
+function nearer(early: number | null, late: number | null): Near | null {
+  if (early === null && late === null) return null;
+  const offset = late === null || (early !== null && -early < late) ? early! : late;
+  return { kind: offset < 0 ? 'early' : 'late', offset };
 }

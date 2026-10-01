@@ -373,7 +373,7 @@ describe('sanitizePrefs: modo de jogo', () => {
     ).toEqual({
       gameBest: { easy: 0, medium: 0, hard: 12 },
       gameDifficulty: 'easy',
-      gameLagMs: 250,
+      gameLagMs: 300,
     });
     expect(sanitizePrefs({ gameBest: null, gameLagMs: 'a' })).toEqual({
       gameBest: { easy: 0, medium: 0, hard: 0 },

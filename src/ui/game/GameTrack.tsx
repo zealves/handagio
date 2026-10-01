@@ -1,10 +1,9 @@
 // Pista do modo de jogo no palco (por cima das mãos) e o botão de sair.
 import { session } from '../../app/session';
 import { audio } from '../../audio/engine';
-import { DIFFICULTY } from '../../game/config';
+import { DEFAULT_GAME_FINGERS } from '../../game/config';
 import { useT } from '../../i18n';
 import { live } from '../../state/live';
-import { useStore } from '../../state/store';
 import { IconButton } from '../controls/IconButton';
 import { useCanvas } from '../frame';
 import { IconClose } from '../icons/UiIcons';
@@ -12,9 +11,8 @@ import { drawGame, type GameLabels } from './drawGame';
 import s from './GameTrack.module.css';
 
 export function GameTrack() {
-  const difficulty = useStore((st) => st.game?.difficulty ?? 'easy');
   const tr = useT();
-  const fingers = DIFFICULTY[difficulty].fingers;
+  const fingers = DEFAULT_GAME_FINGERS;
   const labels: GameLabels = {
     go: tr.game.go,
     judge: tr.game.judge,

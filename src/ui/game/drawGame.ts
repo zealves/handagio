@@ -172,7 +172,9 @@ export function drawGame(
     g.globalAlpha = a;
     g.fillStyle = run.last.kind === 'miss' ? MISS_COLOR : '#fff';
     g.font = '700 24px system-ui, sans-serif';
-    g.fillText(labels.judge[run.last.kind], cx, hit - r - 34 - 10 * (1 - a));
+    // Cedo/Tarde ainda não têm texto próprio (fica para quando tiverem rótulo na interface)
+    const judgeText = (labels.judge as Partial<Record<string, string>>)[run.last.kind];
+    if (judgeText) g.fillText(judgeText, cx, hit - r - 34 - 10 * (1 - a));
   }
   g.globalAlpha = 1;
   const beat = 4 * stepDur;

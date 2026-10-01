@@ -37,6 +37,8 @@ export interface GenerateOptions {
   seed: number;
   /** Notas por oitava da escala do jogador (`scaleLength`). */
   scaleSize: number;
+  /** Faixas (2–8), uma por dedo escolhido. */
+  lanes: number;
   /** Compassos (diagnóstico e testes); por defeito os da dificuldade. Mínimo 2. */
   bars?: number;
 }
@@ -50,7 +52,7 @@ interface Onset {
 export function generateChart(o: GenerateOptions): Chart {
   const cfg = DIFFICULTY[o.difficulty];
   const bars = Math.max(2, Math.round(o.bars ?? cfg.bars));
-  const lanes = cfg.fingers.length;
+  const lanes = Math.max(2, Math.min(8, Math.round(o.lanes)));
   const rng = mulberry32(o.seed);
   const prog = progressionFor(o.scaleSize);
   const dens = DENSITY[o.difficulty];
@@ -137,7 +139,8 @@ const nearest = (xs: number[], to: number): number =>
  * Ordena e garante 1 tempo entre notas seguidas na mesma faixa (muda para a faixa ao lado).
  * A última nota (a tónica final) nunca é tocada por este afastamento: se ela colidir com a
  * anterior, é a anterior que muda de faixa, para uma diferente da sua própria antecessora e
- * da faixa da final (para não voltar a colidir com nenhuma das duas).
+ * da faixa da final (para não voltar a colidir com nenhuma das duas); sem faixa livre (só com
+ * 2 faixas), é a anterior que sai.
  */
 export function spaceLanes(ns: Onset[], lanes: number): Onset[] {
   const out = [...ns].sort((a, b) => a.step - b.step);
@@ -150,11 +153,19 @@ export function spaceLanes(ns: Onset[], lanes: number): Onset[] {
       out[k] = { ...n, lane: n.lane + 1 < lanes ? n.lane + 1 : n.lane - 1 };
       continue;
     }
-    // `n` é a nota final: mantém-se; muda-se `prev` em vez disso.
+    // `n` é a nota final: mantém-se; muda-se `prev` para uma faixa livre ou, sem nenhuma
+    // (2 faixas), tira-se `prev`
     const before = k >= 2 ? out[k - 2].lane : -1;
-    const avoid = new Set([before, n.lane]);
-    let lane = 0;
-    while (avoid.has(lane) && lane < lanes - 1) lane++;
+    let lane = -1;
+    for (let l = 0; l < lanes; l++)
+      if (l !== before && l !== n.lane) {
+        lane = l;
+        break;
+      }
+    if (lane < 0) {
+      out.splice(k - 1, 1);
+      break;
+    }
     out[k - 1] = { ...prev, lane };
   }
   return out;

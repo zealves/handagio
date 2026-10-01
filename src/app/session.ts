@@ -10,7 +10,7 @@ import { Clock, quantizeTime, STEPS_PER_BAR, STEPS_PER_BEAT, TapTempo } from '..
 import { clamp, chordName, degreeToMidi, noteName, scaleLength } from '../audio/theory';
 import { live, pushBurst } from '../state/live';
 import { getState, setState, useStore, type Store } from '../state/store';
-import { DIFFICULTY, MAX_HIT_STEPS } from '../game/config';
+import { DEFAULT_GAME_FINGERS, DIFFICULTY, MAX_HIT_STEPS } from '../game/config';
 import { generateChart } from '../game/generator';
 import { gameStartBar, GameRun } from '../game/run';
 import type { BackingEvent, Difficulty } from '../game/types';
@@ -255,8 +255,8 @@ class Session {
     const g = this.game!;
     const lane = g.fingers.indexOf(i);
     if (lane < 0) return;
-    const r = g.run.press(lane, audio.now, fromKey ? 0 : undefined);
-    if (!r) return;
+    const r = g.run.press(lane, audio.now, !fromKey);
+    if (!r || !('note' in r)) return;
     const s = getState();
     const midi = degreeToMidi(lane, tuningOf({ ...s, instrument: g.melody }));
     audio.noteOff(i);
@@ -531,10 +531,12 @@ class Session {
     this.releaseAll();
     const s = getState();
     const cfg = DIFFICULTY[difficulty];
+    const fingers = DEFAULT_GAME_FINGERS;
     const chart = generateChart({
       difficulty,
       seed: (Math.random() * 2 ** 32) >>> 0,
       scaleSize: scaleLength(s.scale),
+      lanes: fingers.length,
       bars: this.gameBars ?? undefined,
     });
     this.clock.setBpm(chart.bpm);
@@ -547,7 +549,7 @@ class Session {
       { playBacking: (ev, when) => this.playBacking(ev, when) },
       { startStep, t0, stepDur: this.clock.stepDur, lag: s.gameLagMs / 1000, lead: cfg.lead },
     );
-    this.game = { run, difficulty, fingers: cfg.fingers, melody, hitSeq: new Array(10).fill(0) };
+    this.game = { run, difficulty, fingers, melody, hitSeq: new Array(10).fill(0) };
     live.game = run;
     setState({
       game: { phase: 'playing', difficulty, result: null },
@@ -590,7 +592,11 @@ class Session {
     }
     const s = getState();
     const melodyOctave = tuningOf({ ...s, instrument: this.game!.melody }).octave;
-    const midi = degreeToMidi(ev.degree, { root: s.root, scale: s.scale, octave: melodyOctave - 1 });
+    const midi = degreeToMidi(ev.degree, {
+      root: s.root,
+      scale: s.scale,
+      octave: melodyOctave - 1,
+    });
     const key = `G${++this.loopSeq}`;
     audio.noteOn(key, 'bass', midi, ev.vel, 0, when);
     this.at(when + ev.dur * this.clock.stepDur, () => audio.noteOff(key));
