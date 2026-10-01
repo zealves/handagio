@@ -1,15 +1,19 @@
 // Orquestrador (sem React): câmara → visão → gestos → áudio. Corre o seu próprio ciclo rAF,
 // separado do render da interface.
 import { audio } from '../audio/engine';
-import { DRUMS, instrumentInfo, isSampled } from '../audio/instruments';
+import { DRUMS, instrumentInfo, isSampled, tuningOf } from '../audio/instruments';
 import { t } from '../i18n';
 import { cameraError, padLabels } from '../i18n/data';
 import { samples } from '../audio/samples/loader';
 import { Looper, type LoopEvent } from '../audio/looper';
 import { Clock, quantizeTime, STEPS_PER_BAR, STEPS_PER_BEAT, TapTempo } from '../audio/metronome';
-import { clamp, noteName, chordName } from '../audio/theory';
+import { clamp, chordName, degreeToMidi, noteName, scaleLength } from '../audio/theory';
 import { live, pushBurst } from '../state/live';
 import { getState, setState, useStore, type Store } from '../state/store';
+import { DIFFICULTY, MAX_HIT_STEPS } from '../game/config';
+import { generateChart } from '../game/generator';
+import { gameStartBar, GameRun } from '../game/run';
+import type { BackingEvent, Difficulty } from '../game/types';
 import { CAMERA_SIZE, CameraError, listCameras, openCamera, stopStream } from '../vision/camera';
 import { isActive, KEYMAP, slotOf } from '../vision/fingerMap';
 import { aspectOf, GestureEngine, type GestureOptions } from '../vision/gestureEngine';
@@ -97,6 +101,16 @@ class Session {
   private cal: { collector: CalibrationCollector; phase: CalPhase } | null = null;
   /** Diagnóstico: pára a deteção real para se poderem injetar mãos com `feedHands`. */
   detectionPaused = false;
+  /** Ronda do modo de jogo: dedos das faixas, instrumento da melodia e contador de acertos por dedo. */
+  private game: {
+    run: GameRun;
+    difficulty: Difficulty;
+    fingers: readonly number[];
+    melody: string;
+    hitSeq: number[];
+  } | null = null;
+  /** Diagnóstico e testes: compassos de uma ronda (null = os da dificuldade). */
+  gameBars: number | null = null;
 
   constructor() {
     this.gesture.on('noteOn', ({ finger, velocity, shift }) =>
@@ -175,13 +189,18 @@ class Session {
   }
 
   // ---------- disparos ----------
-  /** Disparo de um dedo (câmara, modo movimento ou teclado). */
-  fingerOn(i: number, velocity: number, shift: number): void {
+  /** Disparo de um dedo (câmara, modo movimento ou teclado, com `fromKey`). */
+  fingerOn(i: number, velocity: number, shift: number, fromKey = false): void {
     const s = getState();
     if (!audio.ready || !isActive(i, s.thumbs) || this.cal) return;
     const info = instrumentInfo(s.instrument);
     const fx = live.fx[i];
     fx.flash = 1;
+    // no jogo o dedo não toca a sua nota: vai para o juiz e, se acertar, toca a da partitura
+    if (this.game) {
+      this.gamePress(i, velocity, fromKey);
+      return;
+    }
     const when = quantizeTime(audio.now, this.clock.anchor, this.clock.bpm, s.quantize);
     if (info.kind === 'drum') {
       const slot = slotOf(i, s.thumbs);
@@ -225,6 +244,36 @@ class Session {
       this.looper.release(this.clock.positionAt(audio.now), String(voiceKey(i, k)));
     }
     this.releaseFingerNote(i);
+  }
+
+  /** Toque de um dedo durante o jogo: acerto toca a nota da faixa, toque solto não faz nada. */
+  private gamePress(i: number, velocity: number, fromKey: boolean): void {
+    const g = this.game!;
+    const lane = g.fingers.indexOf(i);
+    if (lane < 0) return;
+    const r = g.run.press(lane, audio.now, fromKey ? 0 : undefined);
+    if (!r) return;
+    const s = getState();
+    const midi = degreeToMidi(lane, tuningOf({ ...s, instrument: g.melody }));
+    audio.noteOff(i);
+    this.fingerNote[i] = [midi];
+    audio.noteOn(i, g.melody, midi, velocity, fingerPan(i));
+    const fx = live.fx[i];
+    fx.midi = midi;
+    fx.label = noteName(midi);
+    // larga a nota ao fim da duração da partitura (ou antes, se o dedo subir: `fingerOff`)
+    const seq = ++g.hitSeq[i];
+    const dur = Math.min(r.note.dur, MAX_HIT_STEPS) * this.clock.stepDur;
+    this.at(audio.now + dur, () => {
+      if (this.game === g && g.hitSeq[i] === seq && this.fingerNote[i]) this.fingerOff(i);
+    });
+    const tip = live.fingers[i].tip;
+    pushBurst({
+      x: tip?.x ?? (i + 0.5) / 10,
+      y: tip?.y ?? 0.6,
+      color: FINGER_COLORS[i],
+      strength: velocity,
+    });
   }
 
   private releaseFingerNote(i: number): void {
@@ -378,12 +427,15 @@ class Session {
   private onStep(step: number, time: number): void {
     const s = getState();
     const lp = this.looper;
-    const counting = lp.state === 'armed' || lp.state === 'recording';
-    if ((s.metronome || counting) && step % STEPS_PER_BEAT === 0)
-      audio.click(time, step % STEPS_PER_BAR === 0);
     const stepDur = this.clock.stepDur;
-    for (const { ev, offset } of lp.eventsAt(step))
-      this.playLoopEvent(ev, time + offset * stepDur, stepDur);
+    if (this.game) this.game.run.onStep(step, time);
+    else {
+      const counting = lp.state === 'armed' || lp.state === 'recording';
+      if ((s.metronome || counting) && step % STEPS_PER_BEAT === 0)
+        audio.click(time, step % STEPS_PER_BAR === 0);
+      for (const { ev, offset } of lp.eventsAt(step))
+        this.playLoopEvent(ev, time + offset * stepDur, stepDur);
+    }
     // estado visual (atrasado até ao momento real do passo)
     this.at(time, () => {
       live.step = step;
@@ -456,6 +508,90 @@ class Session {
     if (bpm) setState({ bpm });
   }
 
+  // ---------- modo de jogo ----------
+  /** Abre o cartão de jogo (escolha da dificuldade). */
+  openGame(): void {
+    this.ensureAudio();
+    this.startLoop();
+    setState({
+      game: { phase: 'setup', difficulty: getState().gameDifficulty, result: null },
+      sheet: null,
+    });
+  }
+
+  /** Começa uma ronda nova no próximo compasso que o relógio ainda não agendou. */
+  startGame(difficulty: Difficulty): void {
+    this.ensureAudio();
+    this.startLoop();
+    if (this.game) this.endGame();
+    this.releaseAll();
+    const s = getState();
+    const cfg = DIFFICULTY[difficulty];
+    const chart = generateChart({
+      difficulty,
+      seed: (Math.random() * 2 ** 32) >>> 0,
+      scaleSize: scaleLength(s.scale),
+      bars: this.gameBars ?? undefined,
+    });
+    this.clock.setBpm(chart.bpm);
+    const { time: t0, step: startStep } = gameStartBar(this.clock, audio.now);
+    const melody = instrumentInfo(s.instrument).kind === 'melodic' ? s.instrument : 'piano';
+    this.loadSamples(melody);
+    this.loadSamples('bass');
+    const run = new GameRun(
+      chart,
+      { playBacking: (ev, when) => this.playBacking(ev, when) },
+      { startStep, t0, stepDur: this.clock.stepDur, lag: s.gameLagMs / 1000, lead: cfg.lead },
+    );
+    this.game = { run, difficulty, fingers: cfg.fingers, melody, hitSeq: new Array(10).fill(0) };
+    live.game = run;
+    setState({
+      game: { phase: 'playing', difficulty, result: null },
+      gameDifficulty: difficulty,
+      sheet: null,
+      touchKeys: false,
+    });
+  }
+
+  /** Sai do jogo (a meio, sem guardar o recorde, ou do cartão de resultado). */
+  stopGame(): void {
+    if (this.game) this.endGame();
+    if (getState().game) setState({ game: null });
+  }
+
+  private finishGame(): void {
+    const g = this.game!;
+    const s = getState();
+    const points = g.run.score.points;
+    const best = points > 0 && points > s.gameBest[g.difficulty];
+    const result = g.run.result(best);
+    this.endGame();
+    setState({
+      game: { phase: 'over', difficulty: g.difficulty, result },
+      ...(best ? { gameBest: { ...s.gameBest, [g.difficulty]: points } } : {}),
+    });
+  }
+
+  private endGame(): void {
+    this.game = null;
+    live.game = null;
+    this.releaseAll();
+    this.clock.setBpm(getState().bpm);
+  }
+
+  /** Acompanhamento do jogo: kit acústico e baixo uma oitava abaixo da melodia. */
+  private playBacking(ev: BackingEvent, when: number): void {
+    if (ev.kind === 'drum') {
+      audio.drum('drums', ev.slot, ev.vel, 0, when);
+      return;
+    }
+    const s = getState();
+    const midi = degreeToMidi(ev.degree, tuningOf({ ...s, instrument: 'bass', octave: s.octave - 1 }));
+    const key = `G${++this.loopSeq}`;
+    audio.noteOn(key, 'bass', midi, ev.vel, 0, when);
+    this.at(when + ev.dur * this.clock.stepDur, () => audio.noteOff(key));
+  }
+
   // ---------- modo teclado ----------
   installKeyboard(): () => void {
     const down = (e: KeyboardEvent) => {
@@ -481,7 +617,7 @@ class Session {
       if (this.gestureOptions().continuous) {
         this.fingerContinuous(i, KEY_CONT_LEVEL, 0);
         live.fx[i].flash = 1;
-      } else this.fingerOn(i, KEY_VELOCITY, 0);
+      } else this.fingerOn(i, KEY_VELOCITY, 0, true);
     };
     const up = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
@@ -532,6 +668,11 @@ class Session {
     });
     // sem rede o carregamento falha; quando a rede volta, tenta de novo o instrumento atual
     const offOnline = samples.retryOnOnline(window, () => (audio.ready ? audio.ctx : null));
+    // esconder o separador termina a partida, sem recorde (o relógio e o áudio param)
+    const onHidden = () => {
+      if (document.visibilityState === 'hidden' && this.game) this.stopGame();
+    };
+    document.addEventListener('visibilitychange', onHidden);
     const offStore = useStore.subscribe((s, prev) => {
       if (
         s.volume !== prev.volume ||
@@ -587,6 +728,7 @@ class Session {
       offSamples();
       offOnline();
       offStore();
+      document.removeEventListener('visibilitychange', onHidden);
       if (this.sampleTimer) clearTimeout(this.sampleTimer);
       this.sampleTimer = null;
     };
@@ -778,6 +920,7 @@ class Session {
     else if (s.mouthFx === 'off' || now - live.lipsT > 600) live.mouthTarget = 0;
     live.mouth += (live.mouthTarget - live.mouth) * Math.min(1, dt * 18);
     audio.setMouth(live.mouth, s.mouthFx);
+    if (this.game?.run.update(audio.now)) this.finishGame();
 
     if (now - this.fpsT > 1000) {
       live.fps = this.fpsCount;

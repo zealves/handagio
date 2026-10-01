@@ -1,6 +1,7 @@
 // Atalhos da interface: I esconder, E ecrã inteiro, , e . instrumento, C forma de tocar, 1–4 as
-// tabs da folha (a mesma tecla fecha), Esc fecha a folha ou a tira, ou volta a mostrar a interface.
-// H e F já tocam notas; [ e ] precisam de AltGr no teclado português.
+// tabs da folha (a mesma tecla fecha), Esc fecha a folha ou a tira, ou volta a mostrar a interface;
+// no jogo, só o Esc (sai). H e F já tocam notas; [ e ] precisam de AltGr no teclado português.
+import { session } from '../../app/session';
 import { isTypingTarget } from '../../lib/keys';
 import { getState } from '../../state/store';
 import { toggleFullscreen } from './fullscreen';
@@ -14,6 +15,14 @@ export function installShortcuts(): () => void {
     if (isTypingTarget(e.target as HTMLElement | null)) return;
     const st = getState();
     if (st.settingsOpen) return;
+    // no jogo os atalhos não mudam o som (cortariam o acompanhamento); Esc sai
+    if (st.game) {
+      if (e.key === 'Escape') {
+        session.stopGame();
+        e.preventDefault();
+      }
+      return;
+    }
     const k = e.key.toLowerCase();
     const tab = tabForKey(k);
     // com a folha aberta, I e E não mexem na interface por trás dela
