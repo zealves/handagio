@@ -942,6 +942,7 @@ for (const vp of VIEWPORTS) {
       'pill-scale',
       'record',
       'settings-open',
+      'game-open',
       'lang-menu',
     ])
       await expect(page.getByTestId(id)).toBeInViewport({ ratio: 1 });
@@ -951,6 +952,7 @@ for (const vp of VIEWPORTS) {
       'pill-scale',
       'record',
       'settings-open',
+      'game-open',
       'touch-keys',
       'lang-menu',
     ]) {
