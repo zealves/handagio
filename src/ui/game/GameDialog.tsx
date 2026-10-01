@@ -18,7 +18,8 @@ export function GameDialog() {
   // por cima dele, fora do cartão, saía do jogo sem querer)
   const downOnBackdrop = useRef(false);
   const id = useId();
-  const open = game !== null && game.phase !== 'playing';
+  // a pausa fica para a pista (Tarefa 3): este cartão só mostra a escolha e o resultado
+  const open = game !== null && (game.phase === 'setup' || game.phase === 'over');
 
   useEffect(() => {
     const d = ref.current!;

@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import type { ChordMode, ScaleName } from '../audio/theory';
 import { DEFAULT_CUSTOM_NOTES, type NoteMode } from '../app/notes';
 import { migratePrefs, sanitizePrefs } from '../ui/shell/logic';
-import { GAME_INPUT_LAG_MS } from '../game/config';
+import { DEFAULT_GAME_FINGERS, GAME_INPUT_LAG_MS } from '../game/config';
 import type { Difficulty } from '../game/types';
 import type { LearnedRange } from '../vision/adaptive';
 import type { TonicAt } from '../vision/fingerMap';
@@ -79,6 +79,8 @@ export interface Prefs extends SoundSettings {
   gameDifficulty: Difficulty;
   /** Atraso da câmara descontado aos toques (ms). */
   gameLagMs: number;
+  /** Modo de jogo: dedos que jogam (pela ordem do ecrã). */
+  gameFingers: number[];
 }
 
 export interface Runtime {
@@ -171,6 +173,7 @@ export const DEFAULT_PREFS: Prefs = {
   gameBest: { easy: 0, medium: 0, hard: 0 },
   gameDifficulty: 'easy',
   gameLagMs: GAME_INPUT_LAG_MS,
+  gameFingers: [...DEFAULT_GAME_FINGERS],
 };
 
 const PREF_KEYS = Object.keys(DEFAULT_PREFS) as (keyof Prefs)[];

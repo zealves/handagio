@@ -1,6 +1,7 @@
 // Atalhos da interface: I esconder, E ecrã inteiro, , e . instrumento, C forma de tocar, 1–4 as
 // tabs da folha (a mesma tecla fecha), Esc fecha a folha ou a tira, ou volta a mostrar a interface;
-// no jogo, só o Esc (sai). H e F já tocam notas; [ e ] precisam de AltGr no teclado português.
+// no jogo, P alterna a pausa e Esc pausa. H e F já tocam notas; [ e ] precisam de AltGr no
+// teclado português.
 import { session } from '../../app/session';
 import { isTypingTarget } from '../../lib/keys';
 import { getState } from '../../state/store';
@@ -15,10 +16,16 @@ export function installShortcuts(): () => void {
     if (isTypingTarget(e.target as HTMLElement | null)) return;
     const st = getState();
     if (st.settingsOpen) return;
-    // no jogo os atalhos não mudam o som (cortariam o acompanhamento); Esc sai
+    // no jogo os atalhos não mudam o som; P alterna a pausa e Esc pausa (na pausa, o Esc é
+    // do cartão, que continua: tratá-lo aqui também voltava a pausar)
     if (st.game) {
-      if (e.key === 'Escape') {
-        session.stopGame();
+      const k = e.key.toLowerCase();
+      if (k === 'p' && (st.game.phase === 'playing' || st.game.phase === 'paused')) {
+        if (st.game.phase === 'paused') session.resumeGame();
+        else session.pauseGame();
+        e.preventDefault();
+      } else if (e.key === 'Escape' && st.game.phase === 'playing') {
+        session.pauseGame();
         e.preventDefault();
       }
       return;

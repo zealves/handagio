@@ -355,6 +355,12 @@ describe('sanitizePrefs (dicas e FPS)', () => {
 });
 
 describe('sanitizePrefs: modo de jogo', () => {
+  it('dedos do jogo: válidos ficam pela ordem do ecrã, inválidos voltam ao defeito', () => {
+    expect(sanitizePrefs({ gameFingers: [9, 6, 7, 8] }).gameFingers).toEqual([6, 7, 8, 9]);
+    expect(sanitizePrefs({ gameFingers: [6] }).gameFingers).toEqual([2, 1, 6, 7]);
+    expect(sanitizePrefs({ gameFingers: 'x' }).gameFingers).toEqual([2, 1, 6, 7]);
+    expect(sanitizePrefs({ gameFingers: [0, 5] }).gameFingers).toEqual([2, 1, 6, 7]);
+  });
   it('mantém valores válidos', () => {
     const p = {
       gameBest: { easy: 1200, medium: 0, hard: 50 },
