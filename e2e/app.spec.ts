@@ -109,10 +109,18 @@ function pinNotes(page: Page, p: Record<string, unknown>) {
 /** Notas personalizadas por defeito antes da v5 (Dó Pentatónica, com polegares). */
 const LEGACY_CUSTOM_NOTES = [57, 55, 52, 50, 48, 60, 62, 64, 67, 69];
 
-/** Liga o áudio e abre a gaveta da escala. */
+/** Liga o palco sem câmara (o ecrã inicial sai e aparecem o HUD e as pills). */
+function markStarted(page: Page) {
+  return page.evaluate(() =>
+    (window as unknown as { __vsc: Vsc }).__vsc.store.getState().set({ started: true }),
+  );
+}
+
+/** Liga o áudio e abre a folha na tab Notas. */
 async function openScale(page: Page) {
   await page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.session.ensureAudio());
-  await page.getByTestId('chip-scale').click();
+  await markStarted(page);
+  await page.getByTestId('pill-scale').click();
   await expect(page.getByTestId('scale-panel')).toBeVisible();
 }
 
@@ -191,12 +199,12 @@ function cosine(a: number[], b: number[]) {
   return d / Math.sqrt(na * nb);
 }
 
-/** Liga o áudio (como faria o primeiro gesto) e abre a gaveta pelo menu ⋯ → Instrumentos. */
+/** Liga o áudio (como faria o primeiro gesto) e abre a folha na tab Som pela pill. */
 async function openInstruments(page: Page) {
   await page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.session.ensureAudio());
-  await page.getByTestId('more').click();
-  await page.getByTestId('menu-instrumentos').click();
-  await expect(page.getByTestId('drawer')).toBeVisible();
+  await markStarted(page);
+  await page.getByTestId('pill-instrument').click();
+  await expect(page.getByTestId('sheet')).toBeVisible();
 }
 
 test('liga a câmara, toca todos os instrumentos e grava', async ({ page }) => {
@@ -222,9 +230,9 @@ test('liga a câmara, toca todos os instrumentos e grava', async ({ page }) => {
   // o palco mostra só as mãos: o vídeo continua a reproduzir para a deteção, mas invisível
   await expect(page.getByTestId('video')).toHaveCSS('opacity', '0');
 
-  // gaveta dos instrumentos: todas as filas
-  await page.getByTestId('chip-instrument').click();
-  const drawer = page.getByTestId('drawer');
+  // tab Som: todos os instrumentos
+  await page.getByTestId('pill-instrument').click();
+  const drawer = page.getByTestId('sheet');
   await expect(drawer).toBeVisible();
   const tiles = drawer.locator('[data-testid^="tile-"]');
   const n = await tiles.count();
@@ -258,13 +266,13 @@ test('liga a câmara, toca todos os instrumentos e grava', async ({ page }) => {
   await search.fill('');
   await drawer.getByTestId('tile-piano').click();
 
-  // Esc fecha e devolve o foco ao chip
+  // Esc fecha e devolve o foco à pill
   await page.keyboard.press('Escape');
   await expect(drawer).toBeHidden();
-  await expect(page.getByTestId('chip-instrument')).toBeFocused();
+  await expect(page.getByTestId('pill-instrument')).toBeFocused();
 
   // teclado (modo teclado) com um instrumento melódico
-  await page.locator('body').click({ position: { x: 5, y: 5 } });
+  await page.locator('body').click({ position: { x: 5, y: 300 } });
   for (const k of ['a', 's', 'd', 'j', 'k', 'l']) {
     await page.keyboard.down(k);
     await page.waitForTimeout(60);
@@ -284,10 +292,10 @@ test('liga a câmara, toca todos os instrumentos e grava', async ({ page }) => {
     .not.toBe(before);
   await page.keyboard.press(',');
 
-  // tocar com o rato (menu ⋯): teclado de piano e pads
-  await page.getByTestId('more').click();
-  await page.getByTestId('menu-rato').click();
-  const key = drawer.locator('[data-testid^="key-"]').nth(5);
+  // tocar com o rato (botão do cabeçalho): teclado de piano e pads
+  await page.getByTestId('touch-keys').click();
+  const touch = page.getByTestId('touch-keys-panel');
+  const key = touch.locator('[data-testid^="key-"]').nth(5);
   await key.hover();
   await page.mouse.down();
   await page.waitForTimeout(80);
@@ -295,9 +303,9 @@ test('liga a câmara, toca todos os instrumentos e grava', async ({ page }) => {
   await page.evaluate(() =>
     (window as unknown as { __vsc: Vsc }).__vsc.store.getState().set({ instrument: 'drums' }),
   );
-  await drawer.getByTestId('pad-1').click();
+  await touch.getByTestId('pad-1').click();
   await expect(page.getByTestId('hud-note')).toHaveText('Tarola');
-  await page.keyboard.press('Escape');
+  await page.getByTestId('touch-keys').click();
 
   // pipeline real de gestos com mãos sintéticas: dobrar o médio esquerdo dispara uma nota
   await page.evaluate(() =>
@@ -305,7 +313,7 @@ test('liga a câmara, toca todos os instrumentos e grava', async ({ page }) => {
   );
   const note = await playSynthetic(page);
   expect(note).toMatch(/^(Dó|Ré|Mi|Fá|Sol|Lá|Si)♯?\d$/);
-  // a faixa de ondas por baixo do palco desenha: há píxeis opacos na coluna do meio
+  // a faixa de ondas no fundo do palco desenha: há píxeis opacos na coluna do meio
   await expect
     .poll(() =>
       page.evaluate(() => {
@@ -320,12 +328,17 @@ test('liga a câmara, toca todos os instrumentos e grava', async ({ page }) => {
     )
     .toBeGreaterThan(0);
 
-  // gravar 2 s pela barra; a gravação aparece na gaveta
+  // gravar 2 s pelo cabeçalho; o aviso "Ver" abre o Estúdio com a gravação
   await page.getByTestId('record').click();
   await expect(page.getByTestId('record')).toHaveAttribute('aria-pressed', 'true');
   await page.waitForTimeout(2000);
   await page.getByTestId('record').click();
-  await page.getByTestId('chip-recordings').click();
+  // as mensagens de estado têm prioridade sobre o aviso
+  await pinNotes(page, { status: '' });
+  const notice = page.getByTestId('notice');
+  await expect(notice).toContainText('Gravação 1 guardada', { timeout: 10_000 });
+  await notice.getByRole('button', { name: 'Ver' }).click();
+  await expect(page.getByTestId('tab-estudio')).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByTestId('recording-item')).toHaveCount(1, { timeout: 10_000 });
   await page.keyboard.press('Escape');
 
@@ -439,379 +452,246 @@ test('aprender a mão: toggle nas Definições e Repor calibração esquece o ap
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
-test('esconder interface com I e voltar com Esc', async ({ page }) => {
-  const errors = watchConsole(page);
-  await page.goto('/?debug');
-  await page.locator('body').click({ position: { x: 5, y: 5 } });
-  await page.keyboard.press('i');
-  await expect(page.getByTestId('bar-slot')).toHaveCSS('opacity', '0');
-  await page.keyboard.press('Escape');
-  await expect(page.getByTestId('bar-slot')).toHaveCSS('opacity', '1');
-  expect(errors, errors.join('\n')).toEqual([]);
-});
-
 type Box = { x: number; y: number; width: number; height: number };
+
+/** Caixa de um elemento depois de as transições acabarem (a folha entra a deslizar). */
+async function stableBox(loc: ReturnType<Page['getByTestId']>): Promise<Box> {
+  // a transição pode ainda não ter arrancado: dá-lhe uns fotogramas e espera que acabe
+  await loc.evaluate(
+    (el) =>
+      new Promise<void>((r) =>
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() =>
+            Promise.all(el.getAnimations().map((a) => a.finished)).then(() => r()),
+          ),
+        ),
+      ),
+  );
+  let prev = await loc.boundingBox();
+  for (let k = 0; k < 40; k++) {
+    await new Promise((r) => setTimeout(r, 100));
+    const b = await loc.boundingBox();
+    if (b && prev && JSON.stringify(b) === JSON.stringify(prev)) return b;
+    prev = b;
+  }
+  return prev!;
+}
+
 const overlaps = (a: Box, b: Box) =>
   a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 
-/** Liga o palco sem câmara (o ecrã inicial sai e o HUD aparece). */
-function markStarted(page: Page) {
-  return page.evaluate(() =>
-    (window as unknown as { __vsc: Vsc }).__vsc.store.getState().set({ started: true }),
+/** Estado do store (só os campos que os testes de interface leem). */
+type UiState = {
+  chord: string;
+  sheet: string | null;
+  sheetTab: string;
+  uiHidden: boolean;
+  reverb: number;
+  mouthFx: string;
+  instrument: string;
+  engine: string;
+  coachDone: string[];
+  userPresets: Record<string, unknown>;
+};
+const ui = (page: Page) =>
+  page.evaluate(() =>
+    (window as unknown as { __vsc: { store: { getState(): UiState } } }).__vsc.store.getState(),
   );
-}
+const uiField = <K extends keyof UiState>(page: Page, k: K) =>
+  page.evaluate(
+    (k) =>
+      (window as unknown as { __vsc: { store: { getState(): UiState } } }).__vsc.store.getState()[
+        k as keyof UiState
+      ],
+    k,
+  ) as Promise<UiState[K]>;
 
-test('forma de tocar: coluna à esquerda do palco, dica, tecla C e menu ⋯', async ({ page }) => {
+test('esconder interface com I e voltar com Esc', async ({ page }) => {
   const errors = watchConsole(page);
   await page.goto('/?debug');
   await markStarted(page);
-  const chord = () =>
-    page.evaluate(
-      () =>
-        (
-          window as unknown as { __vsc: { store: { getState(): { chord: string } } } }
-        ).__vsc.store.getState().chord,
-    );
-  const checked = (id: string) =>
-    expect(page.getByTestId(`chord-${id}`)).toHaveAttribute('aria-checked', 'true');
-  const column = page.getByRole('radiogroup', { name: 'Cada dedo toca' });
-  await expect(column).toBeVisible();
-  await expect(column).toContainText('Cada dedo toca…');
-  // as 7 opções estão à vista, com os rótulos, da mais simples à mais rica
-  await expect(column.getByRole('radio')).toHaveText([
-    'Uma nota',
-    'Oitava',
-    'Quinta',
-    'Acorde',
-    'Suspenso',
-    'Sétima',
-    'Nona',
-  ]);
-  await expect(column).toBeInViewport({ ratio: 1 });
-  // à esquerda do palco, sem tapar a barra nem os chips do HUD
-  const stage = (await page.getByTestId('stage').boundingBox())!;
-  const col = (await column.boundingBox())!;
-  expect(col.x).toBeGreaterThanOrEqual(stage.x);
-  expect(col.x).toBeLessThan(stage.x + stage.width * 0.2);
-  expect(overlaps(col, (await page.getByTestId('control-bar').boundingBox())!)).toBe(false);
-  for (const chip of await page.getByTestId('hud').locator('span').all())
-    expect(overlaps(col, (await chip.boundingBox())!)).toBe(false);
-  // alvos de toque com pelo menos 36 px de altura
-  expect((await page.getByTestId('chord-power').boundingBox())!.height).toBeGreaterThanOrEqual(36);
-  await checked('off');
-  await page.getByTestId('chord-power').click();
-  await checked('power');
-  expect(await chord()).toBe('power');
-  // a explicação aparece numa dica ao passar o rato
-  await page.getByTestId('chord-seventh').hover();
-  const tip = page.getByRole('tooltip');
-  await expect(tip).toBeVisible();
-  await expect(tip).toContainText('4 notas');
-  await expect(page.getByTestId('chord-seventh')).toHaveAccessibleDescription(/4 notas/);
-  await page.mouse.move(700, 300);
-  await expect(tip).toHaveCount(0);
-  // teclado: a opção escolhida é a única no Tab; as setas mudam de opção
-  await page.getByTestId('chord-power').blur();
-  await page.keyboard.press('Shift'); // o foco que se segue conta como de teclado
-  await page.getByTestId('chord-power').focus();
-  await expect(tip).toContainText('power chord');
-  await page.keyboard.press('ArrowDown');
-  await checked('triad');
-  await expect(page.getByTestId('chord-triad')).toBeFocused();
-  await expect(page.getByTestId('chord-power')).toHaveAttribute('tabindex', '-1');
-  // C passa ao seguinte, pela mesma ordem, e volta ao início
-  await page.locator('body').click({ position: { x: 5, y: 5 } });
-  for (const id of ['sus4', 'seventh', 'ninth', 'off', 'octave']) {
-    await page.keyboard.press('c');
-    await checked(id);
-  }
-  // e no menu ⋯, com o mesmo título
-  await page.getByTestId('more').click();
-  await expect(page.getByRole('group', { name: 'Cada dedo toca' })).toBeVisible();
-  await page.getByTestId('menu-chord-power').click();
-  await checked('power');
-  expect(await chord()).toBe('power');
-  // a coluna esconde-se com a interface
-  await page.locator('body').click({ position: { x: 5, y: 5 } });
+  await page.locator('body').click({ position: { x: 5, y: 300 } });
   await page.keyboard.press('i');
-  await expect(page.getByTestId('chord-slot')).toHaveCSS('visibility', 'hidden');
+  await expect(page.getByTestId('dock')).toHaveCSS('opacity', '0');
+  await expect(page.getByRole('banner')).toBeHidden();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('dock')).toHaveCSS('opacity', '1');
+  await expect(page.getByRole('banner')).toBeVisible();
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
-test('forma de tocar no telemóvel: sem coluna, no menu ⋯', async ({ page }) => {
+test('ecrã inicial: só o Começar, a privacidade e o caminho sem câmara', async ({ page }) => {
   const errors = watchConsole(page);
-  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/?debug');
-  await markStarted(page);
-  await expect(page.getByTestId('chord-column')).toBeHidden();
-  await page.getByTestId('more').click();
-  for (const id of ['off', 'octave', 'power', 'triad', 'sus4', 'seventh', 'ninth']) {
-    await page.getByTestId(`menu-chord-${id}`).scrollIntoViewIfNeeded();
-    await expect(page.getByTestId(`menu-chord-${id}`)).toBeInViewport({ ratio: 1 });
-  }
-  await page.getByTestId('menu-chord-triad').click();
-  await expect(page.getByTestId('chord-triad')).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByTestId('start')).toBeVisible();
+  await expect(page.getByTestId('start')).toHaveAccessibleName(/Começar/);
+  await expect(page.getByText('O vídeo fica no teu dispositivo')).toBeVisible();
+  await expect(page.getByTestId('start-touch')).toBeVisible();
+  // antes de começar não há pills, HUD nem botões no cabeçalho
+  await expect(page.getByTestId('pills')).toHaveCount(0);
+  await expect(page.getByTestId('hud')).toHaveCount(0);
+  await expect(page.getByRole('banner').getByRole('button')).toHaveCount(0);
+  // o botão é redondo, com pelo menos 72 px
+  const play = (await page.getByTestId('start').locator('span').first().boundingBox())!;
+  expect(play.width).toBeGreaterThanOrEqual(72);
+  expect(Math.abs(play.width - play.height)).toBeLessThan(1);
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
-test('forma de tocar em paisagem baixa: coluna compacta, dentro do ecrã', async ({ page }) => {
+test('sem câmara: tocar no ecrã, dica e ligar a câmara depois', async ({ page }) => {
   const errors = watchConsole(page);
-  await page.setViewportSize({ width: 844, height: 390 });
   await page.goto('/?debug');
-  await markStarted(page);
-  const column = page.getByTestId('chord-column');
-  await expect(column).toBeVisible();
-  await expect(column).toBeInViewport({ ratio: 1 });
-  const col = (await column.boundingBox())!;
-  expect(overlaps(col, (await page.getByTestId('control-bar').boundingBox())!)).toBe(false);
-  for (const chip of await page.getByTestId('hud').locator('span').all())
-    expect(overlaps(col, (await chip.boundingBox())!)).toBe(false);
-  // os chips do HUD da direita ficam à esquerda da barra vertical
-  const bar = (await page.getByTestId('control-bar').boundingBox())!;
-  for (const chip of await page.getByTestId('hud').locator('span').all())
-    expect(overlaps(bar, (await chip.boundingBox())!)).toBe(false);
-  // só os desenhos, em duas colunas: o rótulo passa para a dica
-  await expect(column.getByRole('radio')).toHaveCount(7);
-  for (const r of await column.getByRole('radio').all())
-    await expect(r).toBeInViewport({ ratio: 1 });
-  await expect(page.getByTestId('chord-power').getByText('Quinta')).toBeHidden();
-  await page.getByTestId('chord-power').hover();
-  await expect(page.getByRole('tooltip')).toContainText('Quinta');
-  await page.getByTestId('chord-power').click();
-  await expect(page.getByTestId('chord-power')).toHaveAttribute('aria-checked', 'true');
-  // na grelha de 2 colunas, ←/→ também mudam de opção (pela ordem de leitura); Home e End vão aos extremos
-  await page.keyboard.press('ArrowRight');
-  await expect(page.getByTestId('chord-triad')).toHaveAttribute('aria-checked', 'true');
-  await expect(page.getByTestId('chord-triad')).toBeFocused();
-  await page.keyboard.press('ArrowLeft');
-  await expect(page.getByTestId('chord-power')).toHaveAttribute('aria-checked', 'true');
-  await page.keyboard.press('End');
-  await expect(page.getByTestId('chord-ninth')).toHaveAttribute('aria-checked', 'true');
-  await expect(page.getByTestId('chord-ninth')).toBeFocused();
-  await page.keyboard.press('Home');
-  await expect(page.getByTestId('chord-off')).toHaveAttribute('aria-checked', 'true');
+  await page.getByTestId('start-touch').click();
+  await expect(page.getByTestId('start')).toHaveCount(0);
+  expect(await uiField(page, 'engine')).toBe('keyboard');
+  const keys = page.getByTestId('touch-keys-panel');
+  await expect(keys).toBeVisible();
+  await expect(page.getByTestId('touch-keys')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('coach')).toContainText('Toca nas teclas');
+  // as pills ficam por cima do teclado, sem o tapar
+  expect(
+    overlaps((await page.getByTestId('pills').boundingBox())!, (await keys.boundingBox())!),
+  ).toBe(false);
+  const key = keys.locator('[data-testid^="key-"]').nth(5);
+  await key.hover();
+  await page.mouse.down();
+  await page.waitForTimeout(80);
+  await page.mouse.up();
+  await expect(page.getByTestId('hud-note')).not.toHaveText('—');
+  await expect(page.getByTestId('coach')).toHaveCount(0);
+  expect(await uiField(page, 'coachDone')).toContain('touch');
+  // percussão: os pads no lugar do piano
+  await pinNotes(page, { instrument: 'drums' });
+  await keys.getByTestId('pad-1').click();
+  await expect(page.getByTestId('hud-note')).toHaveText('Tarola');
+  // o botão do cabeçalho esconde o teclado
+  await page.getByTestId('touch-keys').click();
+  await expect(keys).toHaveCount(0);
+  // o HUD oferece ligar a câmara
+  await page.getByTestId('hud-camera').click();
+  await expect.poll(() => uiField(page, 'engine'), { timeout: 30_000 }).toBe('hands');
+  await expect(page.getByTestId('hud-camera')).toHaveCount(0);
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
-test('forma de tocar a 1024×768: os 7 modos cabem sem tapar o HUD nem a barra', async ({
-  page,
-}) => {
+test('câmara recusada: o cartão oferece tentar outra vez ou tocar no ecrã', async ({ page }) => {
+  await page.addInitScript(() => {
+    navigator.mediaDevices.getUserMedia = () =>
+      Promise.reject(new DOMException('negado', 'NotAllowedError'));
+  });
   const errors = watchConsole(page);
-  await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto('/?debug');
-  await markStarted(page);
-  const column = page.getByTestId('chord-column');
-  await expect(column).toBeInViewport({ ratio: 1 });
-  await expect(column.getByRole('radio')).toHaveCount(7);
-  const col = (await column.boundingBox())!;
-  const stage = (await page.getByTestId('stage').boundingBox())!;
-  expect(col.y).toBeGreaterThanOrEqual(stage.y);
-  expect(col.y + col.height).toBeLessThanOrEqual(stage.y + stage.height);
-  expect(overlaps(col, (await page.getByTestId('control-bar').boundingBox())!)).toBe(false);
-  for (const chip of await page.getByTestId('hud').locator('span').all())
-    expect(overlaps(col, (await chip.boundingBox())!)).toBe(false);
+  await page.getByTestId('start').click();
+  const card = page.getByTestId('camera-error');
+  await expect(card).toBeVisible();
+  await expect(card).toContainText('Sem acesso à câmara');
+  // tentar outra vez volta a pedir a câmara (e volta a falhar)
+  await card.getByRole('button', { name: 'Tentar outra vez' }).click();
+  await expect(card).toBeVisible();
+  await card.getByTestId('camera-error-touch').click();
+  await expect(card).toHaveCount(0);
+  await expect(page.getByTestId('touch-keys-panel')).toBeVisible();
+  expect(await uiField(page, 'engine')).toBe('keyboard');
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
-type VoicesVsc = Vsc & { audio: { activeVoices: number } };
-
-test('Uma nota com quantização: um toque mais curto do que um passo ainda soa', async ({
-  page,
-}) => {
+test('dicas: mãos, depois dobrar; cumpridas não voltam', async ({ page }) => {
   const errors = watchConsole(page);
   await page.goto('/?debug');
   await page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.session.ensureAudio());
-  await pinNotes(page, {
-    started: true,
-    instrument: 'synth',
-    chord: 'off',
-    bpm: 60,
-    quantize: '1/16',
-    noteMode: 'scale',
-  });
-  const r = await page.evaluate(async () => {
-    const v = (window as unknown as { __vsc: VoicesVsc }).__vsc;
-    const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
-    await sleep(300);
-    // tecla S (um dedo) premida ~30 ms: a 60 BPM uma semicolcheia dura 250 ms
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }));
-    const voices = v.audio.activeVoices;
-    await sleep(30);
-    window.dispatchEvent(new KeyboardEvent('keyup', { key: 's' }));
-    let level = 0;
-    const t0 = performance.now();
-    while (performance.now() - t0 < 700) {
-      level = Math.max(level, v.audio.analyser.level());
-      await sleep(5);
-    }
-    return { voices, level, after: v.audio.activeVoices };
-  });
-  // a nota, agendada para o passo seguinte, não é cortada ao soltar (PENDING_HOLD, decisão 57)
-  expect(r.voices).toBe(1);
-  expect(r.level).toBeGreaterThan(0.01);
-  expect(r.after).toBe(0);
-  expect(errors, errors.join('\n')).toEqual([]);
-});
-
-test('Nona: um dedo toca 5 vozes', async ({ page }) => {
-  const errors = watchConsole(page);
-  await page.goto('/?debug');
-  await page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.session.ensureAudio());
-  await pinNotes(page, { started: true, instrument: 'synth', chord: 'ninth', noteMode: 'scale' });
-  await expect(page.getByTestId('chord-ninth')).toHaveAttribute('aria-checked', 'true');
-  const r = await page.evaluate(async () => {
-    const v = (window as unknown as { __vsc: VoicesVsc }).__vsc;
-    const wait = () => new Promise((res) => setTimeout(res, 33));
+  await pinNotes(page, { started: true, engine: 'hands', status: '', coachDone: [] });
+  const coach = page.getByTestId('coach');
+  await expect(coach).toContainText('Mostra as duas mãos');
+  await page.evaluate(async () => {
+    const v = (window as unknown as { __vsc: Vsc }).__vsc;
     const open = [v.syntheticHand(false, 0.3), v.syntheticHand(false, 0.7)];
-    const bent = [
-      v.syntheticHand([false, false, true, false, false], 0.3),
-      v.syntheticHand(false, 0.7),
-    ];
-    for (const hands of [open, open, open, open, bent, bent, bent, bent]) {
-      v.session.feedHands(hands);
-      await wait();
-    }
-    const held = v.audio.activeVoices;
-    const note = v.store.getState().lastNote;
     for (let k = 0; k < 4; k++) {
       v.session.feedHands(open);
-      await wait();
+      await new Promise((r) => setTimeout(r, 33));
     }
-    return { held, note, after: v.audio.activeVoices };
   });
-  expect(r.held).toBe(5);
-  expect(r.note).toMatch(/9/);
-  expect(r.after).toBe(0);
+  await expect(coach).toContainText('Dobra um dedo');
+  await pinNotes(page, { status: '' });
+  await playSynthetic(page);
+  await pinNotes(page, { status: '' });
+  await expect(coach).toHaveCount(0);
+  expect(await uiField(page, 'coachDone')).toEqual(expect.arrayContaining(['hands', 'bend']));
+  // ao recarregar, ficam cumpridas
+  await page.reload();
+  await pinNotes(page, { started: true, engine: 'hands', status: '' });
+  await page.waitForTimeout(300);
+  await expect(page.getByTestId('coach')).toHaveCount(0);
+  // o ✕ dispensa todas
+  await pinNotes(page, { coachDone: [] });
+  await expect(page.getByTestId('coach')).toBeVisible();
+  await page.getByTestId('coach').getByRole('button', { name: 'Dispensar as dicas' }).click();
+  expect(await uiField(page, 'coachDone')).toEqual(['hands', 'bend', 'mouth', 'touch']);
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
-/** Diagnóstico com a pose da mão sintética e o estado ao vivo dos dedos. */
-type ThumbVsc = Vsc & {
-  syntheticHand(closed: boolean[] | boolean, x?: number, y?: number, pose?: object): unknown;
-  live: { fingers: { down: boolean; curl: number }[] };
-};
-
-test('polegar: encostar ao lado do indicador toca a nota do polegar e afastar solta', async ({
-  page,
-}) => {
+test('folha: as pills abrem a tab certa, 1–4, Esc, tocar fora e a última tab', async ({ page }) => {
   const errors = watchConsole(page);
   await page.goto('/?debug');
-  await page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.session.ensureAudio());
-  await pinNotes(page, {
-    started: true,
-    instrument: 'synth',
-    chord: 'off',
-    noteMode: 'scale',
-    thumbs: true,
-    calibration: null,
-    learnHand: false,
-    lastNote: '—',
-  });
-  const r = await page.evaluate(async () => {
-    const v = (window as unknown as { __vsc: ThumbVsc }).__vsc;
-    const wait = () => new Promise((res) => setTimeout(res, 33));
-    // polegar esquerdo entre afastado (0) e encostado ao lado do indicador (1)
-    const hands = (thumb: number) => [
-      v.syntheticHand(false, 0.3, 0.8, { thumb }),
-      v.syntheticHand(false, 0.7),
-    ];
-    const feed = async (thumb: number, n: number) => {
-      for (let k = 0; k < n; k++) {
-        v.session.feedHands(hands(thumb));
-        await wait();
-      }
-    };
-    await feed(0, 6);
-    const idle = v.store.getState().lastNote;
-    await feed(0.5, 1);
-    await feed(1, 6);
-    const held = {
-      note: v.store.getState().lastNote,
-      midi: v.audio.voiceMidi(0),
-      down: v.live.fingers[0].down,
-      curl: v.live.fingers[0].curl,
-    };
-    await feed(0, 6);
-    return {
-      idle,
-      held,
-      after: { midi: v.audio.voiceMidi(0), down: v.live.fingers[0].down },
-      others: [1, 2, 3, 4].some((i) => v.live.fingers[i].down),
-    };
-  });
-  expect(r.idle).toBe('—');
-  expect(r.held.note).not.toBe('—');
-  expect(r.held.midi).not.toBeNull();
-  expect(r.held.down).toBe(true);
-  expect(r.held.curl).toBeGreaterThan(0.9);
-  expect(r.after).toEqual({ midi: null, down: false });
-  expect(r.others).toBe(false);
-  expect(errors, errors.join('\n')).toEqual([]);
-});
-
-test.describe('ecrã tátil', () => {
-  test.use({ hasTouch: true, viewport: { width: 1024, height: 768 } });
-  test('forma de tocar: a explicação aparece por um instante ao escolher', async ({ page }) => {
-    const errors = watchConsole(page);
-    await page.goto('/?debug');
-    await markStarted(page);
-    await page.getByTestId('chord-seventh').tap();
-    await expect(page.getByTestId('chord-seventh')).toHaveAttribute('aria-checked', 'true');
-    const tip = page.getByRole('tooltip');
-    await expect(tip).toContainText('4 notas');
-    await expect(tip).toHaveCount(0, { timeout: 4000 });
-    expect(errors, errors.join('\n')).toEqual([]);
-  });
-});
-
-test('uma gaveta de cada vez', async ({ page }) => {
-  const errors = watchConsole(page);
-  await page.goto('/?debug');
-  await page.getByTestId('chip-scale').click();
-  // só a gaveta está aberta (o ecrã inicial também tem role=dialog, por isso conta-se dialog[open])
-  await expect(page.locator('dialog[open]')).toHaveCount(1);
+  await markStarted(page);
+  const sheet = page.getByTestId('sheet');
+  await page.getByTestId('pill-instrument').click();
+  await expect(sheet).toBeVisible();
+  await expect(page.getByTestId('tab-som')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('tab-som')).toBeFocused();
+  await expect(sheet.getByTestId('instruments')).toBeVisible();
+  await expect(sheet.getByTestId('presets')).toBeVisible();
+  // não é modal: o palco continua por trás, sem fundo escuro
+  expect(await sheet.evaluate((d) => d.matches(':modal'))).toBe(false);
+  // a mesma pill fecha; a outra abre a sua tab
+  await page.getByTestId('pill-scale').click();
+  await expect(page.getByTestId('tab-notas')).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByTestId('scale-panel')).toBeVisible();
-  // clicar fora fecha
-  await page.mouse.click(10, 300);
-  await expect(page.getByTestId('drawer')).toBeHidden();
-  await expect(page.getByTestId('scale-panel')).toHaveCount(0);
+  // setas entre tabs
+  await page.getByTestId('tab-notas').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByTestId('tab-efeitos')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('tab-efeitos')).toBeFocused();
+  await expect(sheet.getByTestId('effects')).toBeVisible();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByTestId('tab-estudio')).toHaveAttribute('aria-selected', 'true');
+  await expect(sheet.getByTestId('looper')).toBeVisible();
+  // Esc fecha e devolve o foco à pill que a abriu
+  await page.keyboard.press('Escape');
+  await expect(sheet).toBeHidden();
+  await expect(page.getByTestId('pill-instrument')).toBeFocused();
+  // 1–4 abrem cada tab; a mesma tecla fecha
+  await page.locator('body').click({ position: { x: 5, y: 300 } });
+  await page.keyboard.press('3');
+  await expect(page.getByTestId('tab-efeitos')).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('2');
+  await expect(page.getByTestId('tab-notas')).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('2');
+  await expect(sheet).toBeHidden();
+  // tocar fora (no palco) fecha; deslizar para cima nas pills reabre na última tab
+  await page.keyboard.press('4');
+  await expect(sheet).toBeVisible();
+  const stage = (await page.getByTestId('stage').boundingBox())!;
+  await page.mouse.click(stage.x + 40, stage.y + stage.height / 2);
+  await expect(sheet).toBeHidden();
+  expect(await uiField(page, 'sheetTab')).toBe('estudio');
+  // as notas tocam com a folha aberta
+  await page.keyboard.press('1');
+  await expect(sheet).toBeVisible();
+  await page.keyboard.down('s');
+  await page.waitForTimeout(60);
+  await page.keyboard.up('s');
+  await expect(page.getByTestId('hud-note')).not.toHaveText('—');
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
-test('sem Fullscreen API (iPhone), o botão esconde a interface', async ({ page }) => {
-  await page.addInitScript(() =>
-    Object.defineProperty(Document.prototype, 'fullscreenEnabled', { get: () => false }),
-  );
+test('com a folha aberta, I e E não mexem na interface', async ({ page }) => {
   const errors = watchConsole(page);
   await page.goto('/?debug');
-  await page.getByTestId('fullscreen').click();
-  await expect(page.getByTestId('bar-slot')).toHaveCSS('opacity', '0');
-  // escondida, a barra sai da ordem do Tab
-  await expect(page.getByTestId('bar-slot')).toHaveCSS('visibility', 'hidden');
-  // no toque não há teclado: a barra espreita e o ⋯ volta a mostrar a interface
-  await page.mouse.move(200, 200);
-  await page.mouse.move(220, 220);
-  await expect(page.getByTestId('bar-slot')).toHaveCSS('opacity', '1');
-  await page.getByTestId('more').click();
-  await expect(page.getByTestId('menu-hide')).toContainText('Mostrar interface');
-  await page.getByTestId('menu-hide').click();
-  await expect
-    .poll(() =>
-      page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.store.getState().uiHidden),
-    )
-    .toBe(false);
-  await expect(page.getByTestId('bar-slot')).toHaveCSS('opacity', '1');
-  await expect(page.locator('header').first()).toBeVisible();
-  expect(errors, errors.join('\n')).toEqual([]);
-});
-
-test('com uma gaveta aberta, I e E não mexem na interface', async ({ page }) => {
-  const errors = watchConsole(page);
-  await page.goto('/?debug');
-  await page.getByTestId('chip-scale').click();
-  const drawer = page.getByTestId('drawer');
-  await expect(drawer).toBeVisible();
-  await drawer.getByRole('button', { name: /^Fechar/ }).focus();
+  await markStarted(page);
+  await page.getByTestId('pill-scale').click();
+  const sheet = page.getByTestId('sheet');
+  await expect(sheet).toBeVisible();
+  await page.getByTestId('sheet-close').focus();
   await page.keyboard.press('i');
   await page.keyboard.press('e');
   await page.waitForTimeout(100);
@@ -821,16 +701,147 @@ test('com uma gaveta aberta, I e E não mexem na interface', async ({ page }) =>
       fullscreen: !!document.fullscreenElement,
     })),
   ).toEqual({ uiHidden: false, fullscreen: false });
-  await expect(drawer).toBeVisible();
+  await expect(sheet).toBeVisible();
+  // o ✕ fecha
+  await page.getByTestId('sheet-close').click();
+  await expect(sheet).toBeHidden();
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
-test('câmara em retrato no desktop: o palco continua panorâmico e a barra não passa dele', async ({
+test('desktop: a folha fica à direita, por cima do palco, que não encolhe', async ({ page }) => {
+  const errors = watchConsole(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/?debug');
+  await markStarted(page);
+  const before = (await page.getByTestId('stage').boundingBox())!;
+  await page.getByTestId('pill-instrument').click();
+  const sheet = await stableBox(page.getByTestId('sheet'));
+  expect(sheet.x + sheet.width).toBeCloseTo(1440, 0);
+  expect(sheet.height).toBeCloseTo(900, 0);
+  expect(sheet.width).toBeLessThanOrEqual(400);
+  await expect(page.getByTestId('sheet-grip')).toHaveCount(0);
+  expect(await page.getByTestId('stage').boundingBox()).toEqual(before);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('Notas: tónica, escalas com "+ mais", formas de tocar e oitava', async ({ page }) => {
+  const errors = watchConsole(page);
+  await page.goto('/?debug');
+  await pinNotes(page, { root: 0, scale: 'Maior', chord: 'off', octave: 4, noteMode: 'scale' });
+  await openScale(page);
+  const panel = page.getByTestId('scale-panel');
+  // tónica em pills
+  await panel.getByTestId('root-7').click();
+  await expect(page.getByTestId('pill-scale')).toContainText('Sol · Maior');
+  // 5 escalas à vista; "+ mais" mostra as outras
+  await expect(
+    panel.locator('[data-testid^="scale-"]:not([data-testid="scale-more"])'),
+  ).toHaveCount(5);
+  await expect(panel.getByTestId('scale-Dórica')).toHaveCount(0);
+  await panel.getByTestId('scale-more').click();
+  await panel.getByTestId('scale-Dórica').click();
+  await panel.getByTestId('scale-more').click();
+  // a escolhida continua à vista com a lista fechada
+  await expect(panel.getByTestId('scale-Dórica')).toHaveAttribute('aria-checked', 'true');
+  // formas de tocar em cartões, com a explicação do modo ativo sempre à vista
+  await panel.getByTestId('chord-card-seventh').click();
+  await expect(panel.getByTestId('chord-card-seventh')).toHaveAttribute('aria-checked', 'true');
+  await expect(panel.getByText('4 notas, com a 7.ª')).toBeVisible();
+  await page.keyboard.press('ArrowRight');
+  await expect(panel.getByTestId('chord-card-ninth')).toBeFocused();
+  // a pré-visualização mostra o acorde de cada dedo
+  await expect(panel.getByText('Em Sol Dórica, os teus dedos tocam')).toBeVisible();
+  await expect(panel.getByTestId('finger-note-4')).toContainText('9');
+  // oitava base em pills
+  await panel.getByTestId('octave-3').click();
+  expect(
+    await page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.store.getState()),
+  ).toMatchObject({ octave: 3, root: 7, scale: 'Dórica', chord: 'ninth' });
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('forma de tocar no desktop: tira sempre à vista, setas e tecla C', async ({ page }) => {
+  const errors = watchConsole(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/?debug');
+  await markStarted(page);
+  const checked = (id: string) =>
+    expect(page.getByTestId(`chord-${id}`)).toHaveAttribute('aria-checked', 'true');
+  const strip = page.getByTestId('chord-strip');
+  await expect(strip).toBeVisible();
+  await expect(strip).toContainText('Cada dedo toca…');
+  await expect(page.getByTestId('pill-chord')).toHaveCount(0);
+  await expect(strip.getByRole('radio')).toHaveText([
+    'Uma nota',
+    'Oitava',
+    'Quinta',
+    'Acorde',
+    'Suspenso',
+    'Sétima',
+    'Nona',
+  ]);
+  await expect(strip).toBeInViewport({ ratio: 1 });
+  // por cima das pills, sem lhes tocar
+  expect(
+    overlaps((await strip.boundingBox())!, (await page.getByTestId('pills').boundingBox())!),
+  ).toBe(false);
+  await checked('off');
+  await page.getByTestId('chord-power').click();
+  await checked('power');
+  await expect(page.getByTestId('chord-power')).toHaveAttribute('title', /power chord/);
+  // teclado: a opção escolhida é a única no Tab; as setas mudam de opção
+  await page.keyboard.press('ArrowRight');
+  await checked('triad');
+  await expect(page.getByTestId('chord-triad')).toBeFocused();
+  await expect(page.getByTestId('chord-power')).toHaveAttribute('tabindex', '-1');
+  await page.keyboard.press('End');
+  await checked('ninth');
+  await page.keyboard.press('Home');
+  await checked('off');
+  // C passa ao seguinte, pela mesma ordem, e volta ao início
+  await page.locator('body').click({ position: { x: 5, y: 300 } });
+  for (const id of ['octave', 'power', 'triad', 'sus4', 'seventh', 'ninth', 'off']) {
+    await page.keyboard.press('c');
+    await checked(id);
+  }
+  // esconde-se com a interface
+  await page.keyboard.press('i');
+  await expect(page.getByTestId('dock')).toHaveCSS('visibility', 'hidden');
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('sem Fullscreen API (iPhone), o botão esconde a interface', async ({ page }) => {
+  await page.addInitScript(() =>
+    Object.defineProperty(Document.prototype, 'fullscreenEnabled', { get: () => false }),
+  );
+  const errors = watchConsole(page);
+  await page.goto('/?debug');
+  await markStarted(page);
+  await page.getByTestId('fullscreen').click();
+  await expect(page.getByTestId('dock')).toHaveCSS('opacity', '0');
+  // escondido, o fundo sai da ordem do Tab
+  await expect(page.getByTestId('dock')).toHaveCSS('visibility', 'hidden');
+  // mexer espreita: o cabeçalho e o fundo voltam por uns segundos
+  await page.mouse.move(200, 200);
+  await page.mouse.move(220, 220);
+  await expect(page.getByTestId('dock')).toHaveCSS('opacity', '1');
+  // nas definições, "Esconder a interface" volta a mostrá-la
+  await page.getByTestId('settings-open').click();
+  await expect(page.getByTestId('hide-ui')).toBeChecked();
+  await page.getByTestId('hide-ui').click({ force: true });
+  await expect.poll(() => uiField(page, 'uiHidden')).toBe(false);
+  await expect(page.getByTestId('dock')).toHaveCSS('opacity', '1');
+  await expect(page.locator('header').first()).toBeVisible();
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('câmara em retrato no desktop: o palco continua panorâmico e as pills dentro dele', async ({
   page,
 }) => {
   const errors = watchConsole(page);
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto('/?debug');
+  await markStarted(page);
   await page.evaluate(() => {
     const live = (window as unknown as { __vsc: Vsc }).__vsc.live;
     live.videoW = 720;
@@ -842,16 +853,11 @@ test('câmara em retrato no desktop: o palco continua panorâmico e a barra não
   const stage = (await page.getByTestId('stage').boundingBox())!;
   expect(stage.width).toBeGreaterThan(stage.height);
   expect(stage.width).toBeGreaterThanOrEqual(1024 * 0.9);
-  // o overlay em retrato enche o palco sem deformar
   await expect(page.getByTestId('overlay')).toHaveCSS('object-fit', 'cover');
-  // os chips que não cabem deslizam dentro da barra: o ⋯ chega-se sem sair do palco
-  const more = page.getByTestId('more');
-  await more.scrollIntoViewIfNeeded();
-  const box = (await more.boundingBox())!;
-  expect(box.x).toBeGreaterThanOrEqual(stage.x);
-  expect(box.x + box.width).toBeLessThanOrEqual(stage.x + stage.width + 0.5);
-  await more.click();
-  await expect(page.getByTestId('menu-efeitos')).toBeInViewport({ ratio: 1 });
+  const pills = (await page.getByTestId('pills').boundingBox())!;
+  expect(pills.x).toBeGreaterThanOrEqual(stage.x);
+  expect(pills.x + pills.width).toBeLessThanOrEqual(stage.x + stage.width + 0.5);
+  expect(pills.y + pills.height).toBeLessThanOrEqual(stage.y + stage.height + 0.5);
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
@@ -868,7 +874,8 @@ for (const showVideo of [false, true]) {
     const errors = watchConsole(page);
     await page.goto('/?debug');
     await expect(page.getByTestId('video')).toHaveCSS('opacity', '0');
-    await expect(page.getByTestId('chip-instrument')).toContainText('Marimba');
+    await markStarted(page);
+    await expect(page.getByTestId('pill-instrument')).toContainText('Marimba');
     expect(errors, errors.join('\n')).toEqual([]);
   });
 }
@@ -876,98 +883,53 @@ for (const showVideo of [false, true]) {
 const VIEWPORTS = [
   { width: 1440, height: 900 },
   { width: 1024, height: 768 },
+  { width: 820, height: 1180 },
   { width: 390, height: 844 },
+  { width: 375, height: 812 },
   { width: 844, height: 390 },
   { width: 320, height: 568 },
 ];
 
 for (const vp of VIEWPORTS) {
-  test(`menu ⋯ ${vp.width}×${vp.height}: cabe no ecrã e abre as gavetas`, async ({ page }) => {
-    const errors = watchConsole(page);
-    await page.setViewportSize(vp);
-    await page.goto('/?debug');
-    await page.getByTestId('more').click();
-    const menu = page.getByRole('menu', { name: 'Mais opções' });
-    const box = (await menu.boundingBox())!;
-    expect(box.y).toBeGreaterThanOrEqual(0);
-    expect(box.x).toBeGreaterThanOrEqual(0);
-    expect(box.y + box.height).toBeLessThanOrEqual(vp.height);
-    expect(box.x + box.width).toBeLessThanOrEqual(vp.width);
-    // o foco entra no primeiro item e as setas percorrem o menu
-    await expect(page.getByTestId('menu-instrumentos')).toBeFocused();
-    await page.keyboard.press('ArrowDown');
-    await expect(page.getByTestId('menu-escala')).toBeFocused();
-    await page.keyboard.press('ArrowUp');
-    await page.keyboard.press('ArrowUp');
-    await expect(page.getByTestId('menu-hide')).toBeFocused();
-    // todos os itens se alcançam (o menu desliza se não couber)
-    for (const id of ['menu-efeitos', 'menu-rato', 'menu-hide']) {
-      const item = page.getByTestId(id);
-      await item.scrollIntoViewIfNeeded();
-      await expect(item).toBeInViewport({ ratio: 1 });
-    }
-    // Esc fecha o menu e devolve o foco ao ⋯
-    await page.keyboard.press('Escape');
-    await expect(menu).toHaveCount(0);
-    await expect(page.getByTestId('more')).toBeFocused();
-    // uma gaveta aberta pelo menu devolve o foco ao ⋯ ao fechar
-    await page.getByTestId('more').click();
-    await page.getByTestId('menu-efeitos').click();
-    const drawer = page.getByTestId('drawer');
-    await expect(drawer).toBeVisible();
-    await expect(drawer.getByTestId('effects')).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(drawer).toBeHidden();
-    await expect(page.getByTestId('more')).toBeFocused();
-    // o menu também esconde a interface
-    await page.getByTestId('more').click();
-    await page.getByTestId('menu-hide').click();
-    await expect
-      .poll(() =>
-        page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.store.getState().uiHidden),
-      )
-      .toBe(true);
-    expect(errors, errors.join('\n')).toEqual([]);
-  });
-
-  test(`layout ${vp.width}×${vp.height}: sem scroll horizontal, palco e barra à vista`, async ({
+  test(`layout ${vp.width}×${vp.height}: sem scroll horizontal, palco e pills à vista`, async ({
     page,
   }) => {
     const errors = watchConsole(page);
     await page.setViewportSize(vp);
     await page.goto('/?debug');
+    await markStarted(page);
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth,
     );
     expect(overflow).toBeLessThanOrEqual(0);
     await expect(page.getByTestId('stage')).toBeInViewport();
-    await expect(page.getByTestId('control-bar')).toBeInViewport();
-    await expect(page.getByTestId('chip-instrument')).toBeInViewport();
-    await expect(page.getByTestId('more')).toBeInViewport();
-    // alvos de toque abaixo de 1100px: pelo menos 40×40
-    if (vp.width < 1100) {
-      const rec = (await page.getByTestId('chip-recordings').boundingBox())!;
-      expect(Math.min(rec.width, rec.height)).toBeGreaterThanOrEqual(40);
+    for (const id of ['pills', 'pill-instrument', 'pill-scale', 'record', 'settings-open'])
+      await expect(page.getByTestId(id)).toBeInViewport({ ratio: 1 });
+    // alvos de toque: pelo menos 44×44
+    for (const id of ['pill-instrument', 'pill-scale', 'record', 'settings-open', 'touch-keys']) {
+      const b = (await page.getByTestId(id).boundingBox())!;
+      expect(Math.min(b.width, b.height), id).toBeGreaterThanOrEqual(44);
     }
-    // a faixa de ondas está sempre por baixo do palco, dentro do ecrã
+    // ecrã inteiro só a partir de 640 px
+    if (vp.width < 640) await expect(page.getByTestId('fullscreen')).toBeHidden();
+    else await expect(page.getByTestId('fullscreen')).toBeVisible();
+    // as ondas encostam ao fundo do palco, dentro do ecrã
     const waves = page.getByTestId('waves');
-    await expect(waves).toBeVisible();
     await expect(waves).toBeInViewport({ ratio: 1 });
     const stageBox = (await page.getByTestId('stage').boundingBox())!;
     const wavesBox = (await waves.boundingBox())!;
-    expect(wavesBox.y).toBeGreaterThanOrEqual(stageBox.y + stageBox.height - 0.5);
-    // o rodapé dos efeitos só aparece com espaço (≥ 600 px de largura e de altura), entre o
-    // palco e a faixa, e nunca sai do ecrã
-    const footer = page.getByTestId('effects-footer');
-    if (vp.width >= 600 && vp.height >= 600) {
-      await expect(footer).toBeInViewport({ ratio: 1 });
-      const f = (await footer.boundingBox())!;
-      expect(f.y).toBeGreaterThanOrEqual(stageBox.y + stageBox.height);
-      expect(f.y + f.height).toBeLessThanOrEqual(wavesBox.y);
-    } else await expect(footer).toBeHidden();
-    // a barra já não tem os mini-knobs nem o chip Efeitos
-    await expect(page.getByTestId('chip-effects')).toHaveCount(0);
-    await expect(page.getByTestId('quick-reverb')).toHaveCount(0);
+    expect(wavesBox.y + wavesBox.height).toBeCloseTo(stageBox.y + stageBox.height, -1);
+    // a folha abre dentro do ecrã, com as tabs à vista
+    await page.getByTestId('pill-scale').click();
+    const sheet = await stableBox(page.getByTestId('sheet'));
+    expect(sheet.x).toBeGreaterThanOrEqual(-0.5);
+    expect(sheet.x + sheet.width).toBeLessThanOrEqual(vp.width + 0.5);
+    expect(sheet.y + sheet.height).toBeLessThanOrEqual(vp.height + 0.5);
+    for (const t of ['som', 'notas', 'efeitos', 'estudio'])
+      await expect(page.getByTestId(`tab-${t}`)).toBeInViewport({ ratio: 1 });
+    // o antigo shell saiu
+    for (const id of ['control-bar', 'more', 'chord-column', 'effects-footer', 'drawer'])
+      await expect(page.getByTestId(id)).toHaveCount(0);
     expect(errors, errors.join('\n')).toEqual([]);
   });
 }
@@ -988,7 +950,7 @@ for (const vp of [
     expect(stage.width).toBeGreaterThanOrEqual(vp.width * vp.minW);
     if (vp.wide) expect(stage.width).toBeGreaterThan(stage.height);
     // a câmara falsa entrega 16:9 mas o palco não segue a proporção dela
-    expect(stage.height).toBeGreaterThanOrEqual(vp.height * 0.6);
+    expect(stage.height).toBeGreaterThanOrEqual(vp.height * 0.8);
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth,
     );
@@ -1018,103 +980,202 @@ test('marca: Handagio no título e no cabeçalho, com Vision Sound Cam como desc
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
-test('rodapé dos efeitos: os 5 knobs com o nome e o efeito da boca', async ({ page }) => {
+test('Efeitos: boca primeiro, os 5 knobs com o nome e Repor efeitos', async ({ page }) => {
   const errors = watchConsole(page);
-  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/?debug');
   await markStarted(page);
-  const footer = page.getByTestId('effects-footer');
-  await expect(footer).toBeVisible();
-  await expect(footer).toHaveAccessibleName('Efeitos');
+  await page.keyboard.press('3');
+  const fx = page.getByTestId('effects');
+  await expect(fx).toBeVisible();
+  // o efeito da boca vem antes dos knobs
+  const mouth = fx.getByTestId('mouth-fx');
+  const knob = fx.getByTestId('knob-reverb');
+  expect((await mouth.boundingBox())!.y).toBeLessThan((await knob.boundingBox())!.y);
+  await expect(mouth).toHaveAccessibleName('Efeito da boca');
   const names = { reverb: 'Reverb', echo: 'Eco', filter: 'Filtro', drive: 'Drive', pitch: 'Pitch' };
   for (const [id, name] of Object.entries(names)) {
-    const knob = page.getByTestId(`footer-${id}`);
-    await expect(knob).toBeInViewport({ ratio: 1 });
-    await expect(knob).toHaveAccessibleName(name);
-    // o nome vê-se por baixo do knob
-    await expect(knob.locator('..').getByText(name, { exact: true })).toBeVisible();
+    const k = fx.getByTestId(`knob-${id}`);
+    await expect(k).toHaveAccessibleName(name);
+    await expect(k.locator('..').getByText(name, { exact: true })).toBeVisible();
   }
-  await expect(page.getByTestId('footer-mouth')).toBeVisible();
-  await expect(page.getByTestId('footer-mouth')).toHaveAccessibleName('Efeito da boca');
   // o knob mexe-se com o teclado e muda o valor no store
-  const reverb = () =>
-    page.evaluate(
-      () =>
-        (
-          window as unknown as { __vsc: { store: { getState(): { reverb: number } } } }
-        ).__vsc.store.getState().reverb,
-    );
-  const before = await reverb();
-  await page.getByTestId('footer-reverb').focus();
+  const before = await uiField(page, 'reverb');
+  await knob.focus();
   await page.keyboard.press('ArrowUp');
-  await expect.poll(reverb).toBeCloseTo(before + 0.01, 5);
-  // com o foco, o valor aparece no lugar do nome
-  const cell = page.getByTestId('footer-reverb').locator('..');
-  await expect(cell.getByText(`${Math.round((before + 0.01) * 100)}%`)).toBeVisible();
-  await expect(cell.getByText('Reverb', { exact: true })).toBeHidden();
-  // o seletor da boca muda o efeito
-  await page.getByTestId('footer-mouth').selectOption('vibrato');
-  expect(
-    await page.evaluate(
-      () =>
-        (
-          window as unknown as { __vsc: { store: { getState(): { mouthFx: string } } } }
-        ).__vsc.store.getState().mouthFx,
-    ),
-  ).toBe('vibrato');
-  // esconde-se com a interface
-  await page.locator('body').click({ position: { x: 5, y: 5 } });
-  await page.keyboard.press('i');
-  await expect(footer).toBeHidden();
+  await expect.poll(() => uiField(page, 'reverb')).toBeCloseTo(before + 0.01, 5);
+  // as pills da boca mudam o efeito; as setas também
+  await mouth.getByTestId('mouth-vibrato').click();
+  expect(await uiField(page, 'mouthFx')).toBe('vibrato');
+  await page.keyboard.press('ArrowRight');
+  expect(await uiField(page, 'mouthFx')).toBe('robot');
+  // Repor efeitos pede um segundo toque
+  const reset = fx.getByTestId('fx-reset');
+  await reset.click();
+  expect(await uiField(page, 'mouthFx')).toBe('robot');
+  await expect(reset).toContainText('Repor?');
+  await reset.click();
+  expect(await ui(page)).toMatchObject({ reverb: 0.3, mouthFx: 'wah' });
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
-for (const vp of [
-  { width: 390, height: 844 },
-  { width: 844, height: 390 },
-]) {
-  test(`rodapé dos efeitos ${vp.width}×${vp.height}: escondido, os efeitos no menu ⋯`, async ({
-    page,
-  }) => {
-    const errors = watchConsole(page);
-    await page.setViewportSize(vp);
-    await page.goto('/?debug');
-    await markStarted(page);
-    await expect(page.getByTestId('effects-footer')).toBeHidden();
-    await page.getByTestId('more').click();
-    await page.getByTestId('menu-efeitos').click();
-    const drawer = page.getByTestId('drawer');
-    await expect(drawer.getByTestId('effects')).toBeVisible();
-    await expect(drawer.getByTestId('knob-reverb')).toBeVisible();
-    expect(errors, errors.join('\n')).toEqual([]);
-  });
-}
+test('Som: sons guardados carregam num toque, guardam-se e apagam-se com confirmação', async ({
+  page,
+}) => {
+  const errors = watchConsole(page);
+  await page.goto('/?debug');
+  await markStarted(page);
+  await page.getByTestId('pill-instrument').click();
+  const presets = page.getByTestId('presets');
+  await presets.getByTestId('preset-Theremin espacial').click();
+  expect(await uiField(page, 'instrument')).toBe('theremin');
+  await expect(presets.getByTestId('preset-Theremin espacial')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(presets.getByTestId('preset-Piano calmo')).toHaveAttribute('aria-pressed', 'false');
+  // guardar com um nome; o novo fica marcado (é o som atual)
+  await presets.getByTestId('preset-add').click();
+  await presets.getByTestId('preset-name').fill('O meu');
+  await presets.getByTestId('preset-name').press('Enter');
+  await expect(presets.getByTestId('preset-O meu')).toHaveAttribute('aria-pressed', 'true');
+  expect(Object.keys(await uiField(page, 'userPresets'))).toEqual(['O meu']);
+  // apagar: ✕ e um segundo toque
+  const del = presets.getByRole('button', { name: 'Apagar O meu' });
+  await del.click();
+  await presets.getByRole('button', { name: 'Confirmar: apagar O meu' }).click();
+  await expect(presets.getByTestId('preset-O meu')).toHaveCount(0);
+  expect(await uiField(page, 'userPresets')).toEqual({});
+  // filtros por família e grelha por categoria
+  await page.getByTestId('family-Cordas').click();
+  await expect(page.getByTestId('instruments').locator('h4')).toHaveText([/Cordas/]);
+  await page.getByTestId('family-Todos').click();
+  await expect(page.getByTestId('instruments').locator('h4')).toHaveCount(6);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
 
-for (const vp of [
-  { width: 1440, height: 900 },
-  { width: 1024, height: 768 },
-]) {
-  test(`coluna ${vp.width}×${vp.height}: o título quebra em vez de ser cortado`, async ({
+test.describe('telemóvel 375×812 (toque)', () => {
+  test.use({ viewport: { width: 375, height: 812 }, hasTouch: true });
+
+  test('a folha fica em baixo, a 45% da altura, e a pega expande e fecha', async ({ page }) => {
+    const errors = watchConsole(page);
+    await page.goto('/?debug');
+    await markStarted(page);
+    await page.getByTestId('pill-instrument').tap();
+    const sheet = page.getByTestId('sheet');
+    await expect(sheet).toBeVisible();
+    const box = await stableBox(sheet);
+    expect(box.y + box.height).toBeCloseTo(812, 0);
+    expect(box.height).toBeCloseTo(812 * 0.45, -1);
+    expect(box.width).toBeCloseTo(375, 0);
+    // as tabs e o ✕ têm pelo menos 44 px
+    for (const id of ['tab-som', 'tab-notas', 'tab-efeitos', 'tab-estudio', 'sheet-close']) {
+      const b = (await page.getByTestId(id).boundingBox())!;
+      expect(b.height, id).toBeGreaterThanOrEqual(44);
+    }
+    // arrastar a pega para cima expande; para baixo encolhe e depois fecha
+    const grip = page.getByTestId('sheet-grip');
+    const drag = async (dy: number) => {
+      const g = (await grip.boundingBox())!;
+      const x = g.x + g.width / 2;
+      const y = g.y + g.height / 2;
+      await page.mouse.move(x, y);
+      await page.mouse.down();
+      await page.mouse.move(x, y + dy / 2);
+      await page.mouse.move(x, y + dy);
+      await page.mouse.up();
+    };
+    await drag(-120);
+    expect((await stableBox(sheet)).height).toBeCloseTo(812 * 0.85, -1);
+    await drag(150);
+    expect((await stableBox(sheet)).height).toBeCloseTo(812 * 0.45, -1);
+    await drag(150);
+    await expect(sheet).toBeHidden();
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+
+  test('forma de tocar: a pill abre a tira, escolher fecha-a e explica o modo', async ({
     page,
   }) => {
     const errors = watchConsole(page);
-    await page.setViewportSize(vp);
     await page.goto('/?debug');
     await markStarted(page);
-    const title = page.getByTestId('chord-column').getByText('Cada dedo toca…');
-    await expect(title).toBeVisible();
-    const m = await title.evaluate((el) => ({
-      sw: el.scrollWidth,
-      cw: el.clientWidth,
-      ellipsis: getComputedStyle(el).textOverflow,
-    }));
-    expect(m.sw).toBeLessThanOrEqual(m.cw);
-    expect(m.ellipsis).not.toBe('ellipsis');
-    // com o rodapé, os rótulos continuam à vista
-    await expect(page.getByTestId('chord-power').getByText('Quinta')).toBeVisible();
+    const strip = page.getByTestId('chord-strip');
+    await expect(strip).toHaveCount(0);
+    await page.getByTestId('pill-chord').tap();
+    await expect(strip).toBeVisible();
+    await expect(strip).toBeInViewport({ ratio: 1 });
+    await expect(strip.getByRole('radio')).toHaveCount(7);
+    for (const r of await strip.getByRole('radio').all()) {
+      const b = (await r.boundingBox())!;
+      expect(Math.min(b.width, b.height)).toBeGreaterThanOrEqual(44);
+    }
+    await page.getByTestId('chord-seventh').tap();
+    await expect(strip).toHaveCount(0);
+    expect(await uiField(page, 'chord')).toBe('seventh');
+    await expect(page.getByTestId('notice')).toContainText('Sétima: 4 notas');
+    await expect(page.getByTestId('notice')).toHaveCount(0, { timeout: 5000 });
+    // tocar fora fecha sem escolher
+    await page.getByTestId('pill-chord').tap();
+    await expect(strip).toBeVisible();
+    await page.touchscreen.tap(180, 300);
+    await expect(strip).toHaveCount(0);
+    expect(await uiField(page, 'chord')).toBe('seventh');
+    // abrir a folha fecha a tira
+    await page.getByTestId('pill-chord').tap();
+    await page.getByTestId('pill-scale').tap();
+    await expect(strip).toHaveCount(0);
+    await expect(page.getByTestId('sheet')).toBeVisible();
     expect(errors, errors.join('\n')).toEqual([]);
   });
-}
+
+  test('definições em ecrã inteiro, com Voltar', async ({ page }) => {
+    const errors = watchConsole(page);
+    await page.goto('/?debug');
+    await markStarted(page);
+    await page.getByTestId('settings-open').tap();
+    const settings = page.getByTestId('settings');
+    await expect(settings).toBeVisible();
+    const box = (await settings.boundingBox())!;
+    expect(box.width).toBeCloseTo(375, 0);
+    expect(box.height).toBeCloseTo(812, 0);
+    // sem rato, os atalhos não aparecem
+    await expect(settings.getByRole('heading', { name: 'Atalhos' })).toHaveCount(0);
+    await expect(settings.getByTestId('settings-close')).toBeHidden();
+    await settings.getByTestId('settings-back').tap();
+    await expect(settings).toBeHidden();
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+});
+
+test.describe('tablet 820×1180 (toque)', () => {
+  test.use({ viewport: { width: 820, height: 1180 }, hasTouch: true });
+
+  test('folha em baixo, centrada e com 640 px no máximo; tira a pedido', async ({ page }) => {
+    const errors = watchConsole(page);
+    await page.goto('/?debug');
+    await markStarted(page);
+    await expect(page.getByTestId('pill-chord')).toBeVisible();
+    await page.getByTestId('pill-scale').tap();
+    const box = await stableBox(page.getByTestId('sheet'));
+    expect(box.width).toBeLessThanOrEqual(640.5);
+    expect(box.x).toBeCloseTo((820 - box.width) / 2, 0);
+    expect(box.y + box.height).toBeCloseTo(1180, 0);
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+
+  test('paisagem 1180×820: folha à direita e a tira sempre à vista', async ({ page }) => {
+    const errors = watchConsole(page);
+    await page.setViewportSize({ width: 1180, height: 820 });
+    await page.goto('/?debug');
+    await markStarted(page);
+    await expect(page.getByTestId('chord-strip')).toBeVisible();
+    await page.getByTestId('pill-instrument').tap();
+    const box = await stableBox(page.getByTestId('sheet'));
+    expect(box.x + box.width).toBeCloseTo(1180, 0);
+    expect(box.height).toBeCloseTo(820, 0);
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+});
 
 test.describe('instrumentos gravados', () => {
   // o page.route não vê pedidos feitos pelo service worker
@@ -1131,7 +1192,7 @@ test.describe('instrumentos gravados', () => {
     await sample;
     await expect.poll(() => sampleStatus(page, 'violin'), { timeout: 15_000 }).toBe('ready');
     await expect(page.getByTestId('tile-violin')).toContainText('gravado');
-    await expect(page.getByTestId('chip-instrument')).toHaveAttribute(
+    await expect(page.getByTestId('pill-instrument')).toHaveAttribute(
       'aria-label',
       'Instrumento: Violino',
     );
@@ -1191,7 +1252,7 @@ test.describe('instrumentos gravados', () => {
     await openInstruments(page);
     await page.getByTestId('tile-cello').click();
     await expect(page.getByTestId('tile-cello')).toHaveAttribute('aria-busy', 'true');
-    await expect(page.getByTestId('chip-instrument')).toHaveAttribute(
+    await expect(page.getByTestId('pill-instrument')).toHaveAttribute(
       'aria-label',
       'Instrumento: Violoncelo (a carregar)',
     );
@@ -1215,7 +1276,7 @@ test.describe('instrumentos gravados', () => {
     await expect(page.getByTestId('tile-tuba')).toContainText(
       'Não foi possível carregar — toca para tentar de novo',
     );
-    await expect(page.getByTestId('chip-instrument')).toHaveAttribute(
+    await expect(page.getByTestId('pill-instrument')).toHaveAttribute(
       'aria-label',
       'Instrumento: Tuba (erro ao carregar)',
     );
@@ -1333,7 +1394,7 @@ test.describe('notas dos dedos', () => {
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('note-editor')).toHaveCount(0);
     await expect(finger).toBeFocused();
-    await expect(page.getByTestId('drawer')).toBeVisible();
+    await expect(page.getByTestId('sheet')).toBeVisible();
 
     expect(await playFinger(page, 1, 2)).toMatch(/^Sol/);
     expect(await playFinger(page, 1, 2)).toBe('Sol4');
@@ -1378,7 +1439,7 @@ test.describe('notas dos dedos', () => {
     await page.getByTestId('tonic-at-left-pinky').click();
     await expect(page.getByTestId('finger-note-4')).toHaveText('Dó4');
     await page.keyboard.press('Escape');
-    await expect(page.getByTestId('drawer')).toBeHidden();
+    await expect(page.getByTestId('sheet')).toBeHidden();
     expect(await playFinger(page, 0, 4)).toBe('Dó4');
     // o indicador direito passa a tocar mais acima (grau 4 da Pentatónica = Lá4)
     expect(await playFinger(page, 1, 1)).toBe('Lá4');
