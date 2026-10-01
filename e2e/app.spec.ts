@@ -1408,6 +1408,36 @@ test.describe('English', () => {
     expect(errors, errors.join('\n')).toEqual([]);
   });
 
+  test('a mensagem da calibração desaparece sozinha, também em inglês', async ({ page }) => {
+    const errors = watchConsole(page);
+    await page.goto('/?debug');
+    const status = await page.evaluate(async () => {
+      const v = (window as unknown as { __vsc: Vsc & { session: { calibrate(): Promise<void> } } })
+        .__vsc;
+      v.store.getState().set({ started: true });
+      // deteção das mãos ligada, sem mãos à vista: a calibração falha
+      v.session.feedHands([]);
+      await v.session.calibrate();
+      return (v.store.getState() as unknown as { status: string }).status;
+    });
+    expect(status).toMatch(/could not see your fingers/);
+    await expect
+      .poll(
+        () =>
+          page.evaluate(
+            () =>
+              (
+                (window as unknown as { __vsc: Vsc }).__vsc.store.getState() as unknown as {
+                  status: string;
+                }
+              ).status,
+          ),
+        { timeout: 8000 },
+      )
+      .toBe('');
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+
   test('o link do ecrã inicial muda de língua', async ({ page }) => {
     const errors = watchConsole(page);
     await page.goto('/?debug');

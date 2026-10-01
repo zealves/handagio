@@ -888,12 +888,10 @@ class Session {
         status: t().status.calibFailed,
       });
     }
+    // limpa só a mensagem que pôs (outra, entretanto, fica)
+    const shown = getState().status;
     setTimeout(() => {
-      if (
-        getState().status.startsWith('Calibração feita') ||
-        getState().status.startsWith('Não consegui')
-      )
-        setState({ status: '' });
+      if (getState().status === shown) setState({ status: '' });
     }, 5000);
   }
 
