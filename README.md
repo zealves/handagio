@@ -68,7 +68,7 @@ A interface começa quase vazia e revela o resto quando o procuras, pensada prim
 
 ### Línguas
 
-A app está em **português** e em **inglês**. Na primeira visita segue a língua do navegador (português para `pt-*`, inglês para as outras); muda-se em **⚙ › Aspeto › Idioma** ou no link do ecrã inicial, e a escolha fica guardada. Em português as notas são em solfejo (Dó, Ré, Mi… e "Sol 7"); em inglês, em letras (C, D, E… e "G7"). Só se descarrega a língua em uso.
+A app está em **português** e em **inglês**. Na primeira visita segue a língua do navegador (português para `pt-*`, inglês para as outras); muda-se no botão da língua no cabeçalho (**PT** / **EN**, sempre à vista), no link do ecrã inicial ou em **⚙ › Aspeto › Idioma**, e a escolha fica guardada. Em português as notas são em solfejo (Dó, Ré, Mi… e "Sol 7"); em inglês, em letras (C, D, E… e "G7"). Só se descarrega a língua em uso.
 
 Para acrescentar uma língua: copiar `src/i18n/locales/en.ts` para `xx.ts` e traduzir, e juntar `xx` a `Lang`, `LANGS` e `LANG_NAMES` em `src/i18n/types.ts`. O TypeScript e o teste `src/i18n/data.test.ts` apontam o que faltar.
 
