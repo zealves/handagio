@@ -553,7 +553,6 @@ class Session {
       game: { phase: 'playing', difficulty, result: null },
       gameDifficulty: difficulty,
       sheet: null,
-      touchKeys: false,
     });
   }
 
@@ -590,7 +589,8 @@ class Session {
       return;
     }
     const s = getState();
-    const midi = degreeToMidi(ev.degree, tuningOf({ ...s, instrument: 'bass', octave: s.octave - 1 }));
+    const melodyOctave = tuningOf({ ...s, instrument: this.game!.melody }).octave;
+    const midi = degreeToMidi(ev.degree, { root: s.root, scale: s.scale, octave: melodyOctave - 1 });
     const key = `G${++this.loopSeq}`;
     audio.noteOn(key, 'bass', midi, ev.vel, 0, when);
     this.at(when + ev.dur * this.clock.stepDur, () => audio.noteOff(key));
