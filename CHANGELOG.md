@@ -2,6 +2,21 @@
 
 Versões segundo [SemVer](https://semver.org/lang/pt-BR/). A mais recente fica no topo.
 
+## [3.0.0] — 2026-10-01
+
+Interface redesenhada com revelação progressiva, pensada primeiro para o telemóvel e o tablet. Todas as funcionalidades continuam; o desenho das mãos e das notas não muda.
+
+- Ecrã inicial com um só botão (▶ Começar), a privacidade numa linha e "Sem câmara? Tocar no ecrã". Se a câmara falhar, um cartão oferece tentar outra vez ou tocar no ecrã.
+- A tocar: o palco ocupa o ecrã, o HUD fica só com a nota (e a gravação e o looper quando há) e o cabeçalho tem teclado no ecrã, ecrã inteiro, gravar e definições.
+- Duas pills (instrumento, tónica · escala) abrem uma folha com 4 tabs: Som, Notas, Efeitos e Estúdio. Em baixo no telemóvel (arrasta-se para expandir ou fechar), à direita em paisagem e no desktop; não escurece nem encolhe o palco, por isso continuas a tocar enquanto mexes. Teclas `1`–`4` abrem cada tab.
+- "Cada dedo toca…" numa tira de acesso rápido: no telemóvel abre pela 3.ª pill, em ecrãs largos está sempre à vista. Na tab Notas, cartões com a explicação do modo e a pré-visualização dos acordes de cada dedo.
+- Instrumentos em cartões por família; as escalas mostram as 5 mais usadas e "+ mais"; tónica e oitava base em pills.
+- As predefinições passam a "Sons guardados" na tab Som (tocar carrega; guardar e apagar ali mesmo). Efeitos com o da boca em destaque e "Repor efeitos".
+- Dicas do primeiro uso, uma de cada vez (mostra as mãos, dobra um dedo, abre a boca), que não voltam depois de cumpridas.
+- Ao parar uma gravação, o aviso "Ver" abre o Estúdio.
+- Definições arrumadas por tarefa (Mãos, Câmara, Som, Aspeto); ecrã inteiro no telemóvel. Novo: "Mostrar FPS" (o FPS deixa de estar sempre no HUD) e silenciar nas definições.
+- Alvos de toque de 44 px e margens seguras (notch) no telemóvel.
+
 ## [2.3.0] — 2026-10-01
 
 - O polegar toca ao encostar ao lado do indicador (como quem carrega num botão) e solta ao afastar, em vez de dobrar como os outros dedos. A medida é relativa à própria mão, por isso não muda ao rodar, inclinar ou afastar a mão da câmara.
