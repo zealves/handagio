@@ -155,7 +155,14 @@ export class GameRun {
   pause(now: number): void {
     if (this.state === 'paused' || this.state === 'over') return;
     this.pausedAt = now;
-    this.pRel = Math.max(0, Math.ceil((now - this.start) / this.timing.stepDur - 1e-9));
+    // Na contagem (antes de `countTo`) a música ainda não voltou a tocar: o passo por ouvir
+    // continua a ser o que já estava guardado (0 na primeira contagem; o do resume anterior
+    // numa pausa dentro da contagem de um retomar). Só depois de `countTo` é que se recalcula
+    // a partir de `start`, senão uma pausa durante essa contagem "recuaria" a partitura.
+    this.pRel =
+      now < this.countTo
+        ? this.pRel
+        : Math.max(0, Math.ceil((now - this.start) / this.timing.stepDur - 1e-9));
     this.state = 'paused';
   }
 

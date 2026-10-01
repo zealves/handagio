@@ -164,6 +164,36 @@ describe('GameRun', () => {
     expect(run.press(1, 18.35)?.kind).toBe('perfect');
   });
 
+  it('pausar outra vez dentro da contagem do retomar mantém o mesmo ponto de retoma', () => {
+    const { run, played } = make();
+    run.onStep(48, 12);
+    run.pause(12.2);
+    // o próximo passo por ouvir era o 2; o primeiro retomar desloca tudo para o compasso 80 (16 s)
+    run.resume(80, 16);
+    // pausa outra vez ainda dentro da contagem deste retomar (antes de countTo, 18 s): o passo
+    // por ouvir continua a ser o 2 — não se recalcula a partir de `start`, ou "recuaria"
+    run.pause(17.3);
+    played.length = 0;
+    // segundo retomar, agora para o compasso 160 (24 s)
+    run.resume(160, 24);
+    expect(run.state).toBe('countdown');
+    expect(run.countTo).toBe(26);
+    // o mesmo passo 2 desta vez cai em 25,75 s: tudo desloca 25,75 − 17,75 = 8 s
+    expect(run.times).toEqual([25.75, 26.25, 27.75]);
+    expect(run.start).toBeCloseTo(25.75);
+    run.onStep(176, 25.75);
+    run.onStep(177, 26);
+    run.onStep(178, 26.25);
+    run.onStep(179, 26.5);
+    // só o passo 4 (ainda por ouvir) toca; os passos 0 (já tocados antes da primeira pausa) não
+    // voltam a soar
+    expect(played.map((p) => [p.ev.kind, p.ev.kind === 'drum' ? p.ev.slot : -1, p.when])).toEqual([
+      ['drum', 1, 26.25],
+    ]);
+    expect(run.update(26.1)).toBe(false);
+    expect(run.state).toBe('playing');
+  });
+
   it('pausar durante a entrada recomeça do compasso 1', () => {
     const { run } = make();
     run.pause(11);
