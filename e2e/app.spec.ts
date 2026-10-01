@@ -1353,6 +1353,71 @@ test('polegar: dobrar toca a nota do polegar, mesmo com a mão inclinada, e para
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
+test.describe('English', () => {
+  test.use({ locale: 'en-US' });
+
+  test('abre em inglês, com as notas em letras, e só descarrega a língua usada', async ({
+    page,
+  }) => {
+    const errors = watchConsole(page);
+    const chunks: string[] = [];
+    page.on('request', (r) => {
+      const m = r.url().match(/assets\/(pt|en)-[^/]+\.js$/);
+      if (m) chunks.push(m[1]);
+    });
+    await page.goto('/?debug');
+    await expect(page.getByTestId('start')).toHaveAccessibleName(/Start/);
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await expect(page.getByTestId('start-touch')).toHaveText('No camera? Play on screen');
+    await expect(page.getByTestId('lang-switch')).toHaveText('Português');
+    expect([...new Set(chunks)]).toEqual(['en']);
+    await markStarted(page);
+    await expect(page.getByTestId('pill-scale')).toHaveText('C · Major');
+    await page.getByTestId('pill-scale').click();
+    await expect(page.getByTestId('tab-notas')).toHaveText('Notes');
+    await expect(page.getByTestId('scale-panel')).toContainText('Each finger plays…');
+    await expect(page.getByTestId('root-1')).toHaveText('C♯');
+    await page.getByTestId('chord-card-seventh').click();
+    await expect(page.getByTestId('finger-note-4')).toHaveText('Cmaj7');
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+
+  test('muda para português nas definições sem recarregar', async ({ page }) => {
+    const errors = watchConsole(page);
+    const chunks: string[] = [];
+    page.on('request', (r) => {
+      const m = r.url().match(/assets\/(pt|en)-[^/]+\.js$/);
+      if (m) chunks.push(m[1]);
+    });
+    await page.goto('/?debug');
+    await markStarted(page);
+    await page.getByTestId('settings-open').click();
+    await page.getByTestId('lang-pt').click();
+    await expect(page.getByTestId('lang-pt')).toHaveAttribute('aria-checked', 'true');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'pt-PT');
+    await expect(page.getByTestId('settings').getByRole('heading', { level: 2 })).toHaveText(
+      'Definições',
+    );
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('pill-scale')).toHaveText('Dó · Maior');
+    // o pt só foi pedido ao mudar
+    expect([...new Set(chunks)]).toEqual(['en', 'pt']);
+    // a escolha fica guardada: ao recarregar abre em português
+    await page.reload();
+    await expect(page.getByTestId('start')).toHaveAccessibleName(/Começar/);
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+
+  test('o link do ecrã inicial muda de língua', async ({ page }) => {
+    const errors = watchConsole(page);
+    await page.goto('/?debug');
+    await page.getByTestId('lang-switch').click();
+    await expect(page.getByTestId('start')).toHaveAccessibleName(/Começar/);
+    await expect(page.getByTestId('lang-switch')).toHaveText('English');
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+});
+
 test.describe('instrumentos gravados', () => {
   // o page.route não vê pedidos feitos pelo service worker
   test.use({ serviceWorkers: 'block' });
