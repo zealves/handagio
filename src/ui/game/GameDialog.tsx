@@ -11,6 +11,7 @@ import {
   normalizeGameFingers,
 } from '../../game/config';
 import { useT } from '../../i18n';
+import { fingerName } from '../../i18n/data';
 import { getState, useStore } from '../../state/store';
 import { KEYMAP } from '../../vision/fingerMap';
 import s from './GameDialog.module.css';
@@ -20,11 +21,13 @@ const LEFT_HAND_FINGERS = [4, 3, 2, 1];
 const RIGHT_HAND_FINGERS = [6, 7, 8, 9];
 
 /**
- * Tecla de cada dedo (maiúscula), a partir do `KEYMAP` do modo teclado. O dedo 9 tem duas teclas
- * (`ç` e `;`, o mesmo lugar físico em layouts diferentes); fica a primeira do objeto (`ç`).
+ * Tecla de cada dedo (maiúscula), a partir do `KEYMAP` do modo teclado, exceto o dedo 9: esse
+ * tem duas teclas, uma por teclado (`ç` no português, `;` no inglês), por isso vem de
+ * `start.rightKeys` (que já distingue a língua) em vez do `KEYMAP` (ver `keyForFinger` abaixo).
  */
 const KEY_FOR_FINGER: Partial<Record<number, string>> = {};
 for (const [key, finger] of Object.entries(KEYMAP)) {
+  if (finger === 9) continue;
   if (!(finger in KEY_FOR_FINGER)) KEY_FOR_FINGER[finger] = key.toUpperCase();
 }
 
@@ -35,8 +38,10 @@ export function GameDialog() {
   const lag = useStore((st) => st.gameLagMs);
   const sel = useStore((st) => st.gameFingers);
   const set = useStore((st) => st.set);
-  const tr = useT().game;
+  const msgs = useT();
+  const tr = msgs.game;
   const ref = useRef<HTMLDialogElement>(null);
+  const resumeRef = useRef<HTMLButtonElement>(null);
   // só conta como "fora" se o gesto também começou no fundo (senão arrastar o atraso e largar
   // por cima dele, fora do cartão, saía do jogo sem querer)
   const downOnBackdrop = useRef(false);
@@ -45,8 +50,12 @@ export function GameDialog() {
 
   useEffect(() => {
     const d = ref.current!;
-    if (open && !d.open) d.showModal();
-    else if (!open && d.open) d.close();
+    if (open && !d.open) {
+      d.showModal();
+      // `showModal` focaria o primeiro botão focável (Sair); na pausa isso faria um Enter
+      // sem querer acabar a ronda, por isso o foco vai antes para o Continuar
+      if (getState().game?.phase === 'paused') resumeRef.current?.focus();
+    } else if (!open && d.open) d.close();
   }, [open]);
 
   // fechar ao começar ou ao continuar (a fase já mudou) não sai do jogo; na pausa, fechar (Esc
@@ -63,8 +72,12 @@ export function GameDialog() {
     const next = sel.includes(f) ? sel.filter((x) => x !== f) : [...sel, f];
     set({ gameFingers: normalizeGameFingers(next) ?? sel });
   };
+  // o dedo 9 vem de `start.rightKeys` (o último, Ç/;), que já é o texto certo na língua atual;
+  // os outros são teclas físicas que não mudam com a língua
+  const keyForFinger = (f: number): string | undefined =>
+    f === 9 ? msgs.start.rightKeys[3] : KEY_FOR_FINGER[f];
   const keys = sel
-    .map((f) => KEY_FOR_FINGER[f])
+    .map((f) => keyForFinger(f))
     .filter((k): k is string => !!k)
     .join(' ');
 
@@ -119,6 +132,9 @@ export function GameDialog() {
                       type="button"
                       className={s.fingerBtn}
                       aria-pressed={sel.includes(f)}
+                      // "Ind" sozinho repete-se nas duas mãos; o nome completo com a mão
+                      // (fingerName, já usado noutros sítios) distingue-os para leitores de ecrã
+                      aria-label={fingerName(f)}
                       disabled={sel.length === MIN_GAME_FINGERS && sel.includes(f)}
                       onClick={() => toggleFinger(f)}
                       data-testid={`game-finger-${f}`}
@@ -185,6 +201,7 @@ export function GameDialog() {
               {tr.restart}
             </button>
             <button
+              ref={resumeRef}
               type="button"
               className={s.primary}
               onClick={() => session.resumeGame()}
