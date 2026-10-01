@@ -53,7 +53,12 @@ export function CameraErrorCard() {
   const set = useStore((st) => st.set);
   if (!error) return null;
   return (
-    <div className={s.card} role="alertdialog" aria-labelledby="cam-err-t" data-testid="camera-error">
+    <div
+      className={s.card}
+      role="alertdialog"
+      aria-labelledby="cam-err-t"
+      data-testid="camera-error"
+    >
       <h2 id="cam-err-t">Sem acesso à câmara</h2>
       <p>{error}</p>
       <div className={s.row}>

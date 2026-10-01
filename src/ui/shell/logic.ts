@@ -4,7 +4,13 @@
 import { DEFAULT_CUSTOM_NOTES, LEGACY_CUSTOM_NOTES, normalizeCustomNotes } from '../../app/notes';
 import { INSTRUMENTS, type InstrumentInfo } from '../../audio/instruments';
 import { FAMILIES, type Family } from '../../audio/patches/types';
-import { CHORD_MODES, SCALE_GROUPS, validChord, type ChordMode, type ScaleName } from '../../audio/theory';
+import {
+  CHORD_MODES,
+  SCALE_GROUPS,
+  validChord,
+  type ChordMode,
+  type ScaleName,
+} from '../../audio/theory';
 import { DEFAULT_SOUND } from '../../state/store';
 import type { CoachId, Engine, SheetTab } from '../../state/types';
 import { normalizeRanges } from '../../vision/adaptive';

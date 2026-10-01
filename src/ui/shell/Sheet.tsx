@@ -57,7 +57,7 @@ export function Sheet() {
   const ref = useRef<HTMLDialogElement>(null);
   const opener = useRef<HTMLElement | null>(null);
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
-  const drag = useRef<{ y: number; id: number } | null>(null);
+  const drag = useRef<{ y: number; id: number; dy: number } | null>(null);
   const [dy, setDy] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const id = useId();
@@ -73,7 +73,9 @@ export function Sheet() {
       setExpanded(false);
       tabs.current[SHEET_TABS.indexOf(tab)]?.focus({ preventScroll: true });
     } else if (!open && d.open) {
-      const inside = d.contains(document.activeElement);
+      // o conteúdo já foi desmontado: se o foco estava lá dentro, caiu no <body>
+      const a = document.activeElement;
+      const inside = d.contains(a) || !a || a === document.body;
       d.close();
       if (inside) opener.current?.focus({ preventScroll: true });
     }
@@ -103,14 +105,19 @@ export function Sheet() {
   };
 
   const onGripDown = (e: PointerEvent) => {
-    drag.current = { y: e.clientY, id: e.pointerId };
+    drag.current = { y: e.clientY, id: e.pointerId, dy: 0 };
     e.currentTarget.setPointerCapture(e.pointerId);
   };
   const onGripMove = (e: PointerEvent) => {
-    if (drag.current?.id === e.pointerId) setDy(e.clientY - drag.current.y);
+    const d = drag.current;
+    if (d?.id !== e.pointerId) return;
+    d.dy = e.clientY - d.y;
+    setDy(d.dy);
   };
   const onGripUp = () => {
     if (!drag.current) return;
+    // o valor do arrasto vem da ref: o estado pode ainda não ter sido atualizado
+    const dy = drag.current.dy;
     drag.current = null;
     if (dy > DRAG_CLOSE) {
       if (expanded) setExpanded(false);
@@ -173,7 +180,7 @@ export function Sheet() {
             </button>
           ))}
         </div>
-        <IconButton small label="Fechar" onClick={close} data-testid="sheet-close">
+        <IconButton label="Fechar" onClick={close} data-testid="sheet-close">
           <IconClose width={16} height={16} />
         </IconButton>
       </div>

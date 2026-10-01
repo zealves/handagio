@@ -51,6 +51,8 @@ function Card({
         {failed && <span className={s.errDot} aria-hidden />}
       </span>
       <span className={s.name}>{info.name}</span>
+      {info.sampled && <span className={s.sampled}>gravado</span>}
+      <span className="sr-only">{desc}</span>
     </button>
   );
 }
@@ -85,8 +87,9 @@ export function InstrumentPicker() {
     const cols = list.current
       ? Math.max(
           1,
-          getComputedStyle(list.current.querySelector(`.${p.cards}`) ?? list.current)
-            .gridTemplateColumns.split(' ').length,
+          getComputedStyle(
+            list.current.querySelector(`.${p.cards}`) ?? list.current,
+          ).gridTemplateColumns.split(' ').length,
         )
       : 1;
     const d = { ArrowDown: cols, ArrowUp: -cols, ArrowRight: 1, ArrowLeft: -1 }[e.key] ?? 0;
@@ -103,7 +106,12 @@ export function InstrumentPicker() {
   };
 
   return (
-    <section className={s.picker} onKeyDown={onKey} aria-labelledby="inst-t" data-testid="instruments">
+    <section
+      className={s.picker}
+      onKeyDown={onKey}
+      aria-labelledby="inst-t"
+      data-testid="instruments"
+    >
       <h3 className={p.label} id="inst-t">
         Instrumento
       </h3>

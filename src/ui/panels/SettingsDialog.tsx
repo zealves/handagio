@@ -265,43 +265,43 @@ export function SettingsDialog() {
         </section>
 
         {fine && (
-        <section className={s.section}>
-          <h3>Atalhos</h3>
-          <dl className={s.keys}>
-            <dt>
-              <kbd>A</kbd>…<kbd>Ç</kbd>
-            </dt>
-            <dd>Tocar com os dedos (sem câmara)</dd>
-            <dt>
-              <kbd>Espaço</kbd>
-            </dt>
-            <dd>Simular a boca aberta</dd>
-            <dt>
-              <kbd>,</kbd> <kbd>.</kbd>
-            </dt>
-            <dd>Instrumento anterior / seguinte</dd>
-            <dt>
-              <kbd>C</kbd>
-            </dt>
-            <dd>Cada dedo toca…: a forma seguinte</dd>
-            <dt>
-              <kbd>1</kbd>…<kbd>4</kbd>
-            </dt>
-            <dd>Abrir Som, Notas, Efeitos ou Estúdio</dd>
-            <dt>
-              <kbd>I</kbd>
-            </dt>
-            <dd>Esconder / mostrar a interface</dd>
-            <dt>
-              <kbd>E</kbd>
-            </dt>
-            <dd>Ecrã inteiro</dd>
-            <dt>
-              <kbd>Esc</kbd>
-            </dt>
-            <dd>Fechar o menu ou voltar a mostrar a interface</dd>
-          </dl>
-        </section>
+          <section className={s.section}>
+            <h3>Atalhos</h3>
+            <dl className={s.keys}>
+              <dt>
+                <kbd>A</kbd>…<kbd>Ç</kbd>
+              </dt>
+              <dd>Tocar com os dedos (sem câmara)</dd>
+              <dt>
+                <kbd>Espaço</kbd>
+              </dt>
+              <dd>Simular a boca aberta</dd>
+              <dt>
+                <kbd>,</kbd> <kbd>.</kbd>
+              </dt>
+              <dd>Instrumento anterior / seguinte</dd>
+              <dt>
+                <kbd>C</kbd>
+              </dt>
+              <dd>Cada dedo toca…: a forma seguinte</dd>
+              <dt>
+                <kbd>1</kbd>…<kbd>4</kbd>
+              </dt>
+              <dd>Abrir Som, Notas, Efeitos ou Estúdio</dd>
+              <dt>
+                <kbd>I</kbd>
+              </dt>
+              <dd>Esconder / mostrar a interface</dd>
+              <dt>
+                <kbd>E</kbd>
+              </dt>
+              <dd>Ecrã inteiro</dd>
+              <dt>
+                <kbd>Esc</kbd>
+              </dt>
+              <dd>Fechar o menu ou voltar a mostrar a interface</dd>
+            </dl>
+          </section>
         )}
 
         <section className={s.section}>

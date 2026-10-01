@@ -94,13 +94,13 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 2px;
-  padding: 3px;
+  padding: 2px;
   border-radius: 12px;
   background: var(--tile-bg);
   border: 1px solid var(--line);
 }
 .tab {
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 4px;
   border: 0;
   border-radius: 9px;
