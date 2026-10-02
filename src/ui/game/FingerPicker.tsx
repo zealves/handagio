@@ -22,7 +22,8 @@ const PRESET_KEYS = Object.keys(FINGER_PRESETS) as PresetKey[];
  */
 const MAX_FINGER_PX = 120;
 const HEIGHT_PX: Record<number, number> = { 0: 50, 1: 82, 2: 90, 3: 80, 4: 60 };
-for (const k of Object.keys(HEIGHT_PX)) HEIGHT_PX[Number(k)] = (HEIGHT_PX[Number(k)] / 100) * MAX_FINGER_PX;
+for (const k of Object.keys(HEIGHT_PX))
+  HEIGHT_PX[Number(k)] = (HEIGHT_PX[Number(k)] / 100) * MAX_FINGER_PX;
 
 /**
  * Tecla de cada dedo (maiúscula), a partir do `KEYMAP` do modo teclado, exceto o dedo 9: esse
@@ -118,7 +119,7 @@ export function FingerPicker({ value, onChange }: FingerPickerProps) {
             type="button"
             className={s.preset}
             aria-pressed={presetActive(k)}
-            onClick={() => onChange([...FINGER_PRESETS[k]])}
+            onClick={() => onChange(normalizeGameFingers([...FINGER_PRESETS[k]]) ?? value)}
             data-testid={`game-preset-${k}`}
           >
             {tr.presets[k]}
