@@ -368,10 +368,11 @@ const pt = {
   keyboard: { piano: 'Teclado de piano', pads: (kit: string) => `Pads de percussão: ${kit}` },
   game: {
     title: 'Modo de jogo',
-    intro: 'Dobra o dedo certo quando a nota chega à linha. Cada acerto toca a melodia.',
+    intro:
+      'Dobra o dedo certo quando a nota chega à linha. Cada dobra toca a nota da faixa; os pontos dependem do tempo.',
     difficulty: 'Dificuldade',
     levels: { easy: 'Fácil', medium: 'Médio', hard: 'Difícil' },
-    levelDesc: { easy: 'Devagar', medium: 'Médio', hard: 'Rápido' },
+    levelDesc: { easy: 'Devagar', medium: 'Moderado', hard: 'Rápido' },
     fingers: 'Dedos',
     lanes: (n: number) => `${n} faixas`,
     minFingers: 'Pelo menos 2 dedos',

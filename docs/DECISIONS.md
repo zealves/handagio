@@ -366,8 +366,9 @@ Registo das decisões tomadas quando o pedido era ambíguo. A mais recente fica 
       - cada toque julgado da câmara puxa 15% do desvio, entre 0 e 300 ms (o slider também foi até 300, para o valor guardado não ser cortado);
       - com 8 toques ou mais guarda-se no fim, e o slider passa a ser só o ponto de partida;
       - o teclado não aprende.
-    - **Início:** dois botões grandes, Tocar livre e Jogar, e o interruptor Livre | Jogo no cabeçalho. A 380 px ou menos, o interruptor mostra só os ícones e o logótipo esconde-se, para caberem os botões.
-      - O cabeçalho esconde os rótulos do interruptor (ficam só para leitores de ecrã) abaixo de 430 px, e não de 380 px como estava previsto: a 390 px (iPhone) o botão das definições saía do ecrã.
+    - **Início:** dois botões grandes, Tocar livre e Jogar, e o interruptor Livre | Jogo no cabeçalho.
+      - Abaixo de 430 px o interruptor mostra só os ícones (os rótulos ficam só para leitores de ecrã): a 390 px (iPhone), com os rótulos, o botão das definições saía do ecrã.
+      - Jogar abre o cartão do jogo logo que a câmara abre, sem esperar pelos detetores das mãos e da boca (podem levar segundos); se entretanto já se abriu o jogo pelo cabeçalho, não o substitui. Se a câmara falhar, fica o cartão do erro.
     - **Pausa:**
       - entra-se pelo botão, pelo `P`, pelo `Esc` (que deixa de sair) ou ao esconder o separador;
       - o cartão tem Continuar, Recomeçar e Sair;
@@ -376,4 +377,11 @@ Registo das decisões tomadas quando o pedido era ambíguo. A mais recente fica 
       - O cartão de pausa abre com o foco em Continuar, para um Enter não acabar a ronda.
       - Um evento `close` atrasado do `<dialog>` (o do cartão de entrada) podia chegar depois de ele reabrir para a pausa e retomá-lo sozinho; o `close` é ignorado enquanto o diálogo estiver aberto.
       - Recomeçar guarda o atraso aprendido antes de começar a ronda nova.
+      - Ao pausar calam-se o baixo e a melodia, mas as batidas da bateria já agendadas dentro do lookahead do relógio (0,1 s) não se cancelam (são sons curtos, não vozes): logo a seguir a pausar ainda pode soar uma.
+      - Pausar na cauda (depois da última nota, antes do resultado) e continuar não toca uma contagem sem nada a seguir: a ronda acaba logo e mostra o resultado.
+    - **Cedo/Tarde e o atraso:**
+      - um "Tarde!" também conta com as notas que o juiz já deu como falhadas (passaram os 200 ms há pouco): o juiz corre a cada fotograma, e sem isto um toque tardio era julgado contra a nota seguinte (como "Cedo!" ou até um acerto), o que só puxava o atraso para baixo. A nota continua falhada;
+      - entre um "Tarde!" e um "Cedo!" da nota seguinte, ganha o mais próximo (em empate, o "Tarde!"); um toque dentro da janela do Bom de uma nota por julgar acerta-a sempre;
+      - cada nota só ensina o atraso com o primeiro Cedo/Tarde: os seguintes mostram o texto, mas não mexem no atraso nem contam para os 8 toques;
+      - o resultado só mostra "Atraso ajustado" quando o valor aprendido difere do de partida.
 

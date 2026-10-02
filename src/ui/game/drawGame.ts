@@ -95,10 +95,10 @@ export function drawGame(
     if (st === NOTE_PERFECT || st === NOTE_GOOD) continue;
     let alpha = 1;
     if (st === NOTE_MISS) {
-      // depois de uma retoma, `judgedAt` pode ficar ligeiramente no futuro (desloca-se com a
-      // ronda): sem toque ainda decorrido, o falhado não desvanece (fica à espera, não ao máximo)
-      const since = now - run.judgedAt[k];
-      if (since < 0) continue;
+      // depois de uma retoma, `judgedAt` pode ficar no futuro (desloca-se com a ronda): durante
+      // o compasso da contagem o falhado fica parado com a cor toda e só desvanece quando o
+      // tempo real voltar a passar por ele
+      const since = Math.max(0, now - run.judgedAt[k]);
       alpha = 1 - since / MISS_FADE_S;
       if (alpha <= 0) continue;
     } else if (st === NOTE_PENDING && dt < -0.4) continue;

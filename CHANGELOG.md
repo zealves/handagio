@@ -4,7 +4,7 @@ Versões segundo [SemVer](https://semver.org/lang/pt-BR/). A mais recente fica n
 
 ## [3.3.0] — 2026-10-01
 
-- Modo de jogo: no início escolhes Tocar livre ou Jogar, e lá dentro trocas no interruptor Livre | Jogo do cabeçalho. As notas descem pela pista e dobras o dedo certo quando chegam à linha. Cada acerto toca a melodia por cima de bateria e baixo, numa música nova a cada ronda.
+- Modo de jogo: no início escolhes Tocar livre ou Jogar, e lá dentro trocas no interruptor Livre | Jogo do cabeçalho. As notas descem pela pista e dobras o dedo certo quando chegam à linha. Cada dobra toca a nota da faixa por cima de bateria e baixo, numa música nova a cada ronda; os pontos dependem do tempo.
 - Escolhes os dedos que jogam (de 2 a 8; por exemplo, só a mão direita) e a dificuldade (Fácil, Médio ou Difícil muda a velocidade).
 - Acertar ficou mais fácil:
   - cada dobra soa sempre;

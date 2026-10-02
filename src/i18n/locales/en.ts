@@ -476,10 +476,11 @@ const en = {
   keyboard: { piano: 'Piano keyboard', pads: (kit: string) => `Percussion pads: ${kit}` },
   game: {
     title: 'Game mode',
-    intro: 'Bend the right finger when the note reaches the line. Every hit plays the melody.',
+    intro:
+      'Bend the right finger when the note reaches the line. Every bend plays its lane’s note; points depend on timing.',
     difficulty: 'Difficulty',
     levels: { easy: 'Easy', medium: 'Medium', hard: 'Hard' },
-    levelDesc: { easy: 'Slow', medium: 'Medium', hard: 'Fast' },
+    levelDesc: { easy: 'Slow', medium: 'Moderate', hard: 'Fast' },
     fingers: 'Fingers',
     lanes: (n: number) => `${n} lanes`,
     minFingers: 'At least 2 fingers',
