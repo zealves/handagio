@@ -165,6 +165,7 @@ export function generateChart(o: GenerateOptions): Chart {
       o.kit ?? 'drums',
     ),
     swing,
+    split,
   };
 }
 

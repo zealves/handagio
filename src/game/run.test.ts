@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { NEIGHBOUR_GRACE_S } from './config';
 import { changedLagMs, gameStartBar, GameRun } from './run';
 import type { BackingEvent, Chart } from './types';
 
+// 4 faixas, split 2: 0 e 1 são da mão esquerda, 2 e 3 da direita
 const chart: Chart = {
   bpm: 120,
   bars: 2,
@@ -18,6 +20,7 @@ const chart: Chart = {
     { step: 4, kind: 'drum', slot: 1, vel: 0.7 },
   ],
   swing: 0,
+  split: 2,
 };
 // 120 BPM: semicolcheia de 0,125 s; o compasso de entrada começa em t0 = 10 (passo 32 do relógio)
 const timing = { startStep: 32, t0: 10, stepDur: 0.125, lag: 0.1, lead: 2 };
@@ -31,14 +34,21 @@ const make = (lag = 0.1) => {
   return { run, played };
 };
 
-// 8 faixas, uma nota em cada, a 0,5 s umas das outras
+// 8 faixas, uma nota em cada, a 0,5 s umas das outras; split 4 (0-3 esquerda, 4-7 direita)
 const new8 = (lag = 0) => {
   const c: Chart = {
     ...chart,
     lanes: 8,
     notes: Array.from({ length: 8 }, (_, k) => ({ step: k * 4, lane: k, dur: 4 })),
+    split: 4,
   };
   return { run: new GameRun(c, { playBacking: () => {} }, { ...timing, lag }) };
+};
+// uma só nota (faixa 0, t = 12 s): as outras faixas nunca têm nota por perto, para testar o
+// toque errado e a tolerância do vizinho sem interferência de outras notas da partitura
+const makeOneNote = (split: number) => {
+  const c: Chart = { ...chart, notes: [{ step: 0, lane: 0, dur: 4 }], split };
+  return new GameRun(c, { playBacking: () => {} }, timing);
 };
 // uma faixa com notas a cada tempo (0,5 s a 120 BPM)
 const makeLane = (lag: number) => {
@@ -46,6 +56,7 @@ const makeLane = (lag: number) => {
     ...chart,
     lanes: 1,
     notes: Array.from({ length: 8 }, (_, k) => ({ step: k * 4, lane: 0, dur: 4 })),
+    split: 0,
   };
   return { run: new GameRun(c, { playBacking: () => {} }, { ...timing, lag }) };
 };
@@ -308,6 +319,89 @@ describe('GameRun', () => {
   });
 });
 
+describe('GameRun.isMusicTime', () => {
+  it('falso antes de countTo, verdadeiro durante, falso depois da última nota + NEAR_S', () => {
+    const { run } = make();
+    expect(run.isMusicTime(11)).toBe(false);
+    run.update(12.5);
+    expect(run.isMusicTime(12.5)).toBe(true);
+    run.update(14.4);
+    // última nota em 14 s; 14 + 0,35 = 14,35
+    expect(run.isMusicTime(14.4)).toBe(false);
+  });
+
+  it('falso em pausa', () => {
+    const { run } = make();
+    run.update(12.5);
+    run.pause(12.5);
+    expect(run.isMusicTime(12.5)).toBe(false);
+  });
+
+  it('falso depois de uma retoma, durante a nova contagem', () => {
+    const { run } = make();
+    run.pause(12.2);
+    run.resume(80, 16);
+    expect(run.state).toBe('countdown');
+    expect(run.isMusicTime(17)).toBe(false);
+  });
+});
+
+describe('GameRun.press: toques errados', () => {
+  it('um toque solto fora da música não conta como erro', () => {
+    const { run } = make();
+    expect(run.press(2, 11)).toBeNull();
+    expect(run.score.wrongTaps).toBe(0);
+  });
+
+  it('um toque solto durante a música, sem nota por perto, conta como erro e parte o combo', () => {
+    const { run } = make();
+    expect(run.press(0, 12.1)?.kind).toBe('perfect');
+    expect(run.score.combo).toBe(1);
+    expect(run.press(3, 12.2)).toEqual({ kind: 'wrong', lane: 3 });
+    expect(run.score.wrongTaps).toBe(1);
+    expect(run.score.combo).toBe(0);
+    expect(run.last).toEqual({ kind: 'wrong', at: 12.2 });
+  });
+
+  it('tolerância: um vizinho da mesma mão dentro de 0,15 s não conta como erro', () => {
+    const run = makeOneNote(2); // split 2: faixas 0 e 1 da mesma mão
+    expect(run.press(0, 12.1)?.kind).toBe('perfect');
+    expect(run.press(1, 12.2)).toBeNull(); // 0,1 s depois, dentro de NEIGHBOUR_GRACE_S (0,15)
+    expect(run.score.wrongTaps).toBe(0);
+  });
+
+  it('a 0,2 s (além de NEIGHBOUR_GRACE_S) o mesmo vizinho já conta como erro', () => {
+    const run = makeOneNote(2);
+    run.press(0, 12.1);
+    expect(NEIGHBOUR_GRACE_S).toBeLessThan(0.2);
+    expect(run.press(1, 12.3)).toEqual({ kind: 'wrong', lane: 1 });
+    expect(run.score.wrongTaps).toBe(1);
+  });
+
+  it('um vizinho de mão diferente conta como erro mesmo dentro da janela', () => {
+    const run = makeOneNote(1); // split 1: a faixa 0 fica sozinha de um lado, a 1 já é da outra mão
+    expect(run.press(0, 12.1)?.kind).toBe('perfect');
+    expect(run.press(1, 12.1 + 0.05)).toEqual({ kind: 'wrong', lane: 1 });
+    expect(run.score.wrongTaps).toBe(1);
+  });
+
+  it('a 2 faixas de distância conta como erro mesmo na mesma mão e dentro da janela', () => {
+    const run = makeOneNote(3); // split 3: faixas 0, 1 e 2 são todas da mesma mão
+    expect(run.press(0, 12.1)?.kind).toBe('perfect');
+    expect(run.press(2, 12.1 + 0.05)).toEqual({ kind: 'wrong', lane: 2 });
+    expect(run.score.wrongTaps).toBe(1);
+  });
+
+  it('Cedo/Tarde partem o combo mas não contam como erro', () => {
+    const { run } = make();
+    expect(run.press(0, 12.1)?.kind).toBe('perfect');
+    expect(run.score.combo).toBe(1);
+    expect(run.press(0, 14.4)?.kind).toBe('late');
+    expect(run.score.combo).toBe(0);
+    expect(run.score.wrongTaps).toBe(0);
+  });
+});
+
 // Chart com swing: notas nos passos 0 e 2 (2 cai no contratempo, `((s % 4) + 4) % 4 === 2`) e
 // um evento de acompanhamento também no passo 2.
 const swingChart: Chart = {
@@ -320,6 +414,7 @@ const swingChart: Chart = {
   ],
   backing: [{ step: 2, kind: 'drum', slot: 2, vel: 0.5 }],
   swing: 0.6,
+  split: 2,
 };
 const makeSwing = () => {
   const played: { ev: BackingEvent; when: number }[] = [];

@@ -312,6 +312,13 @@ describe('estilos do acompanhamento, BPM e swing', () => {
     ).toBe(0.6);
   });
 
+  it('o split usado passa para a Chart (metade das faixas por defeito)', () => {
+    expect(generateChart({ difficulty: 'easy', seed: 3, scaleSize: 7, lanes: 4 }).split).toBe(2);
+    expect(
+      generateChart({ difficulty: 'easy', seed: 3, scaleSize: 7, lanes: 4, split: 3 }).split,
+    ).toBe(3);
+  });
+
   it('os invariantes de hoje valem com os parâmetros dos níveis, em 20 sementes cada', () => {
     const split = 2;
     const lanes = 4;

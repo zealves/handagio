@@ -42,6 +42,10 @@ export const PERFECT_S = 0.1;
 export const GOOD_S = 0.2;
 /** Até aqui um toque fora da janela diz "Cedo!"/"Tarde!" (sem pontos, sem gastar a nota). */
 export const NEAR_S = 0.35;
+/** Um toque errado até aqui depois de um acerto numa faixa vizinha da mesma mão não conta (o dedo ao lado arrastado). */
+export const NEIGHBOUR_GRACE_S = 0.15;
+/** Peso de um toque errado na precisão. */
+export const WRONG_TAP_WEIGHT = 0.5;
 export const POINTS: Record<'perfect' | 'good', number> = { perfect: 100, good: 50 };
 /** O multiplicador sobe 1 a cada `COMBO_STEP` acertos seguidos, até `MAX_MULTIPLIER`. */
 export const COMBO_STEP = 10;

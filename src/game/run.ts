@@ -9,6 +9,8 @@ import {
   LAG_MAX_MS,
   LAG_MIN_MS,
   LAG_SAVE_MIN_HITS,
+  NEAR_S,
+  NEIGHBOUR_GRACE_S,
   roundLagMs,
   START_MARGIN_S,
 } from './config';
@@ -29,7 +31,10 @@ export interface RunTiming {
   lead: number;
 }
 
-export type PressResult = (Hit & { lane: number; note: ChartNote }) | (Near & { lane: number });
+export type PressResult =
+  | (Hit & { lane: number; note: ChartNote })
+  | (Near & { lane: number })
+  | { kind: 'wrong'; lane: number };
 
 const isNear = (r: Hit | Near): r is Near => r.kind === 'early' || r.kind === 'late';
 
@@ -62,7 +67,9 @@ export class GameRun {
   /** Último acerto de cada faixa (tempo de áudio). */
   readonly hitAt: Float64Array;
   /** Último juízo, para o texto do canvas. */
-  last: { kind: Judgement | 'miss' | 'early' | 'late'; at: number } | null = null;
+  last: { kind: Judgement | 'miss' | 'early' | 'late' | 'wrong'; at: number } | null = null;
+  /** Faixa e instante (tempo de áudio) do último acerto, para a tolerância do vizinho. */
+  private lastHit: { lane: number; at: number } | null = null;
   /** Compasso 1 (fim da entrada) e fim da ronda; mudam com a pausa. */
   start: number;
   end: number;
@@ -136,12 +143,27 @@ export class GameRun {
    * Toque numa faixa agora (`now` em tempo de áudio). Os da câmara descontam o atraso e
    * ensinam-no (`LAG_LEARN` do desvio); os do teclado não. Cedo/Tarde repetidos na mesma nota
    * continuam a mostrar o texto, mas só o primeiro ensina o atraso e conta para `cameraHits`.
-   * Em pausa ou no fim, null.
+   * Sem nenhuma nota por julgar perto: durante a música conta como toque errado (parte o combo),
+   * a menos que seja um vizinho da mesma mão de um acerto recente (`NEIGHBOUR_GRACE_S`, o dedo ao
+   * lado arrastado); fora da música (contagem, cauda ou pausa), não conta nada. Em pausa ou no
+   * fim, null.
    */
   press(lane: number, now: number, fromCamera = true): PressResult | null {
     if (this.state === 'paused' || this.state === 'over') return null;
     const out = this.judge.press(lane, now - (fromCamera ? this.lag : 0));
-    if (!out) return null;
+    if (!out) {
+      if (!this.isMusicTime(now)) return null;
+      if (
+        this.lastHit &&
+        Math.abs(lane - this.lastHit.lane) === 1 &&
+        lane < this.chart.split === this.lastHit.lane < this.chart.split &&
+        now - this.lastHit.at <= NEIGHBOUR_GRACE_S
+      )
+        return null;
+      this.score.wrongTap();
+      this.last = { kind: 'wrong', at: now };
+      return { kind: 'wrong', lane };
+    }
     const near = isNear(out);
     if (fromCamera && out.kind === 'late') this.score.lateTap();
     const learns = !near || this.nearLearned[out.index] === 0;
@@ -154,11 +176,22 @@ export class GameRun {
       this.cameraHits++;
     }
     this.last = { kind: out.kind, at: now };
-    if (isNear(out)) return { ...out, lane };
+    if (near) {
+      this.score.nearTap();
+      return { ...out, lane };
+    }
     this.score.hit(out.kind, out.offset);
     this.judgedAt[out.index] = now;
     this.hitAt[lane] = now;
+    this.lastHit = { lane, at: now };
     return { ...out, lane, note: this.chart.notes[out.index] };
+  }
+
+  /** Durante a música: do fim da contagem à última nota + NEAR_S (antes, depois e em pausa, nada soa nem conta). */
+  isMusicTime(now: number): boolean {
+    if (this.state === 'paused' || this.state === 'over') return false;
+    const lastNote = this.times.length ? this.times[this.times.length - 1] : this.start;
+    return now >= this.countTo && now <= lastNote + NEAR_S;
   }
 
   /** A cada fotograma: falhados, fase e fim. Devolve true na chamada em que a ronda acaba. */
@@ -213,6 +246,7 @@ export class GameRun {
     }
     for (let l = 0; l < this.hitAt.length; l++) this.hitAt[l] += dt;
     if (this.last) this.last = { ...this.last, at: this.last.at + dt };
+    if (this.lastHit) this.lastHit = { ...this.lastHit, at: this.lastHit.at + dt };
     this.start = newStart;
     this.end += dt;
     this.startStep = barStep - this.pRel;

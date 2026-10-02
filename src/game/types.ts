@@ -31,6 +31,8 @@ export interface Chart {
   backing: BackingEvent[];
   /** Atraso das colcheias em contratempo (passos; 0 = direito). */
   swing: number;
+  /** Faixas da mão esquerda, `[0, split)`; as restantes são da direita. */
+  split: number;
 }
 
 export type Judgement = 'perfect' | 'good';
@@ -48,6 +50,8 @@ export interface GameResult {
   meanOffsetMs: number | null;
   /** "Tarde!" da câmara na ronda. */
   lateTaps: number;
+  /** Toques errados (fora de qualquer nota por julgar) na ronda. */
+  wrongTaps: number;
   best: boolean;
   /** Atraso com que a ronda começou (ms, arredondado como `lagMs`). */
   startLagMs: number;

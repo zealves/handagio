@@ -186,7 +186,8 @@ export function drawGame(
     g.fillStyle =
       kind === 'miss' ? MISS_COLOR : kind === 'early' || kind === 'late' ? NEAR_COLOR : '#fff';
     g.font = '700 24px system-ui, sans-serif';
-    const judgeText = labels.judge[run.last.kind];
+    // 'wrong' ainda não tem texto nem cor próprios (Task 3 decide-os e faz o i18n)
+    const judgeText = kind === 'wrong' ? undefined : labels.judge[kind];
     if (judgeText) g.fillText(judgeText, cx, hit - r - 34 - 10 * (1 - a));
   }
   g.globalAlpha = 1;

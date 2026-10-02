@@ -1,5 +1,5 @@
 // Modo de jogo: pontos, combo, multiplicador e resultado da ronda.
-import { COMBO_STEP, MAX_MULTIPLIER, POINTS } from './config';
+import { COMBO_STEP, MAX_MULTIPLIER, POINTS, WRONG_TAP_WEIGHT } from './config';
 import type { GameResult, Judgement } from './types';
 
 export class Score {
@@ -10,6 +10,7 @@ export class Score {
   good = 0;
   miss = 0;
   lateTaps = 0;
+  wrongTaps = 0;
   private offsetSum = 0;
 
   /** ×1, ×2 a partir de 10 seguidos, ×3 a partir de 20, ×4 a partir de 30. */
@@ -39,13 +40,25 @@ export class Score {
     this.lateTaps++;
   }
 
+  /** Um toque errado: fora de qualquer nota por julgar, sem a tolerância do vizinho. */
+  wrongTap(): void {
+    this.wrongTaps++;
+    this.combo = 0;
+  }
+
+  /** Um "Cedo!"/"Tarde!": não conta como errado, mas parte o combo. */
+  nearTap(): void {
+    this.combo = 0;
+  }
+
   result(
     total: number,
   ): Omit<GameResult, 'best' | 'lagMs' | 'startLagMs' | 'stars' | 'unlocked' | 'levelId'> {
     const hits = this.perfect + this.good;
+    const base = total + WRONG_TAP_WEIGHT * this.wrongTaps;
     return {
       points: this.points,
-      accuracy: total ? (this.perfect + 0.5 * this.good) / total : 0,
+      accuracy: base > 0 ? Math.min(1, (this.perfect + 0.5 * this.good) / base) : 0,
       maxCombo: this.maxCombo,
       perfect: this.perfect,
       good: this.good,
@@ -53,6 +66,7 @@ export class Score {
       total,
       meanOffsetMs: hits ? Math.round((this.offsetSum / hits) * 1000) : null,
       lateTaps: this.lateTaps,
+      wrongTaps: this.wrongTaps,
     };
   }
 }

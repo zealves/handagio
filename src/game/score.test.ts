@@ -48,4 +48,33 @@ describe('Score', () => {
     s.lateTap();
     expect(s.result(0).lateTaps).toBe(2);
   });
+
+  it('toques errados entram na precisão: 2 perfeitos, 2 notas e 2 errados dão 2/3', () => {
+    const s = new Score();
+    s.hit('perfect', 0);
+    s.hit('perfect', 0);
+    s.wrongTap();
+    s.wrongTap();
+    const r = s.result(2);
+    expect(r.accuracy).toBeCloseTo(2 / 3);
+    expect(r.wrongTaps).toBe(2);
+  });
+
+  it('wrongTap e nearTap põem o combo a 0', () => {
+    const s = new Score();
+    s.hit('perfect', 0);
+    s.hit('perfect', 0);
+    s.wrongTap();
+    expect(s.combo).toBe(0);
+    expect(s.wrongTaps).toBe(1);
+    s.hit('perfect', 0);
+    s.nearTap();
+    expect(s.combo).toBe(0);
+  });
+
+  it('sem toques errados, a precisão não muda e wrongTaps fica a 0', () => {
+    const s = new Score();
+    s.hit('perfect', 0);
+    expect(s.result(1).wrongTaps).toBe(0);
+  });
 });
