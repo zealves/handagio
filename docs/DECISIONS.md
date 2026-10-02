@@ -356,3 +356,24 @@ Registo das decisões tomadas quando o pedido era ambíguo. A mais recente fica 
     - **Desvio à spec:** as preferências novas (`gameBest`, `gameDifficulty`, `gameLagMs`) não sobem a versão do `persist`. O `merge` já preenche as chaves em falta com os valores por defeito e o `sanitizePrefs` valida-as. Subir para a v10 mudava todos os testes de migração sem ganho. O diagnóstico para rondas curtas é `__vsc.session.gameBars`.
     - **"Repor as preferências":** mantém os recordes do jogo (`gameBest`), tal como os sons guardados.
 
+68. **Modo de jogo v2: escolha à entrada, dedos à escolha, pausa e acertos mais fáceis.** Depois de jogar com mãos reais, o utilizador achou a janela apertada e o alvo pequeno, e notou que muitos toques "certos" não contavam nem soavam (spec `docs/superpowers/specs/2026-10-01-game-mode-v2-design.md`).
+    - **Dedos e dificuldade separados:** escolhem-se de 2 a 8 dedos (sem polegares), e as faixas seguem a posição deles no ecrã. A dificuldade decide só o BPM, a densidade e a chegada. O recorde continua por dificuldade.
+    - **Acertar:**
+      - cada dobra numa faixa toca a nota dessa faixa, e só os pontos dependem do tempo;
+      - Perfeito ±100 ms e Bom ±200 ms; até ±350 ms aparece "Cedo!"/"Tarde!", sem pontos e sem gastar a nota;
+      - notas e alvos maiores.
+    - **Atraso aprendido:**
+      - cada toque julgado da câmara puxa 15% do desvio, entre 0 e 300 ms (o slider também foi até 300, para o valor guardado não ser cortado);
+      - com 8 toques ou mais guarda-se no fim, e o slider passa a ser só o ponto de partida;
+      - o teclado não aprende.
+    - **Início:** dois botões grandes, Tocar livre e Jogar, e o interruptor Livre | Jogo no cabeçalho. A 380 px ou menos, o interruptor mostra só os ícones e o logótipo esconde-se, para caberem os botões.
+      - O cabeçalho esconde os rótulos do interruptor (ficam só para leitores de ecrã) abaixo de 430 px, e não de 380 px como estava previsto: a 390 px (iPhone) o botão das definições saía do ecrã.
+    - **Pausa:**
+      - entra-se pelo botão, pelo `P`, pelo `Esc` (que deixa de sair) ou ao esconder o separador;
+      - o cartão tem Continuar, Recomeçar e Sair;
+      - não se suspende o `AudioContext`, porque o desbloqueio do áudio o retoma a cada clique ou tecla. A ronda congela e, ao continuar, desloca-se por passos inteiros para depois de um compasso de contagem no próximo compasso livre do relógio;
+      - na pausa, o `Esc` é do cartão (continua), para não alternar duas vezes.
+      - O cartão de pausa abre com o foco em Continuar, para um Enter não acabar a ronda.
+      - Um evento `close` atrasado do `<dialog>` (o do cartão de entrada) podia chegar depois de ele reabrir para a pausa e retomá-lo sozinho; o `close` é ignorado enquanto o diálogo estiver aberto.
+      - Recomeçar guarda o atraso aprendido antes de começar a ronda nova.
+

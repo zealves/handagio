@@ -4,9 +4,16 @@ Versões segundo [SemVer](https://semver.org/lang/pt-BR/). A mais recente fica n
 
 ## [3.3.0] — 2026-10-01
 
-- Modo de jogo (protótipo): no botão do comando no cabeçalho escolhes Fácil (4 faixas), Médio (6) ou Difícil (8). As notas descem pela pista e dobras o dedo certo quando chegam à linha. Cada acerto toca a melodia por cima de bateria e baixo, numa música nova a cada ronda.
-- Cada ronda dura cerca de um minuto e meio. No fim aparecem os pontos, a precisão, o combo máximo e o atraso médio. O recorde fica guardado por dificuldade.
-- O atraso da câmara ajusta-se no cartão do jogo. Também se joga no teclado (D F J K no Fácil).
+- Modo de jogo: no início escolhes Tocar livre ou Jogar, e lá dentro trocas no interruptor Livre | Jogo do cabeçalho. As notas descem pela pista e dobras o dedo certo quando chegam à linha. Cada acerto toca a melodia por cima de bateria e baixo, numa música nova a cada ronda.
+- Escolhes os dedos que jogam (de 2 a 8; por exemplo, só a mão direita) e a dificuldade (Fácil, Médio ou Difícil muda a velocidade).
+- Acertar ficou mais fácil:
+  - cada dobra soa sempre;
+  - as janelas são mais largas;
+  - "Cedo!" e "Tarde!" mostram por quanto falhaste;
+  - os alvos são maiores;
+  - o atraso da câmara ajusta-se sozinho.
+- Pausa com o botão, o P ou o Esc, com contagem ao continuar. Esconder o separador também pausa.
+- Rondas de cerca de um minuto e meio, com pontos, precisão, combo máximo e o recorde guardado por dificuldade.
 
 ## [3.2.0] — 2026-10-01
 
