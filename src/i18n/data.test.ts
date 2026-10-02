@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DRUMS, INSTRUMENTS } from '../audio/instruments';
 import { FAMILIES } from '../audio/patches/types';
 import { CHORD_MODES, SCALE_GROUPS, SCALE_NAMES } from '../audio/theory';
+import { LEVELS } from '../game/levels';
 import { FACTORY_PRESETS } from '../state/presets';
 import { MOUTH_FX } from '../state/types';
 import { searchInstruments } from '../ui/shell/logic';
@@ -54,6 +55,12 @@ describe('línguas completas', () => {
     for (const k of Object.keys(DRUMS))
       expect(en.data.kits[k]?.length, k).toBe(DRUMS[k].labels.length);
     for (const p of Object.keys(FACTORY_PRESETS)) expect(en.data.presets[p], p).toBeTruthy();
+  });
+  it('todos os níveis do jogo têm nome em pt e em en', () => {
+    for (const l of LEVELS) {
+      expect((pt.game.levelNames as Record<string, string>)[l.id], l.id).toBeTruthy();
+      expect((en.game.levelNames as Record<string, string>)[l.id], l.id).toBeTruthy();
+    }
   });
 });
 
