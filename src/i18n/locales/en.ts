@@ -501,7 +501,7 @@ const en = {
     advanced: 'Advanced',
     lag: (ms: number) => `Camera delay: ${ms} ms`,
     lagHint: 'Starting point (the game tunes it by itself with the camera).',
-    start: 'Start',
+    start: 'Play',
     pause: 'Pause (P)',
     paused: 'Paused',
     resume: 'Resume',

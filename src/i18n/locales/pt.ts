@@ -393,7 +393,7 @@ const pt = {
     advanced: 'Avançado',
     lag: (ms: number) => `Atraso da câmara: ${ms} ms`,
     lagHint: 'Ponto de partida (o jogo afina-o sozinho com a câmara).',
-    start: 'Começar',
+    start: 'Jogar',
     pause: 'Pausa (P)',
     paused: 'Em pausa',
     resume: 'Continuar',

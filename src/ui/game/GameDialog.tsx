@@ -25,7 +25,7 @@ export function GameDialog() {
   // por cima dele, fora do cartão, saía do jogo sem querer)
   const downOnBackdrop = useRef(false);
   // a fase anterior, para o efeito abaixo distinguir "o menu abriu agora mesmo" (fase anterior
-  // nula) de "voltou ao menu" (fase anterior pausa ou resultado)
+  // nula) de "voltou ao menu" (fase anterior ronda, pausa ou resultado)
   const prevPhaseRef = useRef<string | null>(null);
   const id = useId();
   const open = game !== null && game.phase !== 'playing';
@@ -68,19 +68,20 @@ export function GameDialog() {
   // o menu do jogo (fase `setup`) pode voltar a aparecer com o diálogo já aberto — pausa ou
   // resultado a chamar `backToMenu()` — e nesse caso o efeito acima não chama `showModal()` (o
   // <dialog> já estava aberto), que é quem foca; sem isto o botão que tinha o foco desaparece com
-  // o cartão anterior e o foco cai para <body>. Só foca o Começar nesse regresso (fase anterior
-  // pausa/resultado): na primeira vez que o menu abre (fase anterior nula) o foco por defeito fica
-  // no primeiro botão (a dificuldade), como seria sem este efeito — focar o Começar aí só serviria
-  // para, com o cartão a transbordar do ecrã (telemóveis pequenos), arrastar o scroll para baixo e
-  // esconder o título. `preventScroll` e repor o scroll a 0 mantêm o cartão visto do topo neste
-  // regresso.
+  // o cartão anterior e o foco cai para <body>. Vindo da ronda (o ✕ da pista), o `showModal()`
+  // do efeito acima focaria a dificuldade; aqui fica também no Jogar, como nos outros regressos.
+  // Só foca o Jogar nesse regresso (fase anterior ronda/pausa/resultado): na primeira vez que o
+  // menu abre (fase anterior nula) o foco por defeito fica no primeiro botão (a dificuldade),
+  // como seria sem este efeito — focar o Jogar aí só serviria para, com o cartão a transbordar
+  // do ecrã (telemóveis pequenos), arrastar o scroll para baixo e esconder o título.
+  // `preventScroll` e repor o scroll a 0 mantêm o cartão visto do topo neste regresso.
   useEffect(() => {
     const prevPhase = prevPhaseRef.current;
     prevPhaseRef.current = game?.phase ?? null;
     if (
       game?.phase === 'setup' &&
       ref.current?.open &&
-      (prevPhase === 'paused' || prevPhase === 'over')
+      (prevPhase === 'playing' || prevPhase === 'paused' || prevPhase === 'over')
     ) {
       startRef.current?.focus({ preventScroll: true });
       ref.current.scrollTop = 0;

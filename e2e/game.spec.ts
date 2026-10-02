@@ -112,6 +112,10 @@ test.describe('modo de jogo', () => {
     const dlg = page.getByTestId('game-dialog');
     await expect(dlg).toBeVisible();
     await expect(dlg.getByTestId('game-start')).toBeVisible();
+    // como na pausa e no resultado, o foco fica no Jogar, com o cartão visto do topo
+    await expect(dlg.getByTestId('game-start')).toBeFocused();
+    await expect(dlg.getByTestId('game-start')).toHaveText('Jogar');
+    expect(await dlg.evaluate((el) => el.scrollTop)).toBe(0);
     expect(((await field(page, 'game')) as { phase: string }).phase).toBe('setup');
     expect(await liveGame(page)).toBeNull();
   });
@@ -147,7 +151,7 @@ test.describe('modo de jogo', () => {
     await expect(page.getByTestId('game-dialog').getByTestId('game-start')).toBeVisible();
   });
 
-  test('Esc no resultado volta ao menu com o Começar focado', async ({ page }) => {
+  test('Esc no resultado volta ao menu com o Jogar focado', async ({ page }) => {
     await page.evaluate(() => {
       (window as unknown as { __vsc: Vsc }).__vsc.session.gameBars = 2;
     });
@@ -196,7 +200,7 @@ test.describe('modo de jogo', () => {
     await expect(page.getByTestId('game-dialog')).toBeHidden();
   });
 
-  test('pausar logo a seguir a Começar fica em pausa', async ({ page }) => {
+  test('pausar logo a seguir a Jogar fica em pausa', async ({ page }) => {
     await page.getByTestId('mode-game').click();
     const dlg = page.getByTestId('game-dialog');
     await expect(dlg).toBeVisible();
