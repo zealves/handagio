@@ -184,11 +184,17 @@ export class GameRun {
     // Na contagem (antes de `countTo`) a música ainda não voltou a tocar: o passo por ouvir
     // continua a ser o que já estava guardado (0 na primeira contagem; o do resume anterior
     // numa pausa dentro da contagem de um retomar). Só depois de `countTo` é que se recalcula
-    // a partir de `start`, senão uma pausa durante essa contagem "recuaria" a partitura.
-    this.pRel =
-      now < this.countTo
-        ? this.pRel
-        : Math.max(0, Math.ceil((now - this.start) / this.timing.stepDur - 1e-9));
+    // a partir de `start`, senão uma pausa durante essa contagem "recuaria" a partitura. Com
+    // swing, um passo em contratempo soa mais tarde do que a grade direita; por isso o passo
+    // por ouvir é o menor `s` com `timeOf(s) ≥ now` (não uma divisão direta por `stepDur`, que
+    // ignoraria o atraso do swing e podia dar esse passo como já ouvido antes de soar).
+    if (now >= this.countTo) {
+      let s = 0;
+      // mais que suficiente para toda a partitura (a entrada já lá vai)
+      const maxStep = this.chart.bars * 16 + COUNT_IN_STEPS;
+      while (s < maxStep && this.timeOf(s) < now) s++;
+      this.pRel = s;
+    }
     this.state = 'paused';
   }
 

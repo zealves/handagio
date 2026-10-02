@@ -354,6 +354,19 @@ describe('GameRun com swing', () => {
     // e `timeOf` continua certo depois da retoma, com o novo `start`
     expect(run.timeOf(2)).toBeCloseTo(run.times[1]);
   });
+
+  it('a pausa conta o swing: um passo em contratempo ainda por ouvir não cai dentro da contagem da retoma', () => {
+    const { run } = makeSwing();
+    const { stepDur } = timing;
+    // entre o passo 1 (a 1×stepDur de `start`) e o passo 2, que só soa aos 2,6×stepDur por
+    // causa do swing: uma divisão direta por `stepDur` (sem o swing) arredondava para cima e
+    // dava o passo 2 como já ouvido (pRel 3), antes deste soar de facto
+    run.pause(run.start + 2.3 * stepDur);
+    run.resume(999, 50);
+    // o passo 2 (a nota em `times[1]`) cai depois da contagem da retoma, nunca dentro dela
+    expect(run.times[1]).toBeGreaterThanOrEqual(run.countTo);
+    expect(run.times[1]).toBeCloseTo(run.countTo + 0.6 * stepDur);
+  });
 });
 
 describe('gameStartBar', () => {

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { COUNT_IN_STEPS, DIFFICULTIES, DIFFICULTY } from './config';
+import { COUNT_IN_STEPS, DIFFICULTIES, DIFFICULTY, MIN_NOTE_GAP_S } from './config';
 import {
   alternateHands,
+  crashSlotFor,
   DRUM_SLOT,
   enforceMinGap,
   generateChart,
@@ -9,8 +10,9 @@ import {
   mirrorLane,
   progressionFor,
   spaceLanes,
+  swungStep,
 } from './generator';
-import { LEVELS } from './levels';
+import { levelIndex, LEVELS } from './levels';
 
 const seeds = Array.from({ length: 20 }, (_, k) => k + 1);
 
@@ -247,7 +249,7 @@ describe('estilos do acompanhamento, BPM e swing', () => {
     expect(bassAt(c, 0).map((b) => b.step)).toEqual([2, 6, 10, 14]);
   });
 
-  it('o último compasso fica igual em todos os estilos de bateria e de baixo', () => {
+  it('o último compasso fica igual em todos os estilos de bateria e de baixo (mesmo kit)', () => {
     const base = generateChart({ difficulty: 'easy', seed: 3, scaleSize: 7, lanes: 4, bars: 4 });
     const lastBar = (c: ReturnType<typeof generateChart>) => c.backing.filter((e) => e.step >= 3 * 16);
     for (const drums of ['straight', 'swing', 'four'] as const)
@@ -259,14 +261,48 @@ describe('estilos do acompanhamento, BPM e swing', () => {
       }
   });
 
-  it('o bpm substitui o da dificuldade, no bpm da Chart e no gap mínimo entre notas', () => {
-    const c = generateChart({ difficulty: 'easy', seed: 3, scaleSize: 7, lanes: 4, bpm: 150 });
-    expect(c.bpm).toBe(150);
-    const gap = minGapSteps(150);
-    c.notes.forEach((n, k) => {
-      if (k === 0) return;
-      expect(n.step - c.notes[k - 1].step).toBeGreaterThanOrEqual(gap);
+  it('crashSlotFor: a pancada final usa o slot do kit (o acústico tem crash; o tr808 não)', () => {
+    expect(crashSlotFor('drums')).toBe(9);
+    expect(crashSlotFor('tr808')).toBe(DRUM_SLOT.openHat);
+    expect(crashSlotFor('kit-desconhecido')).toBe(DRUM_SLOT.hat);
+  });
+
+  it('a pancada final usa o slot do kit pedido (`kit`), não sempre o crash acústico', () => {
+    const acoustic = generateChart({ difficulty: 'easy', seed: 3, scaleSize: 7, lanes: 4, bars: 4 });
+    const tr808 = generateChart({
+      difficulty: 'easy', seed: 3, scaleSize: 7, lanes: 4, bars: 4, kit: 'tr808',
     });
+    const finalHit = (c: ReturnType<typeof generateChart>): number | undefined => {
+      const e = c.backing.find(
+        (x) => x.step === 3 * 16 && x.kind === 'drum' && x.slot !== DRUM_SLOT.kick,
+      );
+      return e && e.kind === 'drum' ? e.slot : undefined;
+    };
+    expect(finalHit(acoustic)).toBe(9);
+    expect(finalHit(tr808)).toBe(DRUM_SLOT.openHat);
+  });
+
+  it('o bpm substitui o da dificuldade: usa-se no gap mínimo entre notas da mesma mão', () => {
+    // Difícil (denso, para ter notas rápidas o bastante para testar) a 200 BPM: um gap de 4
+    // passos, mais apertado que o do Difícil de base (130 BPM, gap de 3) — se o gerador usasse
+    // na realidade `cfg.bpm` (130) em vez do `bpm` passado, este teste apanhava-o.
+    const split = 2;
+    const lanes = 4;
+    const hand = (lane: number) => (lane < split ? 0 : 1);
+    const c = generateChart({ difficulty: 'hard', seed: 3, scaleSize: 7, lanes, split, bpm: 200 });
+    expect(c.bpm).toBe(200);
+    const gap = minGapSteps(200);
+    expect(gap).toBe(4);
+    expect(gap).toBeGreaterThan(minGapSteps(DIFFICULTY.hard.bpm));
+    const lastOf = new Map<number, number>();
+    for (const n of c.notes) {
+      const h = hand(n.lane);
+      const p = lastOf.get(h);
+      if (p !== undefined) expect(n.step - p).toBeGreaterThanOrEqual(gap);
+      lastOf.set(h, n.step);
+    }
+    // confirma que o teste exercita mesmo o gap: há notas rápidas o bastante para testar
+    expect(c.notes.length).toBeGreaterThan(20);
   });
 
   it('o swing passa para a Chart (0 por defeito)', () => {
@@ -312,6 +348,35 @@ describe('estilos do acompanhamento, BPM e swing', () => {
         const last = c.notes[c.notes.length - 1];
         expect(last.step).toBe((c.bars - 1) * 16);
         expect(last.lane % 7).toBe(0);
+      }
+  });
+
+  it('com uma só mão e swing (como o Lo-fi), o intervalo real nunca fica abaixo de 0,30 s', () => {
+    // split 0 (uma só mão): sem `alternateHands` a ajudar, é só o `enforceMinGap` com swing que
+    // garante a distância real; antes da correção, uma colcheia em contratempo seguida de uma
+    // nota no tempo seguinte podia ficar a ~0,22 s (96 BPM, swing 0,6) em vez de 0,30 s.
+    const lofi = LEVELS[levelIndex('lofi')];
+    const stepDur = 60 / lofi.bpm / 4;
+    for (const lanes of [3, 4, 5])
+      for (const seed of seeds) {
+        const c = generateChart({
+          difficulty: lofi.difficulty,
+          seed,
+          scaleSize: 7,
+          lanes,
+          split: 0,
+          bars: lofi.bars,
+          bpm: lofi.bpm,
+          drums: lofi.style.drums,
+          bassLine: lofi.style.bassLine,
+          swing: lofi.style.swing,
+        });
+        c.notes.forEach((n, k) => {
+          if (k === 0) return;
+          const prev = c.notes[k - 1];
+          const gapS = (swungStep(n.step, c.swing) - swungStep(prev.step, c.swing)) * stepDur;
+          expect(gapS).toBeGreaterThanOrEqual(MIN_NOTE_GAP_S - 1e-9);
+        });
       }
   });
 });
@@ -369,6 +434,18 @@ describe('notas possíveis na câmara', () => {
       { step: 9, lane: 3 },
       { step: 10, lane: 0 },
     ]);
+  });
+
+  it('enforceMinGap com swing: conta a posição real da colcheia em contratempo', () => {
+    // o passo 2 é swung (soa a 2,6): a 4, a distância real é só 1,4 passos, não 2 — a última
+    // nota (a 4) fica sempre (regra da final) e é a anterior (a 2) que sai
+    const ns = [
+      { step: 2, lane: 0 },
+      { step: 4, lane: 1 },
+    ];
+    expect(enforceMinGap(ns, 2, 0, 0, 0.6)).toEqual([{ step: 4, lane: 1 }]);
+    // sem swing (0, por defeito) os mesmos passos já cumprem a distância de 2: ficam as duas
+    expect(enforceMinGap(ns, 2)).toEqual(ns);
   });
 
   it('mirrorLane: a mesma distância da divisória, na outra mão', () => {

@@ -16,11 +16,22 @@ const SAME_LANE_GAP = 4;
 const CHORD_PULL = 0.7;
 
 /**
- * Slots do kit acústico (`src/audio/drums/acoustic.ts`: bombo, tarola, choques, prato aberto,
- * palmas…, crash no 9). O `tr808` (`src/audio/drums/tr808.ts`) usa a mesma ordem nos primeiros
- * 5 sons (bombo, tarola, choques, aberto, palmas), por isso os mesmos números servem aos dois.
+ * Slots comuns aos kits usados pelo jogo (`src/audio/drums/acoustic.ts` e `tr808.ts`): bombo,
+ * tarola, choques, prato aberto, palmas, pela mesma ordem nos dois. (O `latin.ts` não segue
+ * esta ordem — precisaria do seu próprio mapa se algum nível vier a usá-lo.)
  */
-export const DRUM_SLOT = { kick: 0, snare: 1, hat: 2, openHat: 3, clap: 4, crash: 9 } as const;
+export const DRUM_SLOT = { kick: 0, snare: 1, hat: 2, openHat: 3, clap: 4 } as const;
+
+/**
+ * Pancada final da ronda (hoje um crash), por kit: o acústico (`drums`) tem um crash dedicado
+ * (slot 9); o `tr808` não, por isso usa o prato aberto. Um kit sem entrada aqui cai no choque.
+ */
+const CRASH_SLOT: Readonly<Record<string, number>> = { drums: 9, tr808: DRUM_SLOT.openHat };
+export const crashSlotFor = (kit: string): number => CRASH_SLOT[kit] ?? DRUM_SLOT.hat;
+
+/** Posição real do passo `step` com o swing: a colcheia em contratempo soa `swing` passos depois. */
+export const swungStep = (step: number, swing: number): number =>
+  step + (((step % 4) + 4) % 4 === 2 ? swing : 0);
 
 /**
  * Probabilidade de uma nota em cada tempo (da primeira à última secção) e, quando há nota,
@@ -56,6 +67,8 @@ export interface GenerateOptions {
   bassLine?: BassLine;
   /** Atraso das colcheias em contratempo (passos; 0 = direito), guardado na `Chart`. */
   swing?: number;
+  /** Kit da bateria (`src/audio/drums/*.ts`), para escolher a pancada final; por defeito `drums`. */
+  kit?: string;
 }
 
 type Rnd = () => number;
@@ -131,8 +144,9 @@ export function generateChart(o: GenerateOptions): Chart {
   // têm nada a fazer e não desfazem a alternância (3) só muda notas seguidas na mesma faixa,
   // logo na mesma mão, e com duas mãos essas já estão a ≥ 1 tempo). Com uma só mão, 1) não
   // faz nada e 2) e 3) dão o mesmo que antes. Nenhum dos passos tira nem muda a final.
+  const swing = o.swing ?? 0;
   const hands = alternateHands(body, split, lanes);
-  const playable = enforceMinGap(hands, minGapSteps(bpm), split, lanes);
+  const playable = enforceMinGap(hands, minGapStepsExact(bpm), split, lanes, swing);
   const notes = spaceLanes(playable, lanes).map((n, k, all): ChartNote => ({
     ...n,
     dur: k + 1 < all.length ? Math.min(BEAT, all[k + 1].step - n.step) : BEAT,
@@ -142,8 +156,15 @@ export function generateChart(o: GenerateOptions): Chart {
     bars,
     lanes,
     notes,
-    backing: backing(bars, o.difficulty, prog, o.drums ?? 'straight', o.bassLine ?? 'eighths'),
-    swing: o.swing ?? 0,
+    backing: backing(
+      bars,
+      o.difficulty,
+      prog,
+      o.drums ?? 'straight',
+      o.bassLine ?? 'eighths',
+      o.kit ?? 'drums',
+    ),
+    swing,
   };
 }
 
@@ -169,10 +190,15 @@ function nextLane(rng: Rnd, cur: number, lanes: number, targets: number[] | null
 const nearest = (xs: number[], to: number): number =>
   xs.reduce((best, x) => (Math.abs(x - to) < Math.abs(best - to) ? x : best), xs[0] ?? 0);
 
+/** `MIN_NOTE_GAP_S` em passos (semicolcheias) a este BPM, exato (sem arredondar). */
+function minGapStepsExact(bpm: number): number {
+  const stepDur = 60 / bpm / BEAT;
+  return MIN_NOTE_GAP_S / stepDur;
+}
+
 /** `MIN_NOTE_GAP_S` em passos (semicolcheias) a este BPM, arredondado para cima. */
 export function minGapSteps(bpm: number): number {
-  const stepDur = 60 / bpm / BEAT;
-  return Math.ceil(MIN_NOTE_GAP_S / stepDur - 1e-9);
+  return Math.ceil(minGapStepsExact(bpm) - 1e-9);
 }
 
 /** Mão de uma faixa (0: esquerda, `[0, split)`; 1: direita). Com uma só mão, sempre 0. */
@@ -181,17 +207,28 @@ const handOf = (lane: number, split: number, lanes: number): number =>
 
 /**
  * Tira as notas a menos de `steps` da anterior que ficou na mesma mão (ordenadas; as notas da
- * outra mão no meio não contam). A última (a final na tónica) fica sempre: se colidir, sai a
- * anterior da mesma mão. Sem `split`/`lanes`, ou com uma só mão, vale entre todas as notas.
+ * outra mão no meio não contam). Com `swing`, a distância conta a posição real da colcheia em
+ * contratempo (`swungStep`), que soa `swing` passos mais tarde — sem isso, uma nota swung e a
+ * seguinte na mesma mão podiam ficar a menos de `MIN_NOTE_GAP_S` segundos uma da outra mesmo
+ * com uma distância em passos aparentemente suficiente. A última (a final na tónica) fica
+ * sempre: se colidir, sai a anterior da mesma mão. Sem `split`/`lanes`, ou com uma só mão, vale
+ * entre todas as notas.
  */
-export function enforceMinGap(ns: Onset[], steps: number, split = 0, lanes = 0): Onset[] {
+export function enforceMinGap(
+  ns: Onset[],
+  steps: number,
+  split = 0,
+  lanes = 0,
+  swing = 0,
+): Onset[] {
   const sorted = [...ns].sort((a, b) => a.step - b.step);
   const out: Onset[] = [];
   const hand = (n: Onset) => handOf(n.lane, split, lanes);
   sorted.forEach((n, k) => {
     let p = out.length - 1;
     while (p >= 0 && hand(out[p]) !== hand(n)) p--;
-    if (p < 0 || n.step - out[p].step >= steps) out.push(n);
+    const gap = p < 0 ? Infinity : swungStep(n.step, swing) - swungStep(out[p].step, swing);
+    if (p < 0 || gap >= steps - 1e-9) out.push(n);
     else if (k === sorted.length - 1) {
       out.splice(p, 1);
       out.push(n);
@@ -274,6 +311,7 @@ function backing(
   prog: number[],
   drums: DrumStyle,
   bassLine: BassLine,
+  kit: string,
 ): BackingEvent[] {
   const ev: BackingEvent[] = [];
   const drum = (step: number, slot: number, vel: number) =>
@@ -286,7 +324,7 @@ function backing(
     const degree = prog[bar % prog.length];
     if (bar === bars - 1) {
       drum(base, DRUM_SLOT.kick, 0.9);
-      drum(base, DRUM_SLOT.crash, 0.6);
+      drum(base, crashSlotFor(kit), 0.6);
       // a tónica (grau 0), para a música terminar resolvida em vez de ficar no V
       ev.push({ step: base, kind: 'bass', degree: 0, dur: BAR, vel: 0.7 });
       continue;
