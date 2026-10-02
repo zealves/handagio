@@ -18,8 +18,8 @@ Versões segundo [SemVer](https://semver.org/lang/pt-BR/). A mais recente fica n
 - O cartão de entrada passa a ser o menu do jogo: dificuldade, dedos, recorde e Jogar, com o atraso da câmara dentro de "Avançado". A pausa, o resultado e o ✕ da pista voltam a este menu em vez de saírem logo para o modo livre.
 - Escolhes os dedos como as duas mãos desenhadas no ecrã, dedo a dedo ou pelos atalhos (só a esquerda, só a direita, indicadores e médios).
 - Níveis: três músicas com estilos diferentes (Pop em Dó Maior a 90 BPM, Lo-fi em Ré Dórica a 96 BPM com swing, Eletrónico em Lá Menor a 118 BPM), cada uma com um instrumento temporário. Acertar dá estrelas: ★ a 50% de precisão abre o nível seguinte. O progresso fica guardado neste dispositivo.
-- Treino: a dificuldade anterior agora chama-se Treino dentro do Jogar, com uma música nova a cada ronda (a dificuldade Fácil/Médio/Difícil fica igual). A afinação fica fixa durante a ronda.
-- Seletor de instrumentos dentro do jogo (só no Treino): abrir e fechar é partilhado com o modo Tocar livre, mudanças afetam os dois.
+- Treino: o modo com a dificuldade à escolha passa a chamar-se Treino dentro do Jogar, com uma música nova a cada ronda (a dificuldade Fácil/Médio/Difícil fica igual). A afinação fica fixa durante a ronda.
+- Seletor de instrumentos dentro do jogo (só no Treino): a escolha do instrumento é a mesma do modo livre, mudar num sítio muda nos dois.
 
 ## [3.2.0] — 2026-10-01
 
