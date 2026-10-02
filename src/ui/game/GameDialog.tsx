@@ -67,8 +67,8 @@ export function GameDialog() {
 
   // o menu do jogo (fase `setup`) pode voltar a aparecer com o diálogo já aberto — pausa ou
   // resultado a chamar `backToMenu()` — e nesse caso o efeito acima não chama `showModal()` (o
-  // <dialog> já estava aberto), que é quem foca; sem isto o botão que tinha o foco desaparece com o cartão anterior e o foco cai
-  // para <body>. Só foca o Começar nesse regresso (fase anterior pausa/resultado): na primeira
+  // <dialog> já estava aberto), que é quem foca; sem isto o botão que tinha o foco desaparece
+  // com o cartão anterior e o foco cai para <body>. Só foca o Começar nesse regresso (fase anterior pausa/resultado): na primeira
   // vez que o menu abre (fase anterior nula) o foco por defeito fica no primeiro botão (a
   // dificuldade), como seria sem este efeito — focar o Começar aí só serviria para, com o
   // cartão a transbordar do ecrã (telemóveis pequenos), arrastar o scroll para baixo e esconder
@@ -96,13 +96,17 @@ export function GameDialog() {
     else if (g.phase === 'over') session.backToMenu();
   };
   // Esc: o <dialog> não fecha sozinho; a ação da fase muda o estado e o efeito acima abre ou
-  // fecha o cartão conforme a fase nova (no resultado, o menu aparece no mesmo <dialog>)
+  // fecha o cartão conforme a fase nova (no resultado, o menu aparece no mesmo <dialog>). Sem
+  // interação desde a abertura, o browser pode mandar um `cancel` que não se pode cancelar: o
+  // <dialog> fecha na mesma e a ação fica só para o `close` a seguir — fazê-la aqui também
+  // corria-a duas vezes (resultado → menu → modo livre).
   const onCancel = (e: SyntheticEvent<HTMLDialogElement>) => {
+    if (!e.nativeEvent.cancelable) return;
     e.preventDefault();
     closeForPhase();
   };
   // `close` nativo: os nossos (`ownCloses`) não fazem nada; os outros foram o browser a fechar
-  // o <dialog> sem `cancel` (o Chromium salta o `cancel` quando não houve interação desde a
+  // o <dialog> sem `cancel` ou com um `cancel` que não se pode cancelar (sem interação desde a
   // abertura, para que uma página não prenda o Esc), e contam como um Esc do cartão que estava
   // aberto. Se a fase nova ainda quiser o cartão (resultado → menu), volta a abri-lo já.
   const onNativeClose = () => {
