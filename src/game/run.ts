@@ -283,11 +283,11 @@ export class GameRun {
     return this.pausedAt ?? now;
   }
 
-  /** Falta `stars`, `unlocked` e `levelId`: só a sessão sabe se é um nível ou o Treino. */
-  result(best: boolean): Omit<GameResult, 'stars' | 'unlocked' | 'levelId'> {
+  /** Falta `best`, `stars`, `unlocked` e `levelId`: só a sessão sabe se é um novo recorde e de
+   *  que nível. */
+  result(): Omit<GameResult, 'best' | 'stars' | 'unlocked' | 'levelId'> {
     return {
       ...this.score.result(this.chart.notes.length),
-      best,
       startLagMs: roundLagMs(this.timing.lag),
       lagMs: this.cameraHits >= LAG_SAVE_MIN_HITS ? roundLagMs(this.lag) : null,
     };

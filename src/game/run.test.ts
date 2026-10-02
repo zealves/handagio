@@ -149,11 +149,10 @@ describe('GameRun', () => {
     expect(run.update(16.91)).toBe(true);
     expect(run.state).toBe('over');
     expect(run.press(0, 17)).toBeNull();
-    expect(run.result(true)).toMatchObject({
+    expect(run.result()).toMatchObject({
       perfect: 1,
       miss: 2,
       total: 3,
-      best: true,
       startLagMs: 100,
       lagMs: null,
     });
@@ -165,8 +164,8 @@ describe('GameRun', () => {
     const { run } = new8();
     for (let k = 0; k < 8; k++) expect(run.press(k, 12 + k * 0.5 - 0.3)?.kind).toBe('early');
     expect(run.cameraHits).toBe(8);
-    expect(run.result(false).lagMs).toBe(0);
-    expect(run.result(false).lagMs).toBe(Math.round((run.lag * 1000) / 10) * 10);
+    expect(run.result().lagMs).toBe(0);
+    expect(run.result().lagMs).toBe(Math.round((run.lag * 1000) / 10) * 10);
   });
 
   it('Cedo/Tarde repetidos na mesma nota só ensinam o atraso uma vez', () => {
@@ -209,7 +208,7 @@ describe('GameRun', () => {
 
   it('o resultado traz o atraso de partida; só se mostra o aprendido quando mudou', () => {
     const { run } = make(0.12);
-    expect(run.result(false).startLagMs).toBe(120);
+    expect(run.result().startLagMs).toBe(120);
     expect(changedLagMs({ startLagMs: 120, lagMs: null })).toBeNull();
     expect(changedLagMs({ startLagMs: 120, lagMs: 120 })).toBeNull();
     expect(changedLagMs({ startLagMs: 120, lagMs: 150 })).toBe(150);

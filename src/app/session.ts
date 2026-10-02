@@ -550,6 +550,10 @@ class Session {
   openGame(): void {
     this.ensureAudio();
     this.startLoop();
+    // sem isto uma voz presa (teremim a soar, dedo dobrado na câmara ou tecla ainda em baixo)
+    // ficava a tocar no menu: `gestureOptions()` já desliga o contínuo com o jogo aberto, mas só
+    // corta o que vier a seguir, não o que já soava
+    this.releaseAll();
     const s = getState();
     setState({
       game: {
@@ -698,7 +702,7 @@ class Session {
     const prev = progress[id] ?? { stars: 0, points: 0, accuracy: 0 };
     // o recorde é por nível: bate o máximo de pontos já guardado para este `id`, para "Novo
     // recorde!" e o próprio recorde fazerem sentido a repetir
-    const base = run.result(false);
+    const base = run.result();
     const best = base.points > 0 && base.points > prev.points;
     const stars = starsFor(base.accuracy);
     const levelProgress = {
