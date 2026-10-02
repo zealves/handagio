@@ -397,4 +397,32 @@ Registo das decisões tomadas quando o pedido era ambíguo. A mais recente fica 
     - **O diálogo do jogo guiado pelo estado:** o `<dialog>` abre ou fecha conforme a fase na store, nunca por si próprio; o Esc é tratado no `cancel` de cada cartão (menu → modo livre, pausa → continuar, resultado → menu). Um fecho do navegador sem um `cancel` cancelável (sem interação desde a abertura) cai no evento `close`, tratado exatamente uma vez como o Esc do cartão que estava aberto; os fechos pedidos por nós (`d.close()`) contam-se à parte (`ownCloses`), para que o seu `close` tardio seja ignorado. Substitui a heurística anterior de "ignorar o `close` enquanto o diálogo está aberto" (decisão 68), que não distinguia um fecho nosso atrasado de um fecho novo do browser.
     - **Avançado:** o atraso da câmara passa para dentro de um `<details>` fechado por defeito, "Avançado", para não ocupar espaço no menu a quem não precisa de o afinar. O resumo tem uma seta desenhada (o `display: flex` tira o triângulo nativo) que roda quando aberto.
     - **Pronto para músicas e progresso:** o menu do jogo fica preparado para receber, por cima da dificuldade, uma lista de músicas e o progresso do jogador — projetos à parte, mais tarde: mais músicas, progresso, login opcional, monetização.
+70. **Níveis com progresso, estrelas e estilos sonoros.** O Jogar passa a ter níveis com progressão: três músicas com estilos diferentes, estrelas por precisão, desbloqueia automático, instrumento temporário e Treino aperfeiçoado (spec `docs/superpowers/specs/2026-10-02-game-levels-design.md`, estendida de 69).
+    - **Os níveis como dados** (`src/game/levels.ts`, puro): cada nível tem um `id` (guardado, nunca muda), uma dificuldade, BPM, número de compassos, uma semente fixa e um `style` com a melodia, o kit, o baixo, a escala, a tónica, a oitava, os padrões de bateria e de baixo e o atraso de swing.
+      - **Tábua dos três níveis:**
+
+        | Nível | id | Melodia | Kit | Baixo | Escala, tónica | BPM | Densidade | Bateria | Linha de baixo |
+        |---|---|---|---|---|---|---|---|---|---|
+        | 1 Pop | `pop` | `piano` | `drums` | `bass` | Maior, Dó | 90 | Fácil | direita | colcheias nos tempos 1 e 3 |
+        | 2 Lo-fi | `lofi` | `epiano` | `drums` (suave) | `contrabass` | Dórica, Ré | 96 | Médio | swing | caminhada em semínimas |
+        | 3 Eletrónico | `electro` | `synth` | `tr808` | `bass` (synth se existir) | Menor, Lá | 118 | Difícil | 4 no chão | pulsar em contratempo |
+
+      - **Ordem:** a de `LEVELS` é a ordem de desbloqueio. Para juntar um nível, acrescenta-se uma entrada a `LEVELS` (puro) e o seu nome em `src/i18n/locales/pt.ts` (`game.levelNames[<id>]`) e em `en.ts`; `data.test.ts` aponta o que falta.
+      - **Funções puras:** `starsFor(accuracy)` devolve 0 | 1 | 2 | 3 com limiares 50%, 70%, 90% (armazenados em `STAR_THRESHOLDS`). `isUnlocked(index, progress)` devolve verdadeiro se o nível 0 ou se `progress[LEVELS[i − 1].id].stars ≥ 1` abre o nível `i`.
+    - **Padrões de acompanhamento** por compasso (o último compasso mantém o bombo, o prato e o baixo na tónica):
+      - Bateria `straight`: a de hoje.
+      - Bateria `swing`: bombo em 0 e 10, tarola em 4 e 12, choques em colcheias a 0,35; o swing aplica-se no `GameRun`.
+      - Bateria `four`: bombo em 0, 4, 8 e 12; tarola ou palmas em 4 e 12; prato aberto (slot 3) em 2, 6, 10 e 14.
+      - Baixo `eighths`: o de hoje (colcheias nos tempos 1 e 3).
+      - Baixo `walk`: semínimas com graus `d`, `d + 2`, `d + 4` e `d + 2` (onde `d` é o grau do acorde), 4 passos cada.
+      - Baixo `pulse`: colcheias em contratempo (2, 6, 10 e 14), grau do acorde, 2 passos cada.
+    - **Swing:** a fórmula é `start + s × stepDur + (s % 4 === 2 ? swing × stepDur : 0)` em `GameRun.timeOf`. O Lo-fi usa `swing` 0.6 passos (as colcheias em contratempo ficam perto da tercina); os outros 0. O `swing` é medido em tempo da música (com swing aplicado), não real: o intervalo por mão de 0.30 s é entre passos suavizados, senão o offbeat dum só dedo ficaria demasiado perto da batida seguinte. Tanto a pontuação como o acompanhamento agendado (o `onStep` soma o atraso) usam os tempos do `timeOf`.
+    - **Slots de percussão por kit:** o crash final (último compasso) é o Crash (`slot 8`) do `drums` e o open hat (`slot 1`) do `tr808` (cujo `slot 9` é maracas).
+    - **Treino** (`startGame(difficulty)`): a semente e a música ficam aleatórias (decisão 69). Agora também tira um snapshot da afinação (tónica, escala, oitava) no início da ronda, como os níveis: a ronda de Treino soa a uma afinação fixa mesmo que o utilizador a mude a meio.
+    - **Progresso** (`levelProgress`: `Record<string, { stars: number; points: number; accuracy: number }>`): guardado em preferências, validado no `sanitizePrefs`. Guarda-se o máximo de cada nível (estrelas, pontos, precisão). "Repor as preferências" mantém o progresso mas reseta `gameTab` (por defeito `'levels'`) e `gameLevel` (o último escolhido, por defeito o `id` do primeiro nível) — convenientes, não persistem em `persist`.
+    - **Fim de uma ronda:** `stars = starsFor(accuracy)` (zero até 50%); guarda-se o máximo de cada campo; o resultado ganha `stars`, `unlocked: string | null` (o id do nível aberto, se abriu algum) e `levelId`. Um nível aberto mostra "Nível desbloqueado!" e o botão Próximo nível. O `gameBest` só conta no Treino.
+    - **Instrumento temporário:** `session.startLevel(id)` recebe o `id` do nível, gera a `Chart`, toca a melodia com `style.melody` (afinação: `root`, `scale`, `octave` + registo do instrumento, via `tuningOf`), o baixo com `style.bass` uma oitava abaixo e o kit com `style.kit`. Não muda o `instrument` nem o `root` / `scale` do store. O `startGame(difficulty)` do Treino toca como antes (instrumento do store).
+    - **Menu:** os três níveis em um cartão cada um: número, nome (i18n por id), instrumento, estrelas (★ cheias ou vazias, aria-label "N de 3") e recorde. Num cartão bloqueado: cadeado e "Faz ★ no nível anterior" na dica do cartão (`tooltip`), junto com o recorde quando houver. Cabe tudo numa linha a 1280×800 sem scroll vertical.
+    - **Resultado:** "Nível desbloqueado!" quando for o caso. Botões: Menu do jogo, Repetir, Próximo nível (só se existir o seguinte e estiver aberto).
+    - **Diagnóstico:** `__vsc.session.gameBars` encurta os níveis no teste e2e. Um getter `gameMelody` devolve o instrumento da melodia da ronda, para o teste confirmar o instrumento temporário.
 
