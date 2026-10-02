@@ -264,6 +264,10 @@ const en = {
     touch: 'No camera? Play on screen',
     keys: 'Keyboard:',
     rightKeys: ['J', 'K', 'L', ';'],
+    overlayKeys: (thumbs: boolean) =>
+      thumbs
+        ? 'Play with the keyboard: A S D F G   H J K L ;'
+        : 'Play with the keyboard: A S D F   J K L ;',
     space: 'Space',
     mouth: '= mouth',
     camTitle: 'No camera access',

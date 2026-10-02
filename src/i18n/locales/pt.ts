@@ -155,6 +155,10 @@ const pt = {
     touch: 'Sem câmara? Tocar no ecrã',
     keys: 'Teclado:',
     rightKeys: ['J', 'K', 'L', 'Ç'],
+    overlayKeys: (thumbs: boolean): string =>
+      thumbs
+        ? 'Toca com o teclado: A S D F G   H J K L Ç'
+        : 'Toca com o teclado: A S D F   J K L Ç',
     space: 'Espaço',
     mouth: '= boca',
     camTitle: 'Sem acesso à câmara',

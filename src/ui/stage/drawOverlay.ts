@@ -1,5 +1,6 @@
 // Desenho do overlay do palco: esqueleto das mãos em néon (ciano → magenta), anéis nas pontas dos
 // dedos, ondas de disparo com o nome da nota, colunas do modo movimento e contorno dos lábios.
+import { t } from '../../i18n';
 import { getState } from '../../state/store';
 import { live } from '../../state/live';
 import { MOUTH_FX } from '../../state/types';
@@ -93,13 +94,7 @@ export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, r
     g.fillStyle = 'rgba(232,238,255,.85)';
     g.font = `500 ${Math.round(W / 42)}px Inter, system-ui, sans-serif`;
     g.textAlign = 'center';
-    g.fillText(
-      s.thumbs
-        ? 'Toca com o teclado: A S D F G   H J K L Ç'
-        : 'Toca com o teclado: A S D F   J K L Ç',
-      W / 2,
-      H / 2,
-    );
+    g.fillText(t().start.overlayKeys(s.thumbs), W / 2, H / 2);
   }
 
   // Lábios.
