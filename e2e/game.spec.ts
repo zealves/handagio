@@ -11,7 +11,15 @@ type Run = {
   viewNow(now: number): number;
 };
 type Vsc = {
-  session: { gameBars: number | null; startGame(d: string): void; pauseGame(): void };
+  session: {
+    gameBars: number | null;
+    startGame(d: string): void;
+    startLevel(id: string): void;
+    restartGame(): void;
+    nextLevel(): void;
+    pauseGame(): void;
+    readonly gameMelody: string | null;
+  };
   audio: { now: number; voiceMidi(key: number | string): number | null };
   live: { game: Run | null };
   store: { getState(): Record<string, unknown> & { set(p: Record<string, unknown>): void } };
@@ -64,7 +72,22 @@ async function startEasy(page: Page) {
   await page.getByTestId('mode-game').click();
   const dlg = page.getByTestId('game-dialog');
   await expect(dlg).toBeVisible();
+  // a dificuldade do Treino vive agora no separador Treino, não no de Níveis (que abre por
+  // omissão)
+  await dlg.getByTestId('game-tab-practice').click();
   await dlg.getByTestId('game-level-easy').click();
+  await dlg.getByTestId('game-start').click();
+  await expect(dlg).toBeHidden();
+  await expect(page.getByTestId('game-track')).toBeVisible();
+}
+
+/** Começa um nível pelo seu cartão, no separador Níveis (aberto por omissão). */
+async function startLevel(page: Page, id: string) {
+  await page.getByTestId('mode-game').click();
+  const dlg = page.getByTestId('game-dialog');
+  await expect(dlg).toBeVisible();
+  await dlg.getByTestId('game-tab-levels').click();
+  await dlg.getByTestId(`game-level-card-${id}`).click();
   await dlg.getByTestId('game-start').click();
   await expect(dlg).toBeHidden();
   await expect(page.getByTestId('game-track')).toBeVisible();
@@ -473,5 +496,108 @@ test.describe('modo de jogo', () => {
       expect(m.width, `${id}: largura só sua`).toBeGreaterThanOrEqual(25);
       expect(m.height, `${id}: altura`).toBeGreaterThanOrEqual(44);
     }
+  });
+
+  test('o menu abre no separador Níveis, com o nível 1 aberto e os níveis 2 e 3 bloqueados', async ({
+    page,
+  }) => {
+    await page.getByTestId('mode-game').click();
+    const dlg = page.getByTestId('game-dialog');
+    await expect(dlg).toBeVisible();
+    await expect(dlg.getByTestId('game-tab-levels')).toHaveAttribute('aria-pressed', 'true');
+    await expect(dlg.getByTestId('game-tab-practice')).toHaveAttribute('aria-pressed', 'false');
+    await expect(dlg.getByTestId('game-level-card-pop')).toBeEnabled();
+    await expect(dlg.getByTestId('game-level-card-pop')).toHaveAttribute('aria-pressed', 'true');
+    await expect(dlg.getByTestId('game-level-card-lofi')).toBeDisabled();
+    await expect(dlg.getByTestId('game-level-card-electro')).toBeDisabled();
+  });
+
+  test('nível 1 completo: estrelas, desbloqueio, o nível 2 pelo botão Próximo, e o progresso sobrevive a um recarregamento', async ({
+    page,
+  }) => {
+    const before = await field(page, 'instrument');
+    await page.evaluate(() => {
+      (window as unknown as { __vsc: Vsc }).__vsc.session.gameBars = 2;
+    });
+    await startLevel(page, 'pop');
+    const r = await hitNotes(page, 99);
+    expect(r.hits).toBeGreaterThan(0);
+    const result = page.getByTestId('game-result');
+    await expect(result).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('game-stars')).toBeVisible();
+    await expect(page.getByTestId('game-unlocked')).toBeVisible();
+    expect(
+      ((await field(page, 'levelProgress')) as Record<string, { stars: number }>).pop.stars,
+    ).toBeGreaterThanOrEqual(1);
+    // o progresso não muda o som do Treino
+    expect(await field(page, 'instrument')).toBe(before);
+
+    await page.getByTestId('game-next').click();
+    await expect(page.getByTestId('game-track')).toBeVisible();
+    expect(
+      await page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.session.gameMelody),
+    ).toBe('epiano');
+    expect(((await field(page, 'game')) as { levelId: string | null }).levelId).toBe('lofi');
+    await page.getByTestId('game-exit').click();
+
+    // recarrega: o progresso guardado (localStorage, `persist`) mantém o nível 2 aberto e as
+    // estrelas do 1
+    await page.reload();
+    await page.getByTestId('start-touch').click();
+    await page.getByTestId('mode-game').click();
+    const dlg = page.getByTestId('game-dialog');
+    await expect(dlg).toBeVisible();
+    await expect(dlg.getByTestId('game-level-card-lofi')).toBeEnabled();
+    const popStars = dlg.getByTestId('game-level-card-pop').getByRole('img');
+    await expect(popStars).toHaveAttribute('aria-label', /^[1-3] de 3 estrelas$/);
+  });
+
+  test('"Repetir" num nível repete o mesmo nível', async ({ page }) => {
+    await page.evaluate(() => {
+      (window as unknown as { __vsc: Vsc }).__vsc.session.gameBars = 2;
+    });
+    await startLevel(page, 'pop');
+    await hitNotes(page, 99);
+    await expect(page.getByTestId('game-result')).toBeVisible({ timeout: 15_000 });
+    await page.getByTestId('game-again').click();
+    await expect(page.getByTestId('game-track')).toBeVisible();
+    expect(((await field(page, 'game')) as { levelId: string | null }).levelId).toBe('pop');
+  });
+
+  test('Treino: o seletor de instrumento muda o instrument do store e o modo livre fica com ele', async ({
+    page,
+  }) => {
+    // o rótulo da pill com o instrumento inicial (ainda no modo livre, antes de abrir o jogo)
+    const pillBefore = await page.getByTestId('pill-instrument').getAttribute('aria-label');
+    await page.getByTestId('mode-game').click();
+    const dlg = page.getByTestId('game-dialog');
+    await expect(dlg).toBeVisible();
+    await dlg.getByTestId('game-tab-practice').click();
+    await dlg.getByTestId('game-instrument').click();
+    const before = await field(page, 'instrument');
+    // o primeiro cartão de instrumento que não seja o atual
+    const tiles = dlg.locator('[data-testid^="tile-"]');
+    const count = await tiles.count();
+    let picked: string | null = null;
+    for (let i = 0; i < count; i++) {
+      const testId = await tiles.nth(i).getAttribute('data-testid');
+      if (testId && testId !== `tile-${before}`) {
+        picked = testId.slice('tile-'.length);
+        await tiles.nth(i).click();
+        break;
+      }
+    }
+    expect(picked).not.toBeNull();
+    expect(await field(page, 'instrument')).toBe(picked);
+    // sai do jogo para o modo livre pelo botão do próprio cartão (o atalho `mode-free` do
+    // cabeçalho fica inerte com o <dialog> modal aberto por cima)
+    await dlg.getByTestId('game-free').click();
+    await expect(dlg).toBeHidden();
+    await expect(page.getByTestId('mode-free')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('pills')).toBeVisible();
+    await expect(page.getByTestId('pill-instrument')).not.toHaveAttribute(
+      'aria-label',
+      pillBefore!,
+    );
   });
 });
