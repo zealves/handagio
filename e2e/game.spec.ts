@@ -510,6 +510,10 @@ test.describe('modo de jogo', () => {
     await expect(dlg.getByTestId('game-level-card-pop')).toHaveAttribute('aria-pressed', 'true');
     await expect(dlg.getByTestId('game-level-card-lofi')).toBeDisabled();
     await expect(dlg.getByTestId('game-level-card-electro')).toBeDisabled();
+    // a condição de desbloqueio não fica só no `title` (sem tooltip no toque, e os cartões
+    // bloqueados são `disabled`, logo nunca recebem foco): ganha também uma linha visível
+    await expect(dlg.getByTestId('game-unlock-hint')).toBeVisible();
+    await expect(dlg.getByTestId('game-unlock-hint')).toContainText('50%');
   });
 
   test('nível 1 completo: estrelas, desbloqueio, o nível 2 pelo botão Próximo, e o progresso sobrevive a um recarregamento', async ({
@@ -562,6 +566,38 @@ test.describe('modo de jogo', () => {
     await page.getByTestId('game-again').click();
     await expect(page.getByTestId('game-track')).toBeVisible();
     expect(((await field(page, 'game')) as { levelId: string | null }).levelId).toBe('pop');
+  });
+
+  test('nível: o recorde acompanha o progresso do próprio nível e "Novo recorde!" repete-se ao melhorá-lo', async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      (window as unknown as { __vsc: Vsc }).__vsc.session.gameBars = 2;
+    });
+    await startLevel(page, 'pop');
+    // só 1 acerto: poucos pontos, mas é o 1.º recorde deste nível (antes da correção, o
+    // resultado dos níveis nunca marcava `best`, por mais pontos que tivesse)
+    await hitNotes(page, 1);
+    const result = page.getByTestId('game-result');
+    await expect(result).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('game-new-best')).toBeVisible();
+    await expect(page.getByTestId('level-best')).toBeVisible();
+    const first = (
+      (await field(page, 'levelProgress')) as Record<string, { points: number }>
+    ).pop.points;
+    expect(first).toBeGreaterThan(0);
+
+    await page.getByTestId('game-again').click();
+    await expect(page.getByTestId('game-track')).toBeVisible();
+    const r = await hitNotes(page, 99);
+    expect(r.hits).toBeGreaterThan(0);
+    await expect(result).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('game-new-best')).toBeVisible();
+    const second = (
+      (await field(page, 'levelProgress')) as Record<string, { points: number }>
+    ).pop.points;
+    expect(second).toBeGreaterThan(first);
+    await expect(page.getByTestId('level-best')).toContainText(String(second));
   });
 
   test('Treino: o seletor de instrumento muda o instrument do store e o modo livre fica com ele', async ({
