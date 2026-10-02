@@ -67,12 +67,13 @@ export function GameDialog() {
 
   // o menu do jogo (fase `setup`) pode voltar a aparecer com o diálogo já aberto — pausa ou
   // resultado a chamar `backToMenu()` — e nesse caso o efeito acima não chama `showModal()` (o
-  // <dialog> já estava aberto), que é quem foca; sem isto o botão que tinha o foco desaparece
-  // com o cartão anterior e o foco cai para <body>. Só foca o Começar nesse regresso (fase anterior pausa/resultado): na primeira
-  // vez que o menu abre (fase anterior nula) o foco por defeito fica no primeiro botão (a
-  // dificuldade), como seria sem este efeito — focar o Começar aí só serviria para, com o
-  // cartão a transbordar do ecrã (telemóveis pequenos), arrastar o scroll para baixo e esconder
-  // o título. `preventScroll` e repor o scroll a 0 mantêm o cartão visto do topo neste regresso.
+  // <dialog> já estava aberto), que é quem foca; sem isto o botão que tinha o foco desaparece com
+  // o cartão anterior e o foco cai para <body>. Só foca o Começar nesse regresso (fase anterior
+  // pausa/resultado): na primeira vez que o menu abre (fase anterior nula) o foco por defeito fica
+  // no primeiro botão (a dificuldade), como seria sem este efeito — focar o Começar aí só serviria
+  // para, com o cartão a transbordar do ecrã (telemóveis pequenos), arrastar o scroll para baixo e
+  // esconder o título. `preventScroll` e repor o scroll a 0 mantêm o cartão visto do topo neste
+  // regresso.
   useEffect(() => {
     const prevPhase = prevPhaseRef.current;
     prevPhaseRef.current = game?.phase ?? null;
