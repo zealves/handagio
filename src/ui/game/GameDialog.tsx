@@ -1,13 +1,22 @@
 // Modo de jogo: menu do jogo (dificuldade, dedos, avançado), cartão de pausa e cartão de
 // resultado. A pausa não fecha o cartão: fica aqui, por cima da pista congelada (Tarefa 3).
-import { type SyntheticEvent, useEffect, useId, useRef } from 'react';
+import { type SyntheticEvent, useEffect, useId, useRef, useState } from 'react';
 import { session } from '../../app/session';
 import { DIFFICULTIES, LAG_MAX_MS, LAG_MIN_MS, LAG_STEP_MS } from '../../game/config';
+import { isUnlocked, LEVELS, levelIndex } from '../../game/levels';
 import { changedLagMs } from '../../game/run';
 import { useT } from '../../i18n';
+import { instrumentText } from '../../i18n/data';
 import { getState, useStore } from '../../state/store';
+import { InstrumentPicker } from '../shell/InstrumentPicker';
 import { FingerPicker } from './FingerPicker';
 import s from './GameDialog.module.css';
+import { LevelList, Stars } from './LevelList';
+
+/** Nome i18n de um nível pelo id, com o próprio id como rede de segurança. */
+function levelName(tr: ReturnType<typeof useT>['game'], id: string): string {
+  return tr.levelNames[id as keyof typeof tr.levelNames] ?? id;
+}
 
 export function GameDialog() {
   const game = useStore((st) => st.game);
@@ -15,7 +24,12 @@ export function GameDialog() {
   const chosen = useStore((st) => st.gameDifficulty);
   const lag = useStore((st) => st.gameLagMs);
   const sel = useStore((st) => st.gameFingers);
+  const tab = useStore((st) => st.gameTab);
+  const chosenLevel = useStore((st) => st.gameLevel);
+  const instrument = useStore((st) => st.instrument);
+  const progress = useStore((st) => st.levelProgress);
   const set = useStore((st) => st.set);
+  const [instrumentOpen, setInstrumentOpen] = useState(false);
   const msgs = useT();
   const tr = msgs.game;
   const ref = useRef<HTMLDialogElement>(null);
@@ -121,6 +135,10 @@ export function GameDialog() {
   };
   const r = game?.phase === 'over' ? game.result : null;
   const learnedLag = r ? changedLagMs(r) : null;
+  // "Próximo nível" só aparece se existir e já estiver aberto (pode já o estar de uma ronda
+  // anterior, não só por esta: repetir um nível já todo com 3 estrelas não esconde o botão)
+  const next = r?.levelId ? LEVELS[levelIndex(r.levelId) + 1] : undefined;
+  const nextOpen = !!next && isUnlocked(levelIndex(next.id), progress);
 
   return (
     <dialog
@@ -141,23 +159,62 @@ export function GameDialog() {
         <div className={s.body}>
           <h2 id={`${id}-t`}>{tr.title}</h2>
           <p className={s.intro}>{tr.intro}</p>
-          <div className={s.levels} role="group" aria-label={tr.difficulty}>
-            {DIFFICULTIES.map((d) => (
-              <button
-                key={d}
-                type="button"
-                className={s.level}
-                aria-pressed={chosen === d}
-                onClick={() => set({ gameDifficulty: d })}
-                data-testid={`game-level-${d}`}
-              >
-                <b>{tr.levels[d]}</b>
-                {/* velocidade e recorde em linhas próprias: os três cartões com a mesma altura */}
-                <span>{tr.levelDesc[d]}</span>
-                <span>{best[d] ? tr.best(best[d]) : tr.noBest}</span>
-              </button>
-            ))}
+          <div className={s.tabs} role="group" aria-label={tr.title}>
+            <button
+              type="button"
+              className={s.tab}
+              aria-pressed={tab === 'levels'}
+              onClick={() => set({ gameTab: 'levels' })}
+              data-testid="game-tab-levels"
+            >
+              {tr.tabs.levels}
+            </button>
+            <button
+              type="button"
+              className={s.tab}
+              aria-pressed={tab === 'practice'}
+              onClick={() => set({ gameTab: 'practice' })}
+              data-testid="game-tab-practice"
+            >
+              {tr.tabs.practice}
+            </button>
           </div>
+          {tab === 'levels' ? (
+            <LevelList />
+          ) : (
+            <>
+              <div className={s.levels} role="group" aria-label={tr.difficulty}>
+                {DIFFICULTIES.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    className={s.level}
+                    aria-pressed={chosen === d}
+                    onClick={() => set({ gameDifficulty: d })}
+                    data-testid={`game-level-${d}`}
+                  >
+                    <b>{tr.levels[d]}</b>
+                    {/* velocidade e recorde em linhas próprias: os três cartões com a mesma altura */}
+                    <span>{tr.levelDesc[d]}</span>
+                    <span>{best[d] ? tr.best(best[d]) : tr.noBest}</span>
+                  </button>
+                ))}
+              </div>
+              <div className={s.instrumentRow}>
+                <button
+                  type="button"
+                  className={s.instrumentToggle}
+                  aria-expanded={instrumentOpen}
+                  onClick={() => setInstrumentOpen((v) => !v)}
+                  data-testid="game-instrument"
+                >
+                  <span>{tr.instrument(instrumentText(instrument).name)}</span>
+                  <span aria-hidden="true">{instrumentOpen ? '▾' : '▸'}</span>
+                </button>
+                {instrumentOpen && <InstrumentPicker />}
+              </div>
+            </>
+          )}
           <FingerPicker value={sel} onChange={(v) => set({ gameFingers: v })} />
           <details className={s.advanced} data-testid="game-advanced">
             <summary>{tr.advanced}</summary>
@@ -180,7 +237,9 @@ export function GameDialog() {
               ref={startRef}
               type="button"
               className={s.primary}
-              onClick={() => session.startGame(chosen)}
+              onClick={() =>
+                tab === 'levels' ? session.startLevel(chosenLevel) : session.startGame(chosen)
+              }
               data-testid="game-start"
             >
               {tr.start}
@@ -232,7 +291,17 @@ export function GameDialog() {
       )}
       {r && game && (
         <div className={s.body} data-testid="game-result">
-          <h2 id={`${id}-t`}>{tr.over}</h2>
+          <h2 id={`${id}-t`}>{r.levelId ? levelName(tr, r.levelId) : tr.over}</h2>
+          {r.levelId && (
+            <>
+              <Stars n={r.stars ?? 0} big testId="game-stars" />
+              {r.unlocked && (
+                <p className={s.unlocked} data-testid="game-unlocked">
+                  {tr.unlocked(levelName(tr, r.unlocked))}
+                </p>
+              )}
+            </>
+          )}
           {r.best && (
             <p className={s.newBest} data-testid="game-new-best">
               {tr.newBest}
@@ -266,14 +335,37 @@ export function GameDialog() {
             >
               {tr.menu}
             </button>
-            <button
-              type="button"
-              className={s.primary}
-              onClick={() => session.startGame(game.difficulty)}
-              data-testid="game-again"
-            >
-              {tr.again}
-            </button>
+            {r.levelId ? (
+              <>
+                <button
+                  type="button"
+                  className={nextOpen ? s.secondary : s.primary}
+                  onClick={() => session.restartGame()}
+                  data-testid="game-again"
+                >
+                  {tr.repeat}
+                </button>
+                {nextOpen && (
+                  <button
+                    type="button"
+                    className={s.primary}
+                    onClick={() => session.nextLevel()}
+                    data-testid="game-next"
+                  >
+                    {tr.next}
+                  </button>
+                )}
+              </>
+            ) : (
+              <button
+                type="button"
+                className={s.primary}
+                onClick={() => session.restartGame()}
+                data-testid="game-again"
+              >
+                {tr.again}
+              </button>
+            )}
           </div>
         </div>
       )}
