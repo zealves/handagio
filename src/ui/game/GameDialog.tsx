@@ -20,6 +20,7 @@ export function GameDialog() {
   const tr = msgs.game;
   const ref = useRef<HTMLDialogElement>(null);
   const resumeRef = useRef<HTMLButtonElement>(null);
+  const startRef = useRef<HTMLButtonElement>(null);
   // só conta como "fora" se o gesto também começou no fundo (senão arrastar o atraso e largar
   // por cima dele, fora do cartão, saía do jogo sem querer)
   const downOnBackdrop = useRef(false);
@@ -30,11 +31,18 @@ export function GameDialog() {
     const d = ref.current!;
     if (open && !d.open) {
       d.showModal();
-      // `showModal` focaria o primeiro botão focável (Sair); na pausa isso faria um Enter
-      // sem querer acabar a ronda, por isso o foco vai antes para o Continuar
+      // `showModal` focaria o primeiro botão focável; na pausa isso faria um Enter sem querer
+      // acabar a ronda, por isso o foco vai antes para o Continuar
       if (getState().game?.phase === 'paused') resumeRef.current?.focus();
     } else if (!open && d.open) d.close();
   }, [open]);
+
+  // o menu do jogo (fase `setup`) pode aparecer com o diálogo já aberto — pausa ou resultado a
+  // chamar `backToMenu()` — e nesse caso o efeito acima não corre (o `open` já era `true`); sem
+  // isto o botão que tinha o foco desaparece com o cartão anterior e o foco cai para <body>
+  useEffect(() => {
+    if (game?.phase === 'setup' && ref.current?.open) startRef.current?.focus();
+  }, [game?.phase]);
 
   // fechar ao começar ou ao continuar (a fase já mudou) não sai do jogo; na pausa, fechar (Esc
   // ou fora) continua a ronda; no menu, sai para o modo livre; no resultado, volta ao menu
@@ -88,8 +96,9 @@ export function GameDialog() {
                 data-testid={`game-level-${d}`}
               >
                 <b>{tr.levels[d]}</b>
-                <span>{tr.levelDesc[d]}</span>
-                <small>{best[d] ? tr.best(best[d]) : tr.noBest}</small>
+                <span>
+                  {tr.levelDesc[d]} · {best[d] ? tr.best(best[d]) : tr.noBest}
+                </span>
               </button>
             ))}
           </div>
@@ -112,6 +121,7 @@ export function GameDialog() {
           </details>
           <div className={s.actions}>
             <button
+              ref={startRef}
               type="button"
               className={s.primary}
               onClick={() => session.startGame(chosen)}

@@ -52,7 +52,9 @@ export function FingerPicker({ value, onChange }: FingerPickerProps) {
 
   const presetActive = (k: PresetKey): boolean => {
     const p = FINGER_PRESETS[k];
-    return p.length === value.length && p.every((f, i) => value[i] === f);
+    if (p.length !== value.length) return false;
+    const chosen = new Set(value);
+    return p.every((f) => chosen.has(f));
   };
 
   // o dedo 9 vem de `start.rightKeys` (o último, Ç/;), que já é o texto certo na língua atual;
@@ -107,6 +109,7 @@ export function FingerPicker({ value, onChange }: FingerPickerProps) {
           </div>
         ))}
       </div>
+      <p className={s.thumbsNote}>{tr.thumbsOff}</p>
       {atMin && <p className={s.minFingers}>{tr.minFingers}</p>}
       <div className={s.presets}>
         {PRESET_KEYS.map((k) => (
