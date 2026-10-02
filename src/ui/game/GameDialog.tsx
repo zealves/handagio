@@ -1,6 +1,6 @@
 // Modo de jogo: menu do jogo (dificuldade, dedos, avançado), cartão de pausa e cartão de
 // resultado. A pausa não fecha o cartão: fica aqui, por cima da pista congelada (Tarefa 3).
-import { useEffect, useId, useRef } from 'react';
+import { type SyntheticEvent, useEffect, useId, useRef } from 'react';
 import { session } from '../../app/session';
 import { DIFFICULTIES, LAG_MAX_MS, LAG_MIN_MS, LAG_STEP_MS } from '../../game/config';
 import { changedLagMs } from '../../game/run';
@@ -30,19 +30,44 @@ export function GameDialog() {
   const id = useId();
   const open = game !== null && game.phase !== 'playing';
 
-  useEffect(() => {
-    const d = ref.current!;
-    if (open && !d.open) {
+  // quantos `close` nativos ainda vão chegar de fechos pedidos por nós (`d.close()` abaixo): o
+  // evento é entregue numa tarefa à parte (passos de fecho do HTML), por isso pode chegar
+  // atrasado — por exemplo, a configuração fecha-se ao começar a ronda e, se se pausar muito
+  // depressa a seguir, esse `close` antigo só chega depois de o mesmo <dialog> já ter voltado a
+  // abrir para a pausa. Contá-los aqui identifica-os pela origem, não pelo tempo, e evita que
+  // continuem a ronda sozinhos, cancelando a pausa.
+  const ownCloses = useRef(0);
+
+  // o estado manda: abre ou fecha o <dialog> nativo conforme a fase atual (lida da store, que
+  // pode já ir à frente do que está desenhado). Devolve `true` se acabou de o abrir.
+  const sync = () => {
+    const d = ref.current;
+    if (!d) return false;
+    const g = getState().game;
+    const want = g !== null && g.phase !== 'playing';
+    if (want && !d.open) {
       d.showModal();
-      // `showModal` focaria o primeiro botão focável; na pausa isso faria um Enter sem querer
-      // acabar a ronda, por isso o foco vai antes para o Continuar
-      if (getState().game?.phase === 'paused') resumeRef.current?.focus();
-    } else if (!open && d.open) d.close();
-  }, [open]);
+      return true;
+    }
+    if (!want && d.open) {
+      ownCloses.current++;
+      d.close();
+    }
+    return false;
+  };
+
+  // corre a cada mudança de fase, não só quando `open` muda: no resultado, o Esc pode fechar o
+  // <dialog> nativo (ver `onNativeClose`) e `backToMenu()` passa a `setup` com `open` sempre
+  // `true`, e o menu tem de voltar a abrir na mesma
+  useEffect(() => {
+    // `showModal` focaria o primeiro botão focável; na pausa isso faria um Enter sem querer
+    // acabar a ronda, por isso o foco vai antes para o Continuar
+    if (sync() && getState().game?.phase === 'paused') resumeRef.current?.focus();
+  }, [open, game?.phase]);
 
   // o menu do jogo (fase `setup`) pode voltar a aparecer com o diálogo já aberto — pausa ou
-  // resultado a chamar `backToMenu()` — e nesse caso o efeito acima não corre (o `open` já era
-  // `true`); sem isto o botão que tinha o foco desaparece com o cartão anterior e o foco cai
+  // resultado a chamar `backToMenu()` — e nesse caso o efeito acima não chama `showModal()` (o
+  // <dialog> já estava aberto), que é quem foca; sem isto o botão que tinha o foco desaparece com o cartão anterior e o foco cai
   // para <body>. Só foca o Começar nesse regresso (fase anterior pausa/resultado): na primeira
   // vez que o menu abre (fase anterior nula) o foco por defeito fica no primeiro botão (a
   // dificuldade), como seria sem este efeito — focar o Começar aí só serviria para, com o
@@ -70,16 +95,23 @@ export function GameDialog() {
     else if (g.phase === 'paused') session.resumeGame();
     else if (g.phase === 'over') session.backToMenu();
   };
-  // o `close` nativo do <dialog> (Esc, cancel) é entregue numa tarefa à parte (passos de fecho
-  // do HTML), por isso pode chegar atrasado: a configuração fecha-se sozinha ao começar a ronda
-  // e, se se pausar muito depressa a seguir, esse `close` antigo só chega depois de o mesmo
-  // <dialog> já ter voltado a abrir para a pausa — nessa altura `closeForPhase` via a fase
-  // 'paused' e continuava a ronda sozinho, cancelando a pausa. Um `close` genuíno do cartão
-  // atual já encontra o <dialog> fechado (o `open` muda antes de o evento ser entregue); se
-  // ainda estiver aberto, é o eco a mais e não deve fazer nada.
-  const onNativeClose = () => {
-    if (ref.current?.open) return;
+  // Esc: o <dialog> não fecha sozinho; a ação da fase muda o estado e o efeito acima abre ou
+  // fecha o cartão conforme a fase nova (no resultado, o menu aparece no mesmo <dialog>)
+  const onCancel = (e: SyntheticEvent<HTMLDialogElement>) => {
+    e.preventDefault();
     closeForPhase();
+  };
+  // `close` nativo: os nossos (`ownCloses`) não fazem nada; os outros foram o browser a fechar
+  // o <dialog> sem `cancel` (o Chromium salta o `cancel` quando não houve interação desde a
+  // abertura, para que uma página não prenda o Esc), e contam como um Esc do cartão que estava
+  // aberto. Se a fase nova ainda quiser o cartão (resultado → menu), volta a abri-lo já.
+  const onNativeClose = () => {
+    if (ownCloses.current > 0) {
+      ownCloses.current--;
+      return;
+    }
+    closeForPhase();
+    sync();
   };
   const r = game?.phase === 'over' ? game.result : null;
   const learnedLag = r ? changedLagMs(r) : null;
@@ -89,6 +121,7 @@ export function GameDialog() {
       ref={ref}
       className={s.dialog}
       aria-labelledby={`${id}-t`}
+      onCancel={onCancel}
       onClose={onNativeClose}
       onPointerDown={(e) => {
         downOnBackdrop.current = e.target === ref.current;
