@@ -38,4 +38,6 @@ export interface GameUi {
   /** Dedos da ronda (pela ordem do ecrã), para a pista. */
   fingers: number[];
   result: import('../game/types').GameResult | null;
+  /** Nível desta ronda (null = Treino). */
+  levelId: string | null;
 }

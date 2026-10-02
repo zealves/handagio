@@ -7,13 +7,22 @@ import { cameraError, padLabels } from '../i18n/data';
 import { samples } from '../audio/samples/loader';
 import { Looper, type LoopEvent } from '../audio/looper';
 import { Clock, quantizeTime, STEPS_PER_BAR, STEPS_PER_BEAT, TapTempo } from '../audio/metronome';
-import { clamp, chordName, degreeToMidi, noteName, scaleLength } from '../audio/theory';
+import { clamp, chordName, degreeToMidi, noteName, scaleLength, type ScaleName } from '../audio/theory';
 import { live, pushBurst } from '../state/live';
-import { getState, setState, useStore, type Store } from '../state/store';
+import { getState, setState, useStore, type Prefs, type Runtime, type Store } from '../state/store';
 import { DIFFICULTY, LAG_SAVE_MIN_HITS, MAX_HIT_STEPS, roundLagMs } from '../game/config';
 import { generateChart } from '../game/generator';
+import {
+  isUnlocked,
+  LEVELS,
+  levelIndex,
+  starsFor,
+  type BassLine,
+  type DrumStyle,
+  type LevelProgress,
+} from '../game/levels';
 import { gameStartBar, GameRun } from '../game/run';
-import type { BackingEvent, Difficulty } from '../game/types';
+import type { BackingEvent, Difficulty, GameResult } from '../game/types';
 import { CAMERA_SIZE, CameraError, listCameras, openCamera, stopStream } from '../vision/camera';
 import { isActive, KEYMAP, slotOf } from '../vision/fingerMap';
 import { aspectOf, GestureEngine, type GestureOptions } from '../vision/gestureEngine';
@@ -56,6 +65,23 @@ const fingerPan = (i: number) => (i - 4.5) / 6;
 const voiceKey = (i: number, k: number): number | string => (k ? `${i}:${k}` : i);
 /** Nos acordes, as vozes extra soam mais baixo para não saturar; na Nona (5 vozes) ainda mais. */
 const extraVoiceGain = (n: number): number => (n >= 5 ? 0.55 : 0.7);
+
+/** O que `startRound` precisa para gerar e tocar uma ronda (o Treino ou um nível). */
+interface RoundSpec {
+  /** `null` no Treino. */
+  levelId: string | null;
+  difficulty: Difficulty;
+  /** BPM; por defeito o da dificuldade (o Treino usa o do store). */
+  bpm?: number;
+  /** Compassos; por defeito os da dificuldade. */
+  bars?: number;
+  seed: number;
+  drums?: DrumStyle;
+  bassLine?: BassLine;
+  swing?: number;
+  sound: { melody: string; kit: string; bass: string };
+  tuning: { root: number; scale: ScaleName; octave: number };
+}
 
 class Session {
   video: HTMLVideoElement | null = null;
@@ -101,12 +127,17 @@ class Session {
   private cal: { collector: CalibrationCollector; phase: CalPhase } | null = null;
   /** Diagnóstico: pára a deteção real para se poderem injetar mãos com `feedHands`. */
   detectionPaused = false;
-  /** Ronda do modo de jogo: dedos das faixas, instrumento da melodia e contador de acertos por dedo. */
+  /**
+   * Ronda do modo de jogo: dedos das faixas, o som e a afinação da ronda (do nível, ou do store
+   * no Treino) e o contador de acertos por dedo. `levelId` é `null` no Treino.
+   */
   private game: {
     run: GameRun;
     difficulty: Difficulty;
     fingers: readonly number[];
-    melody: string;
+    levelId: string | null;
+    sound: { melody: string; kit: string; bass: string };
+    tuning: { root: number; scale: ScaleName; octave: number };
     hitSeq: number[];
   } | null = null;
   /** Diagnóstico e testes: compassos de uma ronda (null = os da dificuldade). */
@@ -257,10 +288,9 @@ class Session {
     const lane = g.fingers.indexOf(i);
     if (lane < 0 || g.run.state === 'paused' || g.run.state === 'over') return;
     const r = g.run.press(lane, audio.now, !fromKey);
-    const s = getState();
-    const midi = degreeToMidi(lane, tuningOf({ ...s, instrument: g.melody }));
+    const midi = degreeToMidi(lane, tuningOf({ ...g.tuning, instrument: g.sound.melody }));
     this.fingerNote[i] = [midi];
-    audio.noteOn(i, g.melody, midi, velocity, fingerPan(i));
+    audio.noteOn(i, g.sound.melody, midi, velocity, fingerPan(i));
     const fx = live.fx[i];
     fx.midi = midi;
     fx.label = noteName(midi);
@@ -512,7 +542,7 @@ class Session {
   }
 
   // ---------- modo de jogo ----------
-  /** Abre o cartão de jogo (escolha da dificuldade). */
+  /** Abre o cartão de jogo (escolha da dificuldade, ou do nível). */
   openGame(): void {
     this.ensureAudio();
     this.startLoop();
@@ -523,6 +553,7 @@ class Session {
         difficulty: s.gameDifficulty,
         fingers: [...s.gameFingers],
         result: null,
+        levelId: null,
       },
       sheet: null,
     });
@@ -530,6 +561,58 @@ class Session {
 
   /** Começa uma ronda nova no próximo compasso que o relógio ainda não agendou. */
   startGame(difficulty: Difficulty): void {
+    const s = getState();
+    const melody = instrumentInfo(s.instrument).kind === 'melodic' ? s.instrument : 'piano';
+    this.startRound(
+      {
+        levelId: null,
+        difficulty,
+        seed: (Math.random() * 2 ** 32) >>> 0,
+        bars: this.gameBars ?? undefined,
+        sound: { melody, kit: 'drums', bass: 'bass' },
+        tuning: { root: s.root, scale: s.scale, octave: s.octave },
+      },
+      { gameDifficulty: difficulty },
+    );
+  }
+
+  /** Começa um nível (música e som fixos), se já estiver aberto; não mexe no som do store. */
+  startLevel(id: string): void {
+    const index = levelIndex(id);
+    const level = LEVELS[index];
+    if (!level || !isUnlocked(index, getState().levelProgress)) return;
+    const { style } = level;
+    this.startRound(
+      {
+        levelId: id,
+        difficulty: level.difficulty,
+        bpm: level.bpm,
+        bars: this.gameBars ?? level.bars,
+        seed: level.seed,
+        drums: style.drums,
+        bassLine: style.bassLine,
+        swing: style.swing,
+        sound: { melody: style.melody, kit: style.kit, bass: style.bass },
+        tuning: { root: style.root, scale: style.scale, octave: style.octave },
+      },
+      { gameLevel: id },
+    );
+  }
+
+  /** Começa o nível a seguir ao da ronda atual, se existir e estiver aberto. */
+  nextLevel(): void {
+    const ui = getState().game;
+    if (!ui?.levelId) return;
+    const next = LEVELS[levelIndex(ui.levelId) + 1];
+    if (next && isUnlocked(levelIndex(next.id), getState().levelProgress)) this.startLevel(next.id);
+  }
+
+  /**
+   * Um só arranque de ronda para o Treino (`startGame`) e os níveis (`startLevel`): gera a
+   * partitura com o som e a afinação do `spec` e guarda-os em `this.game` (`gamePress` e
+   * `playBacking` leem daí, nunca do store, para um nível nunca mudar a escolha do jogador).
+   */
+  private startRound(spec: RoundSpec, extra: Partial<Prefs & Runtime> = {}): void {
     this.ensureAudio();
     this.startLoop();
     if (this.game) {
@@ -539,31 +622,44 @@ class Session {
     }
     this.releaseAll();
     const s = getState();
-    const cfg = DIFFICULTY[difficulty];
-    const fingers = [...getState().gameFingers];
+    const cfg = DIFFICULTY[spec.difficulty];
+    const fingers = [...s.gameFingers];
     const chart = generateChart({
-      difficulty,
-      seed: (Math.random() * 2 ** 32) >>> 0,
-      scaleSize: scaleLength(s.scale),
+      difficulty: spec.difficulty,
+      seed: spec.seed,
+      scaleSize: scaleLength(spec.tuning.scale),
       lanes: fingers.length,
-      bars: this.gameBars ?? undefined,
+      bars: spec.bars,
+      bpm: spec.bpm,
+      drums: spec.drums,
+      bassLine: spec.bassLine,
+      swing: spec.swing,
+      kit: spec.sound.kit,
       split: fingers.filter((f) => f < 5).length,
     });
     this.clock.setBpm(chart.bpm);
     const { time: t0, step: startStep } = gameStartBar(this.clock, audio.now);
-    const melody = instrumentInfo(s.instrument).kind === 'melodic' ? s.instrument : 'piano';
-    this.loadSamples(melody);
-    this.loadSamples('bass');
+    this.loadSamples(spec.sound.melody);
+    this.loadSamples(spec.sound.bass);
+    this.loadSamples(spec.sound.kit);
     const run = new GameRun(
       chart,
       { playBacking: (ev, when) => this.playBacking(ev, when) },
       { startStep, t0, stepDur: this.clock.stepDur, lag: s.gameLagMs / 1000, lead: cfg.lead },
     );
-    this.game = { run, difficulty, fingers, melody, hitSeq: new Array(10).fill(0) };
+    this.game = {
+      run,
+      difficulty: spec.difficulty,
+      fingers,
+      levelId: spec.levelId,
+      sound: spec.sound,
+      tuning: spec.tuning,
+      hitSeq: new Array(10).fill(0),
+    };
     live.game = run;
     setState({
-      game: { phase: 'playing', difficulty, fingers, result: null },
-      gameDifficulty: difficulty,
+      game: { phase: 'playing', difficulty: spec.difficulty, fingers, result: null, levelId: spec.levelId },
+      ...extra,
       sheet: null,
     });
   }
@@ -589,15 +685,60 @@ class Session {
   private finishGame(): void {
     const g = this.game!;
     const s = getState();
+    this.saveLearnedLag(g);
+    if (g.levelId) {
+      const result = this.finishLevel(g.levelId, g.run, s.levelProgress);
+      this.endGame();
+      setState({
+        game: {
+          phase: 'over',
+          difficulty: g.difficulty,
+          fingers: [...g.fingers],
+          result: result.result,
+          levelId: g.levelId,
+        },
+        levelProgress: result.levelProgress,
+      });
+      return;
+    }
     const points = g.run.score.points;
     const best = points > 0 && points > s.gameBest[g.difficulty];
-    const result = g.run.result(best);
-    this.saveLearnedLag(g);
+    const result: GameResult = { ...g.run.result(best), stars: null, unlocked: null, levelId: null };
     this.endGame();
     setState({
-      game: { phase: 'over', difficulty: g.difficulty, fingers: [...g.fingers], result },
+      game: { phase: 'over', difficulty: g.difficulty, fingers: [...g.fingers], result, levelId: null },
       ...(best ? { gameBest: { ...s.gameBest, [g.difficulty]: points } } : {}),
     });
+  }
+
+  /**
+   * Resultado do fim de um nível: as estrelas da precisão, o máximo de cada campo guardado em
+   * `levelProgress` e o id do nível seguinte, se esta ronda o abriu (não estava aberto antes e
+   * ficou). O recorde do Treino (`gameBest`) não entra aqui.
+   */
+  private finishLevel(
+    id: string,
+    run: GameRun,
+    progress: LevelProgress,
+  ): { result: GameResult; levelProgress: LevelProgress } {
+    const base = run.result(false);
+    const stars = starsFor(base.accuracy);
+    const index = levelIndex(id);
+    const prev = progress[id] ?? { stars: 0, points: 0, accuracy: 0 };
+    const levelProgress = {
+      ...progress,
+      [id]: {
+        stars: Math.max(prev.stars, stars),
+        points: Math.max(prev.points, base.points),
+        accuracy: Math.max(prev.accuracy, base.accuracy),
+      },
+    };
+    const next = LEVELS[index + 1];
+    const unlocked =
+      next && !isUnlocked(index + 1, progress) && isUnlocked(index + 1, levelProgress)
+        ? next.id
+        : null;
+    return { result: { ...base, stars, unlocked, levelId: id }, levelProgress };
   }
 
   /** Guarda o atraso aprendido na ronda (câmara) se houver toques suficientes para confiar nele. */
@@ -632,10 +773,12 @@ class Session {
     if (ui) setState({ game: { ...ui, phase: 'playing' } });
   }
 
-  /** Recomeça com uma ronda nova (as mesmas escolhas). */
+  /** Recomeça com uma ronda nova: o mesmo nível, ou a mesma dificuldade no Treino. */
   restartGame(): void {
     const ui = getState().game;
-    if (ui) this.startGame(ui.difficulty);
+    if (!ui) return;
+    if (ui.levelId) this.startLevel(ui.levelId);
+    else this.startGame(ui.difficulty);
   }
 
   private endGame(): void {
@@ -645,22 +788,27 @@ class Session {
     this.clock.setBpm(getState().bpm);
   }
 
-  /** Acompanhamento do jogo: kit acústico e baixo uma oitava abaixo da melodia. */
+  /** Acompanhamento da ronda: o kit e o baixo da ronda, uma oitava abaixo da melodia. */
   private playBacking(ev: BackingEvent, when: number): void {
+    const g = this.game!;
     if (ev.kind === 'drum') {
-      audio.drum('drums', ev.slot, ev.vel, 0, when);
+      audio.drum(g.sound.kit, ev.slot, ev.vel, 0, when);
       return;
     }
-    const s = getState();
-    const melodyOctave = tuningOf({ ...s, instrument: this.game!.melody }).octave;
+    const melodyOctave = tuningOf({ ...g.tuning, instrument: g.sound.melody }).octave;
     const midi = degreeToMidi(ev.degree, {
-      root: s.root,
-      scale: s.scale,
+      root: g.tuning.root,
+      scale: g.tuning.scale,
       octave: melodyOctave - 1,
     });
     const key = `G${++this.loopSeq}`;
-    audio.noteOn(key, 'bass', midi, ev.vel, 0, when);
+    audio.noteOn(key, g.sound.bass, midi, ev.vel, 0, when);
     this.at(when + ev.dur * this.clock.stepDur, () => audio.noteOff(key));
+  }
+
+  /** Diagnóstico e testes: instrumento da melodia da ronda (`null` fora do jogo). */
+  get gameMelody(): string | null {
+    return this.game?.sound.melody ?? null;
   }
 
   // ---------- modo teclado ----------

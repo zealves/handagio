@@ -249,7 +249,8 @@ export class GameRun {
     return this.pausedAt ?? now;
   }
 
-  result(best: boolean): GameResult {
+  /** Falta `stars`, `unlocked` e `levelId`: só a sessão sabe se é um nível ou o Treino. */
+  result(best: boolean): Omit<GameResult, 'stars' | 'unlocked' | 'levelId'> {
     return {
       ...this.score.result(this.chart.notes.length),
       best,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CUSTOM_NOTES, LEGACY_CUSTOM_NOTES } from '../../app/notes';
 import { INSTRUMENTS } from '../../audio/instruments';
+import { LEVELS } from '../../game/levels';
 import {
   coachStep,
   compositeSources,
@@ -387,5 +388,41 @@ describe('sanitizePrefs: modo de jogo', () => {
     });
     // o atraso fica em passos de 10 ms
     expect(sanitizePrefs({ gameLagMs: 134 }).gameLagMs).toBe(130);
+  });
+});
+
+describe('sanitizePrefs: níveis do jogo', () => {
+  it('mantém o progresso válido, larga os ids desconhecidos e corrige os campos estragados', () => {
+    const p = {
+      levelProgress: {
+        pop: { stars: 2, points: 500, accuracy: 0.72 },
+        unknown: { stars: 3, points: 10, accuracy: 1 },
+        lofi: { stars: 5, points: -10, accuracy: 1.4 },
+        electro: { stars: 1.9, points: 'x', accuracy: 'y' },
+      },
+    };
+    expect(sanitizePrefs(p)).toEqual({
+      levelProgress: {
+        pop: { stars: 2, points: 500, accuracy: 0.72 },
+        lofi: { stars: 3, points: 0, accuracy: 1 },
+        electro: { stars: 1, points: 0, accuracy: 0 },
+      },
+    });
+  });
+  it('progresso vazio ou estragado fica vazio', () => {
+    expect(sanitizePrefs({ levelProgress: null }).levelProgress).toEqual({});
+    expect(sanitizePrefs({ levelProgress: 'x' }).levelProgress).toEqual({});
+    expect(sanitizePrefs({ levelProgress: {} }).levelProgress).toEqual({});
+  });
+  it('tab do jogo inválida volta a níveis', () => {
+    expect(sanitizePrefs({ gameTab: 'practice' }).gameTab).toBe('practice');
+    expect(sanitizePrefs({ gameTab: 'levels' }).gameTab).toBe('levels');
+    expect(sanitizePrefs({ gameTab: 'x' }).gameTab).toBe('levels');
+    expect(sanitizePrefs({ gameTab: null }).gameTab).toBe('levels');
+  });
+  it('nível desconhecido volta ao primeiro', () => {
+    expect(sanitizePrefs({ gameLevel: 'lofi' }).gameLevel).toBe('lofi');
+    expect(sanitizePrefs({ gameLevel: 'xyz' }).gameLevel).toBe(LEVELS[0].id);
+    expect(sanitizePrefs({ gameLevel: 42 }).gameLevel).toBe(LEVELS[0].id);
   });
 });

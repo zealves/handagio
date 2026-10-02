@@ -39,7 +39,9 @@ export class Score {
     this.lateTaps++;
   }
 
-  result(total: number): Omit<GameResult, 'best' | 'lagMs' | 'startLagMs'> {
+  result(
+    total: number,
+  ): Omit<GameResult, 'best' | 'lagMs' | 'startLagMs' | 'stars' | 'unlocked' | 'levelId'> {
     const hits = this.perfect + this.good;
     return {
       points: this.points,

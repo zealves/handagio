@@ -20,6 +20,7 @@ import {
   LAG_STEP_MS,
   normalizeGameFingers,
 } from '../../game/config';
+import { LEVELS } from '../../game/levels';
 import type { Difficulty } from '../../game/types';
 import { DEFAULT_SOUND } from '../../state/store';
 import { isLang } from '../../i18n/types';
@@ -264,7 +265,36 @@ export function sanitizePrefs<T extends Record<string, unknown>>(p: T): T {
         ? Math.min(LAG_MAX_MS, Math.max(LAG_MIN_MS, Math.round(v / LAG_STEP_MS) * LAG_STEP_MS))
         : GAME_INPUT_LAG_MS;
   }
+  if ('levelProgress' in p) out.levelProgress = sanitizeLevelProgress(p.levelProgress);
+  if ('gameTab' in p && p.gameTab !== 'levels' && p.gameTab !== 'practice') out.gameTab = 'levels';
+  if ('gameLevel' in p && !LEVELS.some((l) => l.id === p.gameLevel))
+    out.gameLevel = LEVELS[0].id;
   return out as T;
+}
+
+/** Progresso dos níveis guardado: só os ids de `LEVELS`, com os campos validados; o resto cai fora. */
+function sanitizeLevelProgress(v: unknown): Record<string, { stars: number; points: number; accuracy: number }> {
+  const src = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
+  const out: Record<string, { stars: number; points: number; accuracy: number }> = {};
+  for (const l of LEVELS) {
+    const entry = src[l.id];
+    if (!entry || typeof entry !== 'object') continue;
+    const e = entry as Record<string, unknown>;
+    const stars =
+      typeof e.stars === 'number' && Number.isFinite(e.stars)
+        ? Math.min(3, Math.max(0, Math.floor(e.stars)))
+        : 0;
+    const points =
+      typeof e.points === 'number' && Number.isFinite(e.points) && e.points > 0
+        ? Math.floor(e.points)
+        : 0;
+    const accuracy =
+      typeof e.accuracy === 'number' && Number.isFinite(e.accuracy)
+        ? Math.min(1, Math.max(0, e.accuracy))
+        : 0;
+    out[l.id] = { stars, points, accuracy };
+  }
+  return out;
 }
 
 /** O que entra no vídeo gravado: nunca a imagem da câmara, só as partículas e as mãos. */

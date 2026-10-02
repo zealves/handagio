@@ -330,9 +330,19 @@ export function SettingsDialog() {
               type="button"
               className={p.btn}
               onClick={() => {
-                // a língua, os sons guardados, as dicas cumpridas e os recordes/dedos do jogo ficam
-                const { userPresets, coachDone, lang, gameBest, gameFingers } = getState();
-                st.set({ ...DEFAULT_PREFS, userPresets, coachDone, lang, gameBest, gameFingers });
+                // a língua, os sons guardados, as dicas cumpridas, os recordes/dedos do jogo e o
+                // progresso dos níveis ficam
+                const { userPresets, coachDone, lang, gameBest, gameFingers, levelProgress } =
+                  getState();
+                st.set({
+                  ...DEFAULT_PREFS,
+                  userPresets,
+                  coachDone,
+                  lang,
+                  gameBest,
+                  gameFingers,
+                  levelProgress,
+                });
                 setMsg(tr.prefsReset);
               }}
             >

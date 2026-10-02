@@ -4,6 +4,7 @@ import type { ChordMode, ScaleName } from '../audio/theory';
 import { DEFAULT_CUSTOM_NOTES, type NoteMode } from '../app/notes';
 import { migratePrefs, sanitizePrefs } from '../ui/shell/logic';
 import { DEFAULT_GAME_FINGERS, GAME_INPUT_LAG_MS } from '../game/config';
+import { LEVELS, type LevelProgress } from '../game/levels';
 import type { Difficulty } from '../game/types';
 import type { LearnedRange } from '../vision/adaptive';
 import type { TonicAt } from '../vision/fingerMap';
@@ -81,6 +82,12 @@ export interface Prefs extends SoundSettings {
   gameLagMs: number;
   /** Modo de jogo: dedos que jogam (pela ordem do ecrã). */
   gameFingers: number[];
+  /** Modo de jogo: progresso de cada nível (estrelas, pontos e precisão), neste aparelho. */
+  levelProgress: LevelProgress;
+  /** Tab aberta no menu do jogo. */
+  gameTab: 'levels' | 'practice';
+  /** Último nível escolhido (ou o primeiro, por defeito). */
+  gameLevel: string;
 }
 
 export interface Runtime {
@@ -174,6 +181,9 @@ export const DEFAULT_PREFS: Prefs = {
   gameDifficulty: 'easy',
   gameLagMs: GAME_INPUT_LAG_MS,
   gameFingers: [...DEFAULT_GAME_FINGERS],
+  levelProgress: {},
+  gameTab: 'levels',
+  gameLevel: LEVELS[0].id,
 };
 
 const PREF_KEYS = Object.keys(DEFAULT_PREFS) as (keyof Prefs)[];
