@@ -11,15 +11,19 @@ Continua as v1 e v2 (decisões 67 e 68), no ramo `feat/game-mode`, antes de publ
 
 Um toque na câmara precisa de ~250–300 ms: dobrar, a confirmação em 2–3 imagens a 30 fps, esticar e voltar a dobrar. As colcheias de hoje ficam a ~230 ms no Difícil e a ~270 ms no Médio.
 
-- **Intervalo mínimo:** `MIN_NOTE_GAP_S` = 0,30 s entre quaisquer duas notas, em todas as dificuldades.
-  - O gerador converte-o em passos: `ceil(0,30 / stepDur)`. Isso dá 2 passos no Fácil e 3 no Médio e no Difícil.
-  - Depois de montar as notas, remove as que ficam a menos desse intervalo da anterior.
-  - Fica sempre a primeira nota e nunca se remove a nota final.
-- **Mãos alternadas:** duas notas seguidas a menos de 1 tempo (4 passos) vão para mãos diferentes, quando a escolha tem dedos nas duas mãos.
+> **Revisto depois da revisão final** (decisão do utilizador): a primeira versão aplicava os 0,30 s a quaisquer duas notas seguidas. Como as notas só caem em passos pares, isso deixava o Médio e o Difícil com pelo menos 1 tempo entre notas: a alternância de mãos nunca chegava a acontecer, as colcheias desapareciam e as notas por segundo caíam de 0,89/1,63/2,46 para 0,89/1,26/1,56. A regra abaixo substitui essa.
+
+- **Mãos alternadas (primeiro):** duas notas seguidas a menos de 1 tempo (4 passos) vão para mãos diferentes, quando a escolha tem dedos nas duas mãos (`alternateHands`).
   - O gerador recebe `split`, o número de faixas da mão esquerda. As faixas `[0, split)` são da esquerda e `[split, lanes)` da direita.
-  - Se a nota estiver na mesma mão que a anterior, muda para a faixa mais próxima da outra mão.
+  - Se a nota estiver na mesma mão que a anterior, muda para a faixa **espelhada** da outra mão: à mesma distância da divisória, limitada às faixas dessa mão (`mirrorLane`; com 4 faixas e `split` 2, 0 ↔ 3 e 1 ↔ 2). Assim os pares rápidos não ficam sempre nos dois dedos do meio.
+  - Se a nota final colidir com a anterior, sai a anterior.
   - Com uma só mão (`split` 0 ou `lanes`), não muda nada.
-  - Corre antes do `spaceLanes`, que continua a garantir 1 tempo entre notas na mesma faixa e a final na tónica.
+- **Intervalo mínimo por mão (a seguir):** `MIN_NOTE_GAP_S` = 0,30 s entre notas seguidas **da mesma mão** (as da outra mão no meio não contam), em todas as dificuldades (`enforceMinGap` com `split`).
+  - O gerador converte-o em passos: `ceil(0,30 / stepDur)`. Isso dá 2 passos no Fácil e 3 no Médio e no Difícil.
+  - Sai a nota mais tardia; nunca a final: se for ela a colidir, sai a anterior da mesma mão.
+  - Com uma só mão, vale entre todas as notas: pelo menos 0,30 s, na prática 1 tempo no Médio e no Difícil.
+- **Faixa (por fim):** o `spaceLanes` continua a garantir 1 tempo entre notas seguidas na mesma faixa e a final na tónica. Com as notas em passos pares, depois da alternância duas notas seguidas da mesma mão já estão a ≥ 1 tempo, por isso nem o intervalo por mão nem o `spaceLanes` desfazem a alternância.
+- Resultado (4 faixas, `split` 2, 50 sementes): 0,90 / 1,61 / 2,44 notas por segundo (Fácil / Médio / Difícil), com ~55 e ~130 pares rápidos (< 1 tempo) por ronda no Médio e no Difícil, sempre em mãos diferentes.
 - **"Dobras vistas tarde":** a pontuação conta os toques da câmara que dão "Tarde!" (`lateTaps`). O resultado mostra "Dobras vistas tarde: N" quando N > 0. Serve para perceber se o problema é o tempo ou a deteção.
 - Os invariantes do gerador de hoje mantêm-se:
   - faixas válidas;
@@ -37,7 +41,7 @@ Um toque na câmara precisa de ~250–300 ms: dobrar, a confirmação em 2–3 i
   - "Sair" passa a **"Menu do jogo"** (`game-menu`): acaba a ronda sem recorde, guarda o atraso aprendido e volta ao menu (fase `setup`).
   - Continuar e Recomeçar ficam como estão.
 - **Resultado:** "Sair" passa a **"Menu do jogo"** (`game-menu`), e "Jogar outra vez" fica.
-- **O ✕ da pista** passa a abrir o **menu do jogo**, como a pausa. O modo livre fica no link do menu e no interruptor **Livre** do cabeçalho.
+- **O ✕ da pista** passa a abrir o **menu do jogo**, como a pausa, com o foco no **Jogar**. O modo livre fica no link do menu e no interruptor **Livre** do cabeçalho.
 - **Esc e clique fora:**
   - no menu, saem para o modo livre (como hoje no cartão de entrada);
   - no resultado, voltam ao menu;
@@ -49,7 +53,7 @@ Um toque na câmara precisa de ~250–300 ms: dobrar, a confirmação em 2–3 i
   - Cada mão tem 4 dedos e um polegar, como pílulas verticais de alturas diferentes (o médio é o mais alto), sobre uma palma arredondada.
   - Cada dedo é um `<button>` com `aria-pressed`, `aria-label` com a mão e o dedo (`fingerName`), alvo ≥ 44 px e `data-testid="game-finger-<i>"`.
   - Ligado, acende com `FINGER_COLORS[i]`, a mesma cor da faixa na pista. Desligado, fica apagado.
-  - Os polegares aparecem cinzentos, desativados, com o título "Os polegares não jogam".
+  - Os polegares aparecem desativados e mais apagados do que os dedos desligados (contorno tracejado, sem fundo), com o título "Os polegares não jogam". Os dedos desligados têm um fundo leve e um contorno forte, para parecerem tocáveis.
 - Com `MIN_GAME_FINGERS` dedos ligados, esses ficam desativados, com a dica "Pelo menos 2 dedos" (como hoje).
 - **Atalhos:**
   - **Só esquerda** `[4, 3, 2, 1]`

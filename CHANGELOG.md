@@ -14,7 +14,7 @@ Versões segundo [SemVer](https://semver.org/lang/pt-BR/). A mais recente fica n
   - o atraso da câmara ajusta-se sozinho.
 - Pausa com o botão, o P ou o Esc, com contagem ao continuar. Esconder o separador também pausa.
 - Rondas de cerca de um minuto e meio, com pontos, precisão, combo máximo e o recorde guardado por dificuldade.
-- As notas nunca ficam a menos de 0,3 s uma da outra, e as seguidas depressa demais alternam de mão.
+- As notas rápidas alternam de mão: na mesma mão nunca ficam a menos de 0,3 s uma da outra, e a nota que muda de mão vai para o dedo correspondente da outra (não sempre para o do meio). Só com uma mão, as notas ficam a pelo menos 0,3 s (1 tempo no Médio e no Difícil).
 - O cartão de entrada passa a ser o menu do jogo: dificuldade, dedos, recorde e Jogar, com o atraso da câmara dentro de "Avançado". A pausa, o resultado e o ✕ da pista voltam a este menu em vez de saírem logo para o modo livre.
 - Escolhes os dedos como as duas mãos desenhadas no ecrã, dedo a dedo ou pelos atalhos (só a esquerda, só a direita, indicadores e médios).
 
