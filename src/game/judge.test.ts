@@ -43,6 +43,39 @@ describe('Judge', () => {
     expect(j.done).toBe(true);
   });
 
+  it('Tarde de uma nota já falhada pelo sweep: continua falhada', () => {
+    const j = new Judge([1], [0], 1);
+    expect(j.sweep(1.21)).toEqual([0]);
+    expect(j.press(0, 1.3)).toEqual({ kind: 'late', index: 0, offset: expect.closeTo(0.3, 5) });
+    expect(j.state[0]).toBe(NOTE_MISS);
+    expect(j.press(0, 1.36)).toBeNull();
+  });
+
+  it('depois do sweep, um Tarde ganha ao Cedo da nota seguinte se estiver mais perto', () => {
+    // notas a 0,5 s na mesma faixa: 0,25 tarde da primeira (já falhada), 0,25 cedo da segunda
+    const j = new Judge([1, 1.5], [0, 0], 1);
+    j.sweep(1.25);
+    expect(j.press(0, 1.25)).toMatchObject({ kind: 'late', index: 0 });
+    // mais perto da segunda: Cedo, sem a gastar
+    expect(j.press(0, 1.27)).toMatchObject({ kind: 'early', index: 1 });
+    expect(j.state[1]).toBe(NOTE_PENDING);
+  });
+
+  it('um toque na janela do Bom acerta a nota mesmo com uma falhada mais perto', () => {
+    // 0,21 depois da primeira (falhada) e 0,19 antes da segunda
+    const j = new Judge([1, 1.4], [0, 0], 1);
+    j.sweep(1.21);
+    expect(j.press(0, 1.21)).toMatchObject({ kind: 'good', index: 1 });
+    expect(j.state[0]).toBe(NOTE_MISS);
+  });
+
+  it('as notas já acertadas não dão Tarde', () => {
+    const j = new Judge([1], [0], 1);
+    j.press(0, 1);
+    j.sweep(1.3);
+    expect(j.press(0, 1.3)).toBeNull();
+  });
+
   it('ignora notas já perdidas e procura a seguinte', () => {
     const h = new Judge([1, 1.5], [0, 0], 1).press(0, 1.5);
     expect(h && 'index' in h ? h.index : -1).toBe(1);

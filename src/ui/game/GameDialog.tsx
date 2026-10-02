@@ -10,6 +10,7 @@ import {
   MIN_GAME_FINGERS,
   normalizeGameFingers,
 } from '../../game/config';
+import { changedLagMs } from '../../game/run';
 import { useT } from '../../i18n';
 import { fingerName } from '../../i18n/data';
 import { getState, useStore } from '../../state/store';
@@ -78,6 +79,7 @@ export function GameDialog() {
     closeForPhase();
   };
   const r = game?.phase === 'over' ? game.result : null;
+  const learnedLag = r ? changedLagMs(r) : null;
 
   const toggleFinger = (f: number) => {
     const next = sel.includes(f) ? sel.filter((x) => x !== f) : [...sel, f];
@@ -240,9 +242,9 @@ export function GameDialog() {
           </dl>
           <p className={s.counts}>{tr.counts(r.perfect, r.good, r.miss)}</p>
           {r.meanOffsetMs !== null && <p className={s.counts}>{tr.offset(r.meanOffsetMs)}</p>}
-          {r.lagMs !== null && (
+          {learnedLag !== null && (
             <p className={s.counts} data-testid="game-lag-learned">
-              {tr.lagLearned(r.lagMs)}
+              {tr.lagLearned(learnedLag)}
             </p>
           )}
           <div className={s.actions}>

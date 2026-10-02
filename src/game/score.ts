@@ -33,7 +33,7 @@ export class Score {
     this.combo = 0;
   }
 
-  result(total: number): Omit<GameResult, 'best' | 'lagMs'> {
+  result(total: number): Omit<GameResult, 'best' | 'lagMs' | 'startLagMs'> {
     const hits = this.perfect + this.good;
     return {
       points: this.points,

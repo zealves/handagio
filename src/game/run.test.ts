@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { gameStartBar, GameRun } from './run';
+import { changedLagMs, gameStartBar, GameRun } from './run';
 import type { BackingEvent, Chart } from './types';
 
 const chart: Chart = {
@@ -28,6 +28,25 @@ const make = (lag = 0.1) => {
     { ...timing, lag },
   );
   return { run, played };
+};
+
+// 8 faixas, uma nota em cada, a 0,5 s umas das outras
+const new8 = (lag = 0) => {
+  const c: Chart = {
+    ...chart,
+    lanes: 8,
+    notes: Array.from({ length: 8 }, (_, k) => ({ step: k * 4, lane: k, dur: 4 })),
+  };
+  return { run: new GameRun(c, { playBacking: () => {} }, { ...timing, lag }) };
+};
+// uma faixa com notas a cada tempo (0,5 s a 120 BPM)
+const makeLane = (lag: number) => {
+  const c: Chart = {
+    ...chart,
+    lanes: 1,
+    notes: Array.from({ length: 8 }, (_, k) => ({ step: k * 4, lane: 0, dur: 4 })),
+  };
+  return { run: new GameRun(c, { playBacking: () => {} }, { ...timing, lag }) };
 };
 
 describe('GameRun', () => {
@@ -87,7 +106,12 @@ describe('GameRun', () => {
 
   it('Cedo/Tarde: sem pontos, sem gastar a nota, com o último juízo', () => {
     const { run } = make();
-    expect(run.press(0, 12.4)).toEqual({ kind: 'late', offset: expect.closeTo(0.3, 5), lane: 0 });
+    expect(run.press(0, 12.4)).toEqual({
+      kind: 'late',
+      index: 0,
+      offset: expect.closeTo(0.3, 5),
+      lane: 0,
+    });
     expect(run.score.points).toBe(0);
     expect(run.judge.state[0]).toBe(0);
     expect(run.last).toEqual({ kind: 'late', at: 12.4 });
@@ -110,17 +134,65 @@ describe('GameRun', () => {
       miss: 2,
       total: 3,
       best: true,
+      startLagMs: 100,
       lagMs: null,
     });
   });
 
   it('com 8 toques da câmara, o resultado traz o atraso aprendido', () => {
-    // sem atraso, 0,3 cedo: é sempre "Cedo" (não gasta a nota) e o atraso fica no mínimo
-    const { run } = make(0);
-    for (let k = 0; k < 8; k++) expect(run.press(0, 11.7)?.kind).toBe('early');
+    // 8 notas diferentes, cada uma 0,3 s cedo (sem atraso): são sempre "Cedo" e o atraso desce
+    // até ao mínimo
+    const { run } = new8();
+    for (let k = 0; k < 8; k++) expect(run.press(k, 12 + k * 0.5 - 0.3)?.kind).toBe('early');
     expect(run.cameraHits).toBe(8);
     expect(run.result(false).lagMs).toBe(0);
     expect(run.result(false).lagMs).toBe(Math.round((run.lag * 1000) / 10) * 10);
+  });
+
+  it('Cedo/Tarde repetidos na mesma nota só ensinam o atraso uma vez', () => {
+    const { run } = make(0.1);
+    // 0,3 tarde da nota 0 (12 s), três vezes: o texto aparece sempre, o atraso sobe só uma vez
+    for (let k = 0; k < 3; k++) {
+      expect(run.press(0, 12.4)?.kind).toBe('late');
+      expect(run.last).toEqual({ kind: 'late', at: 12.4 });
+    }
+    expect(run.lag).toBeCloseTo(0.1 + 0.15 * 0.3);
+    expect(run.cameraHits).toBe(1);
+    // um acerto da mesma nota continua a ensinar
+    expect(run.press(0, 12.15)?.kind).toBe('perfect');
+    expect(run.cameraHits).toBe(2);
+  });
+
+  it('um toque tardio depois do sweep diz "Tarde!" e o atraso sobe', () => {
+    const { run } = make(0.1);
+    // 0,3 tarde da nota 0 (já descontado o atraso): o fotograma de 12,35 já a deu como falhada
+    expect(run.update(12.35)).toBe(false);
+    expect(run.score.miss).toBe(1);
+    expect(run.press(0, 12.4)).toMatchObject({ kind: 'late', index: 0, lane: 0 });
+    expect(run.lag).toBeCloseTo(0.1 + 0.15 * 0.3);
+    expect(run.score.miss).toBe(1);
+    expect(run.cameraHits).toBe(1);
+  });
+
+  it('notas a 1 tempo na mesma faixa (como no Difícil): um Tarde não gasta a nota seguinte', () => {
+    const { run } = makeLane(0.125);
+    // nota 0 em 12 s, nota 1 em 12,5 s; o toque fica 0,25 tarde da 0 (12,375 − 0,125)
+    run.update(12.375);
+    expect(run.judge.state[0]).toBe(3);
+    expect(run.press(0, 12.375)).toMatchObject({ kind: 'late', index: 0 });
+    expect(run.judge.state[1]).toBe(0);
+    expect(run.lag).toBeGreaterThan(0.125);
+    expect(run.lag).toBeCloseTo(0.125 + 0.15 * 0.25);
+    // a nota seguinte continua por julgar e acerta-se no tempo dela
+    expect(run.press(0, 12.5 + run.lag)?.kind).toBe('perfect');
+  });
+
+  it('o resultado traz o atraso de partida; só se mostra o aprendido quando mudou', () => {
+    const { run } = make(0.12);
+    expect(run.result(false).startLagMs).toBe(120);
+    expect(changedLagMs({ startLagMs: 120, lagMs: null })).toBeNull();
+    expect(changedLagMs({ startLagMs: 120, lagMs: 120 })).toBeNull();
+    expect(changedLagMs({ startLagMs: 120, lagMs: 150 })).toBe(150);
   });
 
   it('pausa: congela a vista, os toques e os falhados', () => {
@@ -192,6 +264,31 @@ describe('GameRun', () => {
     ]);
     expect(run.update(26.1)).toBe(false);
     expect(run.state).toBe('playing');
+  });
+
+  it('isAtEnd: só em pausa e com a partitura toda já ouvida (a cauda)', () => {
+    // a partitura acaba em 12 + 2 × 16 × 0,125 = 16 s; o último passo (31) começa em 15,875 s
+    const mid = make().run;
+    expect(mid.isAtEnd()).toBe(false);
+    mid.pause(15.8);
+    expect(mid.isAtEnd()).toBe(false);
+    const tail = make().run;
+    tail.pause(16.2);
+    expect(tail.isAtEnd()).toBe(true);
+    const countIn = make().run;
+    countIn.pause(11);
+    expect(countIn.isAtEnd()).toBe(false);
+  });
+
+  it('finishNow: acaba a ronda e dá as notas por julgar como falhadas', () => {
+    const { run } = make();
+    run.press(0, 12.1);
+    run.pause(16.2);
+    run.finishNow(16.2);
+    expect(run.state).toBe('over');
+    expect(run.score.miss).toBe(2);
+    expect(run.judge.done).toBe(true);
+    expect(run.viewNow(17)).toBe(17);
   });
 
   it('pausar durante a entrada recomeça do compasso 1', () => {

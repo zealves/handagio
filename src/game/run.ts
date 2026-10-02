@@ -31,6 +31,8 @@ export interface RunTiming {
 
 export type PressResult = (Hit & { lane: number; note: ChartNote }) | (Near & { lane: number });
 
+const isNear = (r: Hit | Near): r is Near => r.kind === 'early' || r.kind === 'late';
+
 export interface RunDeps {
   playBacking(ev: BackingEvent, when: number): void;
 }
@@ -46,6 +48,10 @@ export function gameStartBar(
 ): { time: number; step: number } {
   return clock.nextBarTime(now + clock.lookahead + START_MARGIN_S);
 }
+
+/** O atraso aprendido a mostrar no resultado: só quando difere do atraso com que se começou. */
+export const changedLagMs = (r: Pick<GameResult, 'lagMs' | 'startLagMs'>): number | null =>
+  r.lagMs !== null && r.lagMs !== r.startLagMs ? r.lagMs : null;
 
 export class GameRun {
   readonly times: number[];
@@ -65,8 +71,10 @@ export class GameRun {
   state: 'countdown' | 'playing' | 'paused' | 'over' = 'countdown';
   /** Atraso atual da câmara (s), aprendido com os toques. */
   lag: number;
-  /** Toques da câmara julgados (acertos e Cedo/Tarde). */
+  /** Toques da câmara julgados (acertos e o primeiro Cedo/Tarde de cada nota). */
   cameraHits = 0;
+  /** Notas que já ensinaram o atraso com um Cedo/Tarde (só o primeiro de cada nota conta). */
+  private readonly nearLearned: Uint8Array;
   private startStep: number;
   private bi = 0;
   private pausedAt: number | null = null;
@@ -94,6 +102,7 @@ export class GameRun {
       chart.lanes,
     );
     this.judgedAt = new Float64Array(chart.notes.length);
+    this.nearLearned = new Uint8Array(chart.notes.length);
     this.hitAt = new Float64Array(chart.lanes).fill(-Infinity);
   }
 
@@ -113,13 +122,18 @@ export class GameRun {
 
   /**
    * Toque numa faixa agora (`now` em tempo de áudio). Os da câmara descontam o atraso e
-   * ensinam-no (`LAG_LEARN` do desvio); os do teclado não. Em pausa ou no fim, null.
+   * ensinam-no (`LAG_LEARN` do desvio); os do teclado não. Cedo/Tarde repetidos na mesma nota
+   * continuam a mostrar o texto, mas só o primeiro ensina o atraso e conta para `cameraHits`.
+   * Em pausa ou no fim, null.
    */
   press(lane: number, now: number, fromCamera = true): PressResult | null {
     if (this.state === 'paused' || this.state === 'over') return null;
     const out = this.judge.press(lane, now - (fromCamera ? this.lag : 0));
     if (!out) return null;
-    if (fromCamera) {
+    const near = isNear(out);
+    const learns = !near || this.nearLearned[out.index] === 0;
+    if (fromCamera && learns) {
+      if (near) this.nearLearned[out.index] = 1;
       this.lag = Math.min(
         LAG_MAX_MS / 1000,
         Math.max(LAG_MIN_MS / 1000, this.lag + LAG_LEARN * out.offset),
@@ -127,8 +141,7 @@ export class GameRun {
       this.cameraHits++;
     }
     this.last = { kind: out.kind, at: now };
-    // `index` só existe num acerto (Hit); o TS não estreita a união só com `out.kind`
-    if (!('index' in out)) return { ...out, lane };
+    if (isNear(out)) return { ...out, lane };
     this.score.hit(out.kind, out.offset);
     this.judgedAt[out.index] = now;
     this.hitAt[lane] = now;
@@ -193,6 +206,25 @@ export class GameRun {
     this.state = 'countdown';
   }
 
+  /**
+   * Em pausa: já não há nada da partitura por ouvir (pausou-se na cauda, depois do último
+   * compasso). A sessão acaba a ronda em vez de tocar uma contagem sem nada a seguir.
+   */
+  isAtEnd(): boolean {
+    return this.state === 'paused' && this.pRel >= this.chart.bars * 16;
+  }
+
+  /** Acaba já a ronda (pausa na cauda): as notas ainda por julgar contam como falhadas. */
+  finishNow(now: number): void {
+    if (this.state === 'over') return;
+    for (const k of this.judge.sweep(Infinity)) {
+      this.score.missed();
+      this.judgedAt[k] = now;
+    }
+    this.pausedAt = null;
+    this.state = 'over';
+  }
+
   /** O instante que o canvas desenha: parado em pausa. */
   viewNow(now: number): number {
     return this.pausedAt ?? now;
@@ -202,6 +234,7 @@ export class GameRun {
     return {
       ...this.score.result(this.chart.notes.length),
       best,
+      startLagMs: roundLagMs(this.timing.lag),
       lagMs: this.cameraHits >= LAG_SAVE_MIN_HITS ? roundLagMs(this.lag) : null,
     };
   }
