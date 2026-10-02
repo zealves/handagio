@@ -109,7 +109,16 @@ export function generateChart(o: GenerateOptions): Chart {
   body.push(end);
 
   const split = Math.max(0, Math.min(lanes, Math.round(o.split ?? Math.floor(lanes / 2))));
-  const playable = alternateHands(enforceMinGap(body, minGapSteps(cfg.bpm)), split, lanes);
+  // Ordem: 1) `alternateHands` põe na outra mão as notas a menos de 1 tempo da anterior;
+  // 2) `enforceMinGap` garante 0,30 s entre notas da mesma mão (com uma só mão, entre todas);
+  // 3) `spaceLanes` garante 1 tempo na mesma faixa. As notas estão em passos pares, por isso,
+  // depois de 1), duas notas seguidas da mesma mão já estão a 1 tempo ou mais e uma nota
+  // mudada de mão fica a ≥ 1 tempo da anterior dessa mão: com as duas mãos, 2) e 3) quase não
+  // têm nada a fazer e não desfazem a alternância (3) só muda notas seguidas na mesma faixa,
+  // logo na mesma mão, e com duas mãos essas já estão a ≥ 1 tempo). Com uma só mão, 1) não
+  // faz nada e 2) e 3) dão o mesmo que antes. Nenhum dos passos tira nem muda a final.
+  const hands = alternateHands(body, split, lanes);
+  const playable = enforceMinGap(hands, minGapSteps(cfg.bpm), split, lanes);
   const notes = spaceLanes(playable, lanes).map((n, k, all): ChartNote => ({
     ...n,
     dur: k + 1 < all.length ? Math.min(BEAT, all[k + 1].step - n.step) : BEAT,
@@ -145,18 +154,25 @@ export function minGapSteps(bpm: number): number {
   return Math.ceil(MIN_NOTE_GAP_S / stepDur - 1e-9);
 }
 
+/** Mão de uma faixa (0: esquerda, `[0, split)`; 1: direita). Com uma só mão, sempre 0. */
+const handOf = (lane: number, split: number, lanes: number): number =>
+  split <= 0 || split >= lanes || lane < split ? 0 : 1;
+
 /**
- * Tira as notas a menos de `steps` da anterior que ficou (ordenadas). A última (a final na
- * tónica) fica sempre: se colidir, sai a anterior.
+ * Tira as notas a menos de `steps` da anterior que ficou na mesma mão (ordenadas; as notas da
+ * outra mão no meio não contam). A última (a final na tónica) fica sempre: se colidir, sai a
+ * anterior da mesma mão. Sem `split`/`lanes`, ou com uma só mão, vale entre todas as notas.
  */
-export function enforceMinGap(ns: Onset[], steps: number): Onset[] {
+export function enforceMinGap(ns: Onset[], steps: number, split = 0, lanes = 0): Onset[] {
   const sorted = [...ns].sort((a, b) => a.step - b.step);
   const out: Onset[] = [];
+  const hand = (n: Onset) => handOf(n.lane, split, lanes);
   sorted.forEach((n, k) => {
-    const prev = out[out.length - 1];
-    if (!prev || n.step - prev.step >= steps) out.push(n);
+    let p = out.length - 1;
+    while (p >= 0 && hand(out[p]) !== hand(n)) p--;
+    if (p < 0 || n.step - out[p].step >= steps) out.push(n);
     else if (k === sorted.length - 1) {
-      out.pop();
+      out.splice(p, 1);
       out.push(n);
     }
   });
@@ -164,14 +180,24 @@ export function enforceMinGap(ns: Onset[], steps: number): Onset[] {
 }
 
 /**
+ * Faixa da outra mão à mesma distância da divisória (o espelho), limitada às faixas dela:
+ * com 4 faixas e `split` 2, 0 ↔ 3 e 1 ↔ 2.
+ */
+export function mirrorLane(lane: number, split: number, lanes: number): number {
+  if (lane < split) return split + Math.min(split - 1 - lane, lanes - split - 1);
+  return split - 1 - Math.min(lane - split, split - 1);
+}
+
+/**
  * Notas a menos de 1 tempo da anterior vão para a outra mão (faixas `[0, split)` são da
- * esquerda), para a faixa mais próxima dela. Com uma só mão não muda nada. A final não muda: se
- * colidir com a anterior, sai a anterior.
+ * esquerda), para a faixa espelhada (`mirrorLane`), para os pares rápidos não ficarem sempre
+ * nos dois dedos do meio. Com uma só mão não muda nada. A final não muda: se colidir com a
+ * anterior, sai a anterior.
  */
 export function alternateHands(ns: Onset[], split: number, lanes: number): Onset[] {
   if (split <= 0 || split >= lanes) return ns;
   const left = (l: number) => l < split;
-  const out = [...ns];
+  const out = [...ns].sort((a, b) => a.step - b.step);
   for (let k = 1; k < out.length; k++) {
     const prev = out[k - 1];
     const n = out[k];
@@ -180,7 +206,7 @@ export function alternateHands(ns: Onset[], split: number, lanes: number): Onset
       out.splice(k - 1, 1);
       break;
     }
-    out[k] = { ...n, lane: left(prev.lane) ? split : split - 1 };
+    out[k] = { ...n, lane: mirrorLane(n.lane, split, lanes) };
   }
   return out;
 }

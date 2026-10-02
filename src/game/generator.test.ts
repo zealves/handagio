@@ -6,6 +6,7 @@ import {
   enforceMinGap,
   generateChart,
   minGapSteps,
+  mirrorLane,
   progressionFor,
   spaceLanes,
 } from './generator';
@@ -233,23 +234,64 @@ describe('notas possíveis na câmara', () => {
     ]);
   });
 
-  it('alternateHands: notas a menos de 1 tempo vão para mãos diferentes', () => {
+  it('enforceMinGap por mão: as notas da outra mão no meio não contam', () => {
+    // 4 faixas, split 2: 0 e 1 são da esquerda
+    const ns = [
+      { step: 0, lane: 0 },
+      { step: 2, lane: 3 },
+      { step: 4, lane: 2 },
+      { step: 6, lane: 1 },
+      { step: 12, lane: 0 },
+    ];
+    // a do 4 sai (a 2 passos da do 2, mesma mão); a do 6 fica (a 6 passos da do 0)
+    expect(enforceMinGap(ns, 3, 2, 4)).toEqual([
+      { step: 0, lane: 0 },
+      { step: 2, lane: 3 },
+      { step: 6, lane: 1 },
+      { step: 12, lane: 0 },
+    ]);
+  });
+
+  it('enforceMinGap por mão: se a final colidir, sai a anterior da mesma mão', () => {
+    const ns = [
+      { step: 0, lane: 0 },
+      { step: 8, lane: 1 },
+      { step: 9, lane: 3 },
+      { step: 10, lane: 0 },
+    ];
+    expect(enforceMinGap(ns, 3, 2, 4)).toEqual([
+      { step: 0, lane: 0 },
+      { step: 9, lane: 3 },
+      { step: 10, lane: 0 },
+    ]);
+  });
+
+  it('mirrorLane: a mesma distância da divisória, na outra mão', () => {
+    expect([0, 1, 2, 3].map((l) => mirrorLane(l, 2, 4))).toEqual([3, 2, 1, 0]);
+    // mãos desiguais: limitada às faixas da outra mão
+    expect([0, 1, 2, 3, 4, 5].map((l) => mirrorLane(l, 2, 6))).toEqual([3, 2, 1, 0, 0, 0]);
+    expect([0, 1, 2].map((l) => mirrorLane(l, 1, 3))).toEqual([1, 0, 0]);
+  });
+
+  it('alternateHands: notas a menos de 1 tempo vão para a faixa espelhada da outra mão', () => {
     // 4 faixas, 2 da esquerda: 0 e 1 são da esquerda
     const out = alternateHands(
       [
-        { step: 0, lane: 0 },
-        { step: 2, lane: 1 },
+        { step: 0, lane: 1 },
+        { step: 2, lane: 0 },
         { step: 8, lane: 1 },
+        { step: 10, lane: 1 },
         { step: 16, lane: 3 },
       ],
       2,
       4,
     );
-    // a do passo 2 passa para a direita (a faixa mais próxima: 2); as outras ficam
+    // a do 2 (faixa 0, a mais longe da divisória) passa para a 3; a do 10 (faixa 1) para a 2
     expect(out).toEqual([
-      { step: 0, lane: 0 },
-      { step: 2, lane: 2 },
+      { step: 0, lane: 1 },
+      { step: 2, lane: 3 },
       { step: 8, lane: 1 },
+      { step: 10, lane: 2 },
       { step: 16, lane: 3 },
     ]);
   });
@@ -280,31 +322,70 @@ describe('notas possíveis na câmara', () => {
     ]);
   });
 
-  it('gerador: nunca menos de 0,30 s entre notas e mãos alternadas nas próximas', () => {
+  const SPLITS = [
+    [4, 2],
+    [4, 0],
+    [4, 4],
+    [6, 3],
+    [8, 4],
+    [3, 1],
+    [2, 1],
+  ] as const;
+  const hand = (lane: number, split: number, lanes: number) =>
+    split <= 0 || split >= lanes || lane < split ? 0 : 1;
+
+  it('gerador: 0,30 s entre notas da mesma mão e 1 tempo na mesma faixa', () => {
     for (const d of DIFFICULTIES)
       for (const seed of seeds)
-        for (const [lanes, split] of [
-          [4, 2],
-          [4, 0],
-          [4, 4],
-          [6, 3],
-          [8, 4],
-          [3, 1],
-          [2, 1],
-        ] as const) {
+        for (const [lanes, split] of SPLITS) {
           const c = generateChart({ difficulty: d, seed, scaleSize: 7, lanes, split });
           const gap = minGapSteps(DIFFICULTY[d].bpm);
-          const both = split > 0 && split < lanes;
+          const lastOf = new Map<number, number>();
           c.notes.forEach((n, k) => {
+            const h = hand(n.lane, split, lanes);
+            const p = lastOf.get(h);
+            if (p !== undefined) expect(n.step - p).toBeGreaterThanOrEqual(gap);
+            lastOf.set(h, n.step);
             if (k === 0) return;
             const prev = c.notes[k - 1];
-            expect(n.step - prev.step).toBeGreaterThanOrEqual(gap);
-            if (both && n.step - prev.step < 4) expect(n.lane < split).not.toBe(prev.lane < split);
+            expect(n.step).toBeGreaterThan(prev.step);
             if (n.lane === prev.lane) expect(n.step - prev.step).toBeGreaterThanOrEqual(4);
           });
           const last = c.notes[c.notes.length - 1];
           expect(last.step).toBe((c.bars - 1) * 16);
           expect(last.lane % 7).toBe(0);
         }
+  });
+
+  it('gerador: com uma só mão, nunca menos de 0,30 s entre notas seguidas', () => {
+    for (const d of DIFFICULTIES)
+      for (const seed of seeds)
+        for (const split of [0, 4]) {
+          const c = generateChart({ difficulty: d, seed, scaleSize: 7, lanes: 4, split });
+          const gap = minGapSteps(DIFFICULTY[d].bpm);
+          c.notes.forEach((n, k) => {
+            if (k) expect(n.step - c.notes[k - 1].step).toBeGreaterThanOrEqual(gap);
+          });
+        }
+  });
+
+  it('gerador: com as duas mãos, Médio e Difícil têm notas rápidas, sempre em mãos alternadas', () => {
+    for (const d of ['medium', 'hard'] as const)
+      for (const [lanes, split] of SPLITS) {
+        if (split <= 0 || split >= lanes) continue;
+        let fast = 0;
+        for (const seed of seeds) {
+          const c = generateChart({ difficulty: d, seed, scaleSize: 7, lanes, split });
+          c.notes.forEach((n, k) => {
+            if (k === 0) return;
+            const prev = c.notes[k - 1];
+            if (n.step - prev.step >= 4) return;
+            fast++;
+            expect(hand(n.lane, split, lanes)).not.toBe(hand(prev.lane, split, lanes));
+          });
+        }
+        // por ronda: ~50 no Médio e ~120 no Difícil com 4 faixas; aqui basta muitas
+        expect(fast, `${d} ${lanes}/${split}`).toBeGreaterThanOrEqual(seeds.length * 20);
+      }
   });
 });
