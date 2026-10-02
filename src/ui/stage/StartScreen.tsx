@@ -3,7 +3,7 @@
 // e as saídas.
 import { session } from '../../app/session';
 import { LANG_NAMES, LANGS, setLang, useT } from '../../i18n';
-import { getState, useStore } from '../../state/store';
+import { useStore } from '../../state/store';
 import { IconGamepad, IconPlay } from '../icons/UiIcons';
 import s from './StartScreen.module.css';
 
@@ -33,12 +33,7 @@ export function StartScreen() {
         <button
           type="button"
           className={s.go}
-          onClick={() =>
-            void session.start().then(() => {
-              const st = getState();
-              if (st.started && !st.cameraError) session.openGame();
-            })
-          }
+          onClick={() => void session.start({ game: true })}
           aria-describedby="start-privacy"
           data-testid="start-game"
         >

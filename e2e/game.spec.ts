@@ -146,7 +146,8 @@ test.describe('modo de jogo', () => {
     // start-game sem nenhuma preparação extra
     await page.goto('/?debug');
     await page.getByTestId('start-game').click();
-    await expect(page.getByTestId('game-dialog')).toBeVisible({ timeout: 30_000 });
+    // abre logo que a câmara abre, sem esperar pelos detetores (decisão 68)
+    await expect(page.getByTestId('game-dialog')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByTestId('mode-game')).toHaveAttribute('aria-pressed', 'true');
   });
 

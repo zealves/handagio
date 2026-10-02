@@ -610,6 +610,12 @@ class Session {
     const g = this.game;
     if (!g || g.run.state !== 'paused') return;
     this.ensureAudio();
+    if (g.run.isAtEnd()) {
+      // pausou-se na cauda, depois da última nota: não há nada para retomar, vai ao resultado
+      g.run.finishNow(audio.now);
+      this.finishGame();
+      return;
+    }
     const { time, step } = gameStartBar(this.clock, audio.now);
     g.run.resume(step, time);
     const ui = getState().game;
@@ -800,8 +806,10 @@ class Session {
   /**
    * Liga o som e a câmara. Se a câmara falhar, fica no modo teclado com o erro em `cameraError`
    * (o palco oferece tentar outra vez ou tocar no ecrã) e pode voltar a ser chamado.
+   * Com `game`, o cartão do jogo abre logo que a câmara abre (sem esperar pelos detetores, que
+   * podem levar segundos), a menos que já haja um jogo aberto; se a câmara falhar, não abre.
    */
-  async start(): Promise<void> {
+  async start(opts: { game?: boolean } = {}): Promise<void> {
     this.ensureAudio();
     if (this.cameraBusy) return;
     this.cameraBusy = true;
@@ -822,6 +830,7 @@ class Session {
     }
     // com a câmara ligada, o teclado tátil (de quem começou sem câmara) sai do caminho
     setState({ touchKeys: false, status: t().status.cameraOn });
+    if (opts.game && getState().game === null) this.openGame();
     try {
       await this.hands.init(LOAD_TIMEOUT_MS);
       setState({
