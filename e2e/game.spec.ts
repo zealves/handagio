@@ -99,8 +99,8 @@ test.describe('modo de jogo', () => {
     await expect(page.getByTestId('game-paused')).toBeVisible();
     await expect(page.getByTestId('game-track')).toBeVisible();
     expect(((await field(page, 'game')) as { phase: string }).phase).toBe('paused');
-    // um segundo Esc continua a ronda; o evento `close` nativo do <dialog> só dispara numa
-    // tarefa à parte (fica hidden antes de a fase mudar), por isso aqui espera-se a fase
+    // um segundo Esc continua a ronda (o `cancel` do <dialog> muda logo a fase; se o browser
+    // fechar sem `cancel`, só o `close` a seguir a muda, por isso espera-se a fase)
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('game-paused')).toBeHidden();
     await expect
@@ -201,7 +201,7 @@ test.describe('modo de jogo', () => {
     const dlg = page.getByTestId('game-dialog');
     await expect(dlg).toBeVisible();
     // o `close` do cartão do menu chega numa tarefa à parte, já com o <dialog> aberto na pausa
-    const closedBetween = await page.evaluate(async () => {
+    const result = await page.evaluate(async () => {
       const v = (window as unknown as { __vsc: Vsc }).__vsc;
       const d = document.querySelector<HTMLDialogElement>('[data-testid="game-dialog"]')!;
       v.session.startGame('easy');
@@ -209,13 +209,55 @@ test.describe('modo de jogo', () => {
       for (let i = 0; i < 5; i++) await Promise.resolve();
       const closed = !d.open;
       v.session.pauseGame();
-      return closed;
+      // esvazia a fila: o `close` antigo chega numa destas tarefas
+      for (let i = 0; i < 2; i++) await new Promise((r) => setTimeout(r, 0));
+      const phase = (v.store.getState().game as { phase: string } | null)?.phase;
+      return { closed, phase, open: d.open };
     });
-    expect(closedBetween).toBe(true);
+    expect(result).toEqual({ closed: true, phase: 'paused', open: true });
     await expect(page.getByTestId('game-paused')).toBeVisible();
-    await page.waitForTimeout(300);
-    expect(((await field(page, 'game')) as { phase: string }).phase).toBe('paused');
-    await expect(page.getByTestId('game-paused')).toBeVisible();
+  });
+
+  // sem interação desde a abertura, o browser fecha o <dialog> sem `cancel` ou com um `cancel`
+  // que não se pode cancelar; simula-se aqui com eventos sintéticos e `d.close()`
+  const closeLikeBrowser = (page: Page, withCancel: boolean) =>
+    page.evaluate(async (withCancel) => {
+      const v = (window as unknown as { __vsc: Vsc }).__vsc;
+      const d = document.querySelector<HTMLDialogElement>('[data-testid="game-dialog"]')!;
+      if (withCancel) d.dispatchEvent(new Event('cancel', { cancelable: false }));
+      d.close();
+      for (let i = 0; i < 2; i++) await new Promise((r) => setTimeout(r, 0));
+      await new Promise((r) => requestAnimationFrame(r));
+      const g = v.store.getState().game as { phase: string } | null;
+      return { phase: g?.phase ?? null, open: d.open };
+    }, withCancel);
+
+  async function reachResult(page: Page) {
+    await page.evaluate(() => {
+      (window as unknown as { __vsc: Vsc }).__vsc.session.gameBars = 2;
+    });
+    await startEasy(page);
+    await hitNotes(page, 99);
+    await expect(page.getByTestId('game-result')).toBeVisible({ timeout: 15_000 });
+  }
+
+  test('resultado: cancel que não se pode cancelar volta ao menu só uma vez', async ({ page }) => {
+    await reachResult(page);
+    expect(await closeLikeBrowser(page, true)).toEqual({ phase: 'setup', open: true });
+    await expect(page.getByTestId('game-dialog').getByTestId('game-start')).toBeVisible();
+  });
+
+  test('resultado: fecho do browser sem cancel volta ao menu', async ({ page }) => {
+    await reachResult(page);
+    expect(await closeLikeBrowser(page, false)).toEqual({ phase: 'setup', open: true });
+    await expect(page.getByTestId('game-dialog').getByTestId('game-start')).toBeVisible();
+  });
+
+  test('menu: fecho do browser sem cancel sai para o livre', async ({ page }) => {
+    await page.getByTestId('mode-game').click();
+    await expect(page.getByTestId('game-dialog')).toBeVisible();
+    expect(await closeLikeBrowser(page, false)).toEqual({ phase: null, open: false });
+    await expect(page.getByTestId('pills')).toBeVisible();
   });
 
   test('esconder o separador pausa a partida sem recorde', async ({ page }) => {
@@ -370,25 +412,62 @@ test.describe('modo de jogo', () => {
     await expect(dlg.getByTestId('game-lag')).toBeVisible();
   });
 
-  test('320×568: os dedos das pontas ficam visíveis e tocáveis no cartão', async ({ page }) => {
+  test('320×568: cada dedo é visível, a pílula toca sempre no seu botão e tem a sua faixa', async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 320, height: 568 });
     await page.goto('/?debug');
     await page.getByTestId('start-touch').click();
     await page.getByTestId('mode-game').click();
     const dlg = page.getByTestId('game-dialog');
     await expect(dlg).toBeVisible();
-    for (const id of ['game-finger-1', 'game-finger-6', 'game-finger-9']) {
+    // abaixo de 400 px os alvos alargados (`::before`) dos vizinhos sobrepõem-se uns aos outros:
+    // duas mãos de cinco dedos não cabem com 44 px cada em 320 px (exceção da decisão 69). Por
+    // isso mede-se o que um toque acerta de facto: toda a pílula tem de acertar no seu botão e
+    // cada dedo tem uma faixa só sua com, pelo menos, o passo da fila (pílula de 22 px + 3 px de
+    // intervalo: mais do que isso só tirando a um vizinho) de largura e ≥44 px de altura
+    for (const f of [1, 2, 3, 4, 6, 7, 8, 9]) {
+      const id = `game-finger-${f}`;
       const el = dlg.getByTestId(id);
       await el.scrollIntoViewIfNeeded();
       await expect(el, id).toBeInViewport({ ratio: 1 });
-      // o alvo de toque alarga para 44×44 por um `::before` absoluto (ver FingerPicker.module.css:
-      // "alvo de toque ≥44×44: por cima da pílula"), sem alargar a fila — por isso mede-se o
-      // pseudo-elemento, não a caixa do próprio botão (mais estreita que a pílula visível)
-      const target = await el.evaluate((e) => {
-        const cs = getComputedStyle(e, '::before');
-        return { width: parseFloat(cs.width), height: parseFloat(cs.height) };
+      const m = await el.evaluate((btn) => {
+        const hits = (x: number, y: number) =>
+          document.elementFromPoint(x, y)?.closest('button') === btn;
+        const pill = btn.querySelector('span')!.getBoundingClientRect();
+        // só os pontos dentro da forma visível da pílula (topo em meia-lua, cantos de baixo com
+        // 10 px de raio): os cantos arredondados não contam como pílula para o toque
+        const r = pill.width / 2;
+        const inside = (x: number, y: number) => {
+          const dx = x - (pill.left + r);
+          if (y < pill.top + r) return dx * dx + (y - pill.top - r) ** 2 <= (r - 1) ** 2;
+          const rb = 10;
+          const by = pill.bottom - rb;
+          if (y > by && Math.abs(dx) > r - rb)
+            return (Math.abs(dx) - (r - rb)) ** 2 + (y - by) ** 2 <= (rb - 1) ** 2;
+          return true;
+        };
+        // pontos a meio de cada píxel da pílula (as margens podem cair a meio píxel)
+        let pillMiss = 0;
+        for (let x = pill.left + 0.5; x < pill.right; x++)
+          for (let y = pill.top + 0.5; y < pill.bottom; y += 2)
+            if (inside(x, y) && !hits(x, y)) pillMiss++;
+        const box = btn.getBoundingClientRect();
+        const cx = (box.left + box.right) / 2;
+        const cy = box.bottom - 2;
+        let left = cx;
+        while (hits(left - 1, cy)) left--;
+        let right = cx;
+        while (hits(right + 1, cy)) right++;
+        let top = cy;
+        while (hits(cx, top - 1)) top--;
+        let bottom = cy;
+        while (hits(cx, bottom + 1)) bottom++;
+        return { pillMiss, width: right - left + 1, height: bottom - top + 1 };
       });
-      expect(Math.min(target.width, target.height), id).toBeGreaterThanOrEqual(44);
+      expect(m.pillMiss, `${id}: pontos da pílula fora do botão`).toBe(0);
+      expect(m.width, `${id}: largura só sua`).toBeGreaterThanOrEqual(25);
+      expect(m.height, `${id}: altura`).toBeGreaterThanOrEqual(44);
     }
   });
 });
