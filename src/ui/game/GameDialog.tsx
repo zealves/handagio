@@ -24,6 +24,9 @@ export function GameDialog() {
   // só conta como "fora" se o gesto também começou no fundo (senão arrastar o atraso e largar
   // por cima dele, fora do cartão, saía do jogo sem querer)
   const downOnBackdrop = useRef(false);
+  // a fase anterior, para o efeito abaixo distinguir "o menu abriu agora mesmo" (fase anterior
+  // nula) de "voltou ao menu" (fase anterior pausa ou resultado)
+  const prevPhaseRef = useRef<string | null>(null);
   const id = useId();
   const open = game !== null && game.phase !== 'playing';
 
@@ -37,11 +40,25 @@ export function GameDialog() {
     } else if (!open && d.open) d.close();
   }, [open]);
 
-  // o menu do jogo (fase `setup`) pode aparecer com o diálogo já aberto — pausa ou resultado a
-  // chamar `backToMenu()` — e nesse caso o efeito acima não corre (o `open` já era `true`); sem
-  // isto o botão que tinha o foco desaparece com o cartão anterior e o foco cai para <body>
+  // o menu do jogo (fase `setup`) pode voltar a aparecer com o diálogo já aberto — pausa ou
+  // resultado a chamar `backToMenu()` — e nesse caso o efeito acima não corre (o `open` já era
+  // `true`); sem isto o botão que tinha o foco desaparece com o cartão anterior e o foco cai
+  // para <body>. Só foca o Começar nesse regresso (fase anterior pausa/resultado): na primeira
+  // vez que o menu abre (fase anterior nula) o foco por defeito fica no primeiro botão (a
+  // dificuldade), como seria sem este efeito — focar o Começar aí só serviria para, com o
+  // cartão a transbordar do ecrã (telemóveis pequenos), arrastar o scroll para baixo e esconder
+  // o título. `preventScroll` e repor o scroll a 0 mantêm o cartão visto do topo neste regresso.
   useEffect(() => {
-    if (game?.phase === 'setup' && ref.current?.open) startRef.current?.focus();
+    const prevPhase = prevPhaseRef.current;
+    prevPhaseRef.current = game?.phase ?? null;
+    if (
+      game?.phase === 'setup' &&
+      ref.current?.open &&
+      (prevPhase === 'paused' || prevPhase === 'over')
+    ) {
+      startRef.current?.focus({ preventScroll: true });
+      ref.current.scrollTop = 0;
+    }
   }, [game?.phase]);
 
   // fechar ao começar ou ao continuar (a fase já mudou) não sai do jogo; na pausa, fechar (Esc
