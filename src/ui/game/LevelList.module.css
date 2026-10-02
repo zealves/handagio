@@ -1,14 +1,18 @@
-/* Separador Níveis do menu do jogo: um cartão por nível. */
+/* Separador Níveis do menu do jogo: 3 cartões numa só linha, como a dificuldade do Treino
+   (GameDialog.module.css `.levels`), para o Jogar continuar visível sem scroll a 1280×800. */
 .list {
   display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
 .card {
   display: grid;
-  gap: 4px;
+  align-content: start;
+  justify-items: center;
+  gap: 1px;
   min-height: 44px;
-  padding: 10px 12px;
-  text-align: left;
+  padding: 8px 6px;
+  text-align: center;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--tile-bg);
@@ -25,38 +29,24 @@
 .card:disabled {
   opacity: 0.55;
 }
-.head {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-.head b {
-  font-family: var(--font-title);
-  font-size: 13px;
-}
-.head span {
-  font-weight: 600;
-}
+.num,
 .instrument {
-  font-size: 12px;
   color: var(--muted);
-}
-.best {
-  font-size: 12px;
-  color: var(--muted);
+  font-size: 11px;
 }
 .locked {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 4px;
   color: var(--muted);
+  font-size: 11px;
 }
 .stars {
-  font-size: 15px;
-  letter-spacing: 2px;
+  font-size: 13px;
+  letter-spacing: 1px;
   color: var(--cyan);
 }
+/* resultado de um nível: estrelas grandes, centradas no cartão */
 .starsBig {
   font-size: 32px;
   letter-spacing: 4px;

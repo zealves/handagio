@@ -12,6 +12,11 @@ export function instrumentText(id: string): { name: string; desc: string } {
   return t().data.instruments[id] ?? { name: pt?.name ?? id, desc: pt?.desc ?? '' };
 }
 
+/** Nome i18n de um nível do modo de jogo (`src/game/levels.ts`) pelo id, com o próprio id como
+    rede de segurança. */
+export const levelName = (id: string): string =>
+  (t().game.levelNames as Record<string, string>)[id] ?? id;
+
 export const familyLabel = (f: Family | string): string => t().data.families[f] ?? f;
 export const scaleLabel = (s: ScaleName): string => t().data.scales[s] ?? s;
 export const scaleGroupLabel = (g: string): string => t().data.scaleGroups[g] ?? g;

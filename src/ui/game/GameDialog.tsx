@@ -6,17 +6,12 @@ import { DIFFICULTIES, LAG_MAX_MS, LAG_MIN_MS, LAG_STEP_MS } from '../../game/co
 import { isUnlocked, LEVELS, levelIndex } from '../../game/levels';
 import { changedLagMs } from '../../game/run';
 import { useT } from '../../i18n';
-import { instrumentText } from '../../i18n/data';
+import { instrumentText, levelName } from '../../i18n/data';
 import { getState, useStore } from '../../state/store';
 import { InstrumentPicker } from '../shell/InstrumentPicker';
 import { FingerPicker } from './FingerPicker';
 import s from './GameDialog.module.css';
 import { LevelList, Stars } from './LevelList';
-
-/** Nome i18n de um nível pelo id, com o próprio id como rede de segurança. */
-function levelName(tr: ReturnType<typeof useT>['game'], id: string): string {
-  return tr.levelNames[id as keyof typeof tr.levelNames] ?? id;
-}
 
 export function GameDialog() {
   const game = useStore((st) => st.game);
@@ -42,6 +37,7 @@ export function GameDialog() {
   // nula) de "voltou ao menu" (fase anterior ronda, pausa ou resultado)
   const prevPhaseRef = useRef<string | null>(null);
   const id = useId();
+  const instId = `${id}-inst`;
   const open = game !== null && game.phase !== 'playing';
 
   // quantos `close` nativos ainda vão chegar de fechos pedidos por nós (`d.close()` abaixo): o
@@ -83,11 +79,12 @@ export function GameDialog() {
   // resultado a chamar `backToMenu()` — e nesse caso o efeito acima não chama `showModal()` (o
   // <dialog> já estava aberto), que é quem foca; sem isto o botão que tinha o foco desaparece com
   // o cartão anterior e o foco cai para <body>. Vindo da ronda (o ✕ da pista), o `showModal()`
-  // do efeito acima focaria a dificuldade; aqui fica também no Jogar, como nos outros regressos.
+  // do efeito acima focaria o separador Níveis (o 1.º botão focável); aqui fica também no Jogar,
+  // como nos outros regressos.
   // Só foca o Jogar nesse regresso (fase anterior ronda/pausa/resultado): na primeira vez que o
-  // menu abre (fase anterior nula) o foco por defeito fica no primeiro botão (a dificuldade),
-  // como seria sem este efeito — focar o Jogar aí só serviria para, com o cartão a transbordar
-  // do ecrã (telemóveis pequenos), arrastar o scroll para baixo e esconder o título.
+  // menu abre (fase anterior nula) o foco por defeito fica no primeiro botão (o separador
+  // Níveis), como seria sem este efeito — focar o Jogar aí só serviria para, com o cartão a
+  // transbordar do ecrã (telemóveis pequenos), arrastar o scroll para baixo e esconder o título.
   // `preventScroll` e repor o scroll a 0 mantêm o cartão visto do topo neste regresso.
   useEffect(() => {
     const prevPhase = prevPhaseRef.current;
@@ -205,13 +202,18 @@ export function GameDialog() {
                   type="button"
                   className={s.instrumentToggle}
                   aria-expanded={instrumentOpen}
+                  aria-controls={instId}
                   onClick={() => setInstrumentOpen((v) => !v)}
                   data-testid="game-instrument"
                 >
                   <span>{tr.instrument(instrumentText(instrument).name)}</span>
                   <span aria-hidden="true">{instrumentOpen ? '▾' : '▸'}</span>
                 </button>
-                {instrumentOpen && <InstrumentPicker />}
+                {instrumentOpen && (
+                  <div id={instId}>
+                    <InstrumentPicker />
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -291,13 +293,13 @@ export function GameDialog() {
       )}
       {r && game && (
         <div className={s.body} data-testid="game-result">
-          <h2 id={`${id}-t`}>{r.levelId ? levelName(tr, r.levelId) : tr.over}</h2>
+          <h2 id={`${id}-t`}>{r.levelId ? levelName(r.levelId) : tr.over}</h2>
           {r.levelId && (
             <>
               <Stars n={r.stars ?? 0} big testId="game-stars" />
               {r.unlocked && (
                 <p className={s.unlocked} data-testid="game-unlocked">
-                  {tr.unlocked(levelName(tr, r.unlocked))}
+                  {tr.unlocked(levelName(r.unlocked))}
                 </p>
               )}
             </>
