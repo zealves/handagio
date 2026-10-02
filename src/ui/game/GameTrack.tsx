@@ -39,7 +39,11 @@ export function GameTrack() {
         >
           <IconPause />
         </IconButton>
-        <IconButton label={tr.game.exit} onClick={() => session.stopGame()} data-testid="game-exit">
+        <IconButton
+          label={tr.game.menu}
+          onClick={() => session.backToMenu()}
+          data-testid="game-exit"
+        >
           <IconClose />
         </IconButton>
       </div>

@@ -370,10 +370,15 @@ const pt = {
     title: 'Modo de jogo',
     intro:
       'Dobra o dedo certo quando a nota chega à linha. Cada dobra toca a nota da faixa; os pontos dependem do tempo.',
+    menu: 'Menu do jogo',
+    freeMode: 'Modo livre',
     difficulty: 'Dificuldade',
     levels: { easy: 'Fácil', medium: 'Médio', hard: 'Difícil' },
     levelDesc: { easy: 'Devagar', medium: 'Moderado', hard: 'Rápido' },
     fingers: 'Dedos',
+    hands: { left: 'Mão esquerda', right: 'Mão direita' },
+    thumbsOff: 'Os polegares não jogam',
+    presets: { left: 'Só esquerda', right: 'Só direita', pairs: 'Indicadores e médios' },
     lanes: (n: number) => `${n} faixas`,
     minFingers: 'Pelo menos 2 dedos',
     keysHint: (keys: string) => `Teclado: ${keys}`,
@@ -381,11 +386,10 @@ const pt = {
     fingerShort: ['Pol', 'Ind', 'Méd', 'Anel', 'Mind'],
     best: (n: number) => `Recorde: ${n}`,
     noBest: 'Sem recorde',
+    advanced: 'Avançado',
     lag: (ms: number) => `Atraso da câmara: ${ms} ms`,
     lagHint: 'Ponto de partida (o jogo afina-o sozinho com a câmara).',
     start: 'Começar',
-    cancel: 'Cancelar',
-    exit: 'Sair do jogo',
     pause: 'Pausa (P)',
     paused: 'Em pausa',
     resume: 'Continuar',
@@ -406,8 +410,8 @@ const pt = {
         : ms > 0
           ? `Tocas em média ${ms} ms tarde.`
           : `Tocas em média ${-ms} ms cedo.`,
+    lateTaps: (n: number) => `Dobras vistas tarde: ${n}`,
     again: 'Jogar outra vez',
-    quit: 'Sair',
   },
   meta: {
     htmlLang: 'pt-PT',

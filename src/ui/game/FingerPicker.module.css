@@ -1,0 +1,132 @@
+/* Seletor de dedos: duas mãos desenhadas em CSS, lado a lado (a esquerda à esquerda, os
+   mindinhos por fora), cada uma com 5 pílulas verticais sobre uma palma arredondada. */
+.picker {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.legend {
+  padding: 0;
+  margin-bottom: 2px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.hands {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.hand {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.handTitle {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.graphic {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+.fingerRow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 1px;
+  z-index: 1;
+}
+/* o botão é sempre o alvo de toque (≥44×44); a pílula visível (abaixo) pode ficar mais estreita
+   em ecrãs pequenos, com o espaço a mais a entrar no padding do botão */
+.finger {
+  appearance: none;
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  cursor: pointer;
+}
+.finger:disabled {
+  cursor: not-allowed;
+}
+/* o polegar fica mais baixo e um pouco de lado, como na mão real */
+.thumb {
+  transform: translateY(14px);
+  margin: 0 -2px;
+}
+.pill {
+  display: block;
+  width: 34px;
+  height: var(--h);
+  max-height: 120px;
+  border-radius: 999px 999px 10px 10px;
+  border: 1px solid var(--line);
+  background: transparent;
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
+}
+.finger[aria-pressed='true'] .pill {
+  border-color: transparent;
+  background: var(--c);
+  box-shadow: 0 0 10px var(--c);
+}
+.finger:disabled .pill {
+  background: var(--muted);
+  border-color: var(--line);
+  opacity: 0.45;
+  box-shadow: none;
+}
+.palm {
+  width: 100%;
+  max-width: 132px;
+  height: 44px;
+  margin-top: -14px;
+  border-radius: 40% 40% 14px 14px / 60% 60% 14px 14px;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  border: 1px solid var(--line);
+}
+.minFingers,
+.lanesInfo {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.preset {
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 600;
+}
+.preset[aria-pressed='true'] {
+  border-color: var(--cyan);
+  background: color-mix(in srgb, var(--cyan) 14%, transparent);
+}
+
+/* abaixo de 400 px, a pílula fica mais estreita, mas o alvo (.finger) mantém 44 px */
+@media (max-width: 400px) {
+  .pill {
+    width: 22px;
+  }
+}

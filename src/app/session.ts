@@ -547,6 +547,7 @@ class Session {
       scaleSize: scaleLength(s.scale),
       lanes: fingers.length,
       bars: this.gameBars ?? undefined,
+      split: fingers.filter((f) => f < 5).length,
     });
     this.clock.setBpm(chart.bpm);
     const { time: t0, step: startStep } = gameStartBar(this.clock, audio.now);
@@ -574,6 +575,15 @@ class Session {
       this.endGame();
     }
     if (getState().game) setState({ game: null });
+  }
+
+  /** Volta ao menu do jogo (pausa, ✕ da pista ou resultado): acaba a ronda sem recorde. */
+  backToMenu(): void {
+    if (this.game) {
+      this.saveLearnedLag(this.game);
+      this.endGame();
+    }
+    this.openGame();
   }
 
   private finishGame(): void {

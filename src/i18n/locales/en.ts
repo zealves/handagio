@@ -478,10 +478,15 @@ const en = {
     title: 'Game mode',
     intro:
       'Bend the right finger when the note reaches the line. Every bend plays its lane’s note; points depend on timing.',
+    menu: 'Game menu',
+    freeMode: 'Free play',
     difficulty: 'Difficulty',
     levels: { easy: 'Easy', medium: 'Medium', hard: 'Hard' },
     levelDesc: { easy: 'Slow', medium: 'Moderate', hard: 'Fast' },
     fingers: 'Fingers',
+    hands: { left: 'Left hand', right: 'Right hand' },
+    thumbsOff: 'Thumbs don’t play',
+    presets: { left: 'Left only', right: 'Right only', pairs: 'Index and middle' },
     lanes: (n: number) => `${n} lanes`,
     minFingers: 'At least 2 fingers',
     keysHint: (keys: string) => `Keyboard: ${keys}`,
@@ -489,11 +494,10 @@ const en = {
     fingerShort: ['Th', 'Ind', 'Mid', 'Ring', 'Pinky'],
     best: (n: number) => `Best: ${n}`,
     noBest: 'No best yet',
+    advanced: 'Advanced',
     lag: (ms: number) => `Camera delay: ${ms} ms`,
     lagHint: 'Starting point (the game tunes it by itself with the camera).',
     start: 'Start',
-    cancel: 'Cancel',
-    exit: 'Leave the game',
     pause: 'Pause (P)',
     paused: 'Paused',
     resume: 'Resume',
@@ -514,8 +518,8 @@ const en = {
         : ms > 0
           ? `You play ${ms} ms late on average.`
           : `You play ${-ms} ms early on average.`,
+    lateTaps: (n: number) => `Bends seen late: ${n}`,
     again: 'Play again',
-    quit: 'Leave',
   },
   meta: {
     htmlLang: 'en',

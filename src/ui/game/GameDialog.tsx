@@ -1,36 +1,13 @@
-// Modo de jogo: cartão de entrada (dificuldade, dedos, atraso), cartão de pausa e cartão de
+// Modo de jogo: menu do jogo (dificuldade, dedos, avançado), cartão de pausa e cartão de
 // resultado. A pausa não fecha o cartão: fica aqui, por cima da pista congelada (Tarefa 3).
 import { useEffect, useId, useRef } from 'react';
 import { session } from '../../app/session';
-import {
-  DIFFICULTIES,
-  LAG_MAX_MS,
-  LAG_MIN_MS,
-  LAG_STEP_MS,
-  MIN_GAME_FINGERS,
-  normalizeGameFingers,
-} from '../../game/config';
+import { DIFFICULTIES, LAG_MAX_MS, LAG_MIN_MS, LAG_STEP_MS } from '../../game/config';
 import { changedLagMs } from '../../game/run';
 import { useT } from '../../i18n';
-import { fingerName } from '../../i18n/data';
 import { getState, useStore } from '../../state/store';
-import { KEYMAP } from '../../vision/fingerMap';
+import { FingerPicker } from './FingerPicker';
 import s from './GameDialog.module.css';
-
-/** Dedos do seletor, pela ordem do ecrã de cada mão (sem polegares). */
-const LEFT_HAND_FINGERS = [4, 3, 2, 1];
-const RIGHT_HAND_FINGERS = [6, 7, 8, 9];
-
-/**
- * Tecla de cada dedo (maiúscula), a partir do `KEYMAP` do modo teclado, exceto o dedo 9: esse
- * tem duas teclas, uma por teclado (`ç` no português, `;` no inglês), por isso vem de
- * `start.rightKeys` (que já distingue a língua) em vez do `KEYMAP` (ver `keyForFinger` abaixo).
- */
-const KEY_FOR_FINGER: Partial<Record<number, string>> = {};
-for (const [key, finger] of Object.entries(KEYMAP)) {
-  if (finger === 9) continue;
-  if (!(finger in KEY_FOR_FINGER)) KEY_FOR_FINGER[finger] = key.toUpperCase();
-}
 
 export function GameDialog() {
   const game = useStore((st) => st.game);
@@ -60,12 +37,13 @@ export function GameDialog() {
   }, [open]);
 
   // fechar ao começar ou ao continuar (a fase já mudou) não sai do jogo; na pausa, fechar (Esc
-  // ou fora) continua a ronda; em setup/resultado, sai
+  // ou fora) continua a ronda; no menu, sai para o modo livre; no resultado, volta ao menu
   const closeForPhase = () => {
     const g = getState().game;
     if (!g) return;
-    if (g.phase === 'paused') session.resumeGame();
-    else if (g.phase !== 'playing') session.stopGame();
+    if (g.phase === 'setup') session.stopGame();
+    else if (g.phase === 'paused') session.resumeGame();
+    else if (g.phase === 'over') session.backToMenu();
   };
   // o `close` nativo do <dialog> (Esc, cancel) é entregue numa tarefa à parte (passos de fecho
   // do HTML), por isso pode chegar atrasado: a configuração fecha-se sozinha ao começar a ronda
@@ -80,19 +58,6 @@ export function GameDialog() {
   };
   const r = game?.phase === 'over' ? game.result : null;
   const learnedLag = r ? changedLagMs(r) : null;
-
-  const toggleFinger = (f: number) => {
-    const next = sel.includes(f) ? sel.filter((x) => x !== f) : [...sel, f];
-    set({ gameFingers: normalizeGameFingers(next) ?? sel });
-  };
-  // o dedo 9 vem de `start.rightKeys` (o último, Ç/;), que já é o texto certo na língua atual;
-  // os outros são teclas físicas que não mudam com a língua
-  const keyForFinger = (f: number): string | undefined =>
-    f === 9 ? msgs.start.rightKeys[3] : KEY_FOR_FINGER[f];
-  const keys = sel
-    .map((f) => keyForFinger(f))
-    .filter((k): k is string => !!k)
-    .join(' ');
 
   return (
     <dialog
@@ -128,58 +93,24 @@ export function GameDialog() {
               </button>
             ))}
           </div>
-          <fieldset className={s.fingers}>
-            <legend>{tr.fingers}</legend>
-            <div className={s.fingerHands}>
-              {(
-                [
-                  ['left', LEFT_HAND_FINGERS],
-                  ['right', RIGHT_HAND_FINGERS],
-                ] as const
-              ).map(([hand, fingers]) => (
-                <div key={hand} className={s.fingerHand}>
-                  <b>{tr.handShort[hand]}</b>
-                  {fingers.map((f) => (
-                    <button
-                      key={f}
-                      type="button"
-                      className={s.fingerBtn}
-                      aria-pressed={sel.includes(f)}
-                      // "Ind" sozinho repete-se nas duas mãos; o nome completo com a mão
-                      // (fingerName, já usado noutros sítios) distingue-os para leitores de ecrã
-                      aria-label={fingerName(f)}
-                      disabled={sel.length === MIN_GAME_FINGERS && sel.includes(f)}
-                      onClick={() => toggleFinger(f)}
-                      data-testid={`game-finger-${f}`}
-                    >
-                      {tr.fingerShort[f % 5]}
-                    </button>
-                  ))}
-                </div>
-              ))}
-            </div>
-            {sel.length === MIN_GAME_FINGERS && <p className={s.minFingers}>{tr.minFingers}</p>}
-            <p className={s.lanesInfo} data-testid="game-lanes">
-              {tr.lanes(sel.length)} · {tr.keysHint(keys)}
-            </p>
-          </fieldset>
-          <label className={s.lag}>
-            <span>{tr.lag(lag)}</span>
-            <input
-              type="range"
-              min={LAG_MIN_MS}
-              max={LAG_MAX_MS}
-              step={LAG_STEP_MS}
-              value={lag}
-              onChange={(e) => set({ gameLagMs: Number(e.target.value) })}
-              data-testid="game-lag"
-            />
-            <small>{tr.lagHint}</small>
-          </label>
+          <FingerPicker value={sel} onChange={(v) => set({ gameFingers: v })} />
+          <details className={s.advanced} data-testid="game-advanced">
+            <summary>{tr.advanced}</summary>
+            <label className={s.lag}>
+              <span>{tr.lag(lag)}</span>
+              <input
+                type="range"
+                min={LAG_MIN_MS}
+                max={LAG_MAX_MS}
+                step={LAG_STEP_MS}
+                value={lag}
+                onChange={(e) => set({ gameLagMs: Number(e.target.value) })}
+                data-testid="game-lag"
+              />
+              <small>{tr.lagHint}</small>
+            </label>
+          </details>
           <div className={s.actions}>
-            <button type="button" className={s.secondary} onClick={() => session.stopGame()}>
-              {tr.cancel}
-            </button>
             <button
               type="button"
               className={s.primary}
@@ -189,6 +120,14 @@ export function GameDialog() {
               {tr.start}
             </button>
           </div>
+          <button
+            type="button"
+            className={s.freeLink}
+            onClick={() => session.stopGame()}
+            data-testid="game-free"
+          >
+            {tr.freeMode}
+          </button>
         </div>
       )}
       {game?.phase === 'paused' && (
@@ -200,10 +139,10 @@ export function GameDialog() {
             <button
               type="button"
               className={s.secondary}
-              onClick={() => session.stopGame()}
-              data-testid="game-quit"
+              onClick={() => session.backToMenu()}
+              data-testid="game-menu"
             >
-              {tr.quit}
+              {tr.menu}
             </button>
             <button
               type="button"
@@ -247,14 +186,19 @@ export function GameDialog() {
               {tr.lagLearned(learnedLag)}
             </p>
           )}
+          {r.lateTaps > 0 && (
+            <p className={s.counts} data-testid="game-late-taps">
+              {tr.lateTaps(r.lateTaps)}
+            </p>
+          )}
           <div className={s.actions}>
             <button
               type="button"
               className={s.secondary}
-              onClick={() => session.stopGame()}
-              data-testid="game-quit"
+              onClick={() => session.backToMenu()}
+              data-testid="game-menu"
             >
-              {tr.quit}
+              {tr.menu}
             </button>
             <button
               type="button"
