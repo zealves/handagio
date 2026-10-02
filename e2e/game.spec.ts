@@ -45,7 +45,9 @@ function hitNotes(
         count++;
         const lane = run.chart.notes[k].lane;
         while (v.audio.now < run.times[k]) await new Promise((r) => setTimeout(r, 2));
-        document.body.dispatchEvent(new KeyboardEvent('keydown', { key: keys[lane], bubbles: true }));
+        document.body.dispatchEvent(
+          new KeyboardEvent('keydown', { key: keys[lane], bubbles: true }),
+        );
         if (v.audio.voiceMidi(fingers[lane]) !== null) voice = true;
         await new Promise((r) => setTimeout(r, 30));
         document.body.dispatchEvent(new KeyboardEvent('keyup', { key: keys[lane], bubbles: true }));
@@ -128,10 +130,6 @@ test.describe('modo de jogo', () => {
 
   test('esconder o separador pausa a partida sem recorde', async ({ page }) => {
     await startEasy(page);
-    // dar tempo ao cartão de configuração para fechar de vez: pausar demasiado depressa a
-    // seguir reabre o <dialog> antes de as suas "closing steps" nativas acabarem, o que faz o
-    // Chromium emitir um `close` a mais (visto com o devtools) que cancela a pausa sozinho
-    await page.waitForTimeout(100);
     await page.evaluate(() => {
       Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
       document.dispatchEvent(new Event('visibilitychange'));

@@ -66,6 +66,17 @@ export function GameDialog() {
     if (g.phase === 'paused') session.resumeGame();
     else if (g.phase !== 'playing') session.stopGame();
   };
+  // o `close` nativo do <dialog> (Esc, cancel) é entregue numa tarefa à parte (passos de fecho
+  // do HTML), por isso pode chegar atrasado: a configuração fecha-se sozinha ao começar a ronda
+  // e, se se pausar muito depressa a seguir, esse `close` antigo só chega depois de o mesmo
+  // <dialog> já ter voltado a abrir para a pausa — nessa altura `closeForPhase` via a fase
+  // 'paused' e continuava a ronda sozinho, cancelando a pausa. Um `close` genuíno do cartão
+  // atual já encontra o <dialog> fechado (o `open` muda antes de o evento ser entregue); se
+  // ainda estiver aberto, é o eco a mais e não deve fazer nada.
+  const onNativeClose = () => {
+    if (ref.current?.open) return;
+    closeForPhase();
+  };
   const r = game?.phase === 'over' ? game.result : null;
 
   const toggleFinger = (f: number) => {
@@ -86,7 +97,7 @@ export function GameDialog() {
       ref={ref}
       className={s.dialog}
       aria-labelledby={`${id}-t`}
-      onClose={closeForPhase}
+      onClose={onNativeClose}
       onPointerDown={(e) => {
         downOnBackdrop.current = e.target === ref.current;
       }}

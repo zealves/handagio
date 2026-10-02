@@ -936,14 +936,17 @@ for (const vp of VIEWPORTS) {
     );
     expect(overflow).toBeLessThanOrEqual(0);
     await expect(page.getByTestId('stage')).toBeInViewport();
-    for (const id of ['pills', 'pill-instrument', 'pill-scale', 'record', 'settings-open', 'lang-menu'])
+    for (const id of [
+      'pills',
+      'pill-instrument',
+      'pill-scale',
+      'record',
+      'settings-open',
+      'lang-menu',
+      'mode-free',
+      'mode-game',
+    ])
       await expect(page.getByTestId(id)).toBeInViewport({ ratio: 1 });
-    // o interruptor Livre | Jogo: cada metade mede 44 px (a mesma altura da pílula), mas a
-    // pílula tem 1 px de borda a toda a volta e corta pelo overflow:hidden, por isso cada botão
-    // perde ~2 px no fundo (bug real, não um problema deste teste: reportado no relatório da
-    // Tarefa 4); aqui só se confirma que continuam praticamente à vista
-    for (const id of ['mode-free', 'mode-game'])
-      await expect(page.getByTestId(id)).toBeInViewport({ ratio: 0.9 });
     // alvos de toque: pelo menos 44×44
     for (const id of [
       'pill-instrument',
