@@ -378,6 +378,21 @@ describe('GameRun.press: toques errados', () => {
     expect(run.score.wrongTaps).toBe(1);
   });
 
+  it('tolerância: um segundo disparo da mesma faixa dentro de 0,15 s não conta como erro', () => {
+    const run = makeOneNote(2);
+    expect(run.press(0, 12.1)?.kind).toBe('perfect');
+    // a câmara "ressalta" (histerese/disparo duplo) e deteta outra vez a mesma faixa
+    expect(run.press(0, 12.2)).toBeNull(); // 0,1 s depois, dentro de NEIGHBOUR_GRACE_S (0,15)
+    expect(run.score.wrongTaps).toBe(0);
+  });
+
+  it('a 0,2 s (além de NEIGHBOUR_GRACE_S) o mesmo disparo repetido já conta como erro', () => {
+    const run = makeOneNote(2);
+    run.press(0, 12.1);
+    expect(run.press(0, 12.3)).toEqual({ kind: 'wrong', lane: 0 });
+    expect(run.score.wrongTaps).toBe(1);
+  });
+
   it('um vizinho de mão diferente conta como erro mesmo dentro da janela', () => {
     const run = makeOneNote(1); // split 1: a faixa 0 fica sozinha de um lado, a 1 já é da outra mão
     expect(run.press(0, 12.1)?.kind).toBe('perfect');

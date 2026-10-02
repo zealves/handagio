@@ -144,9 +144,9 @@ export class GameRun {
    * ensinam-no (`LAG_LEARN` do desvio); os do teclado não. Cedo/Tarde repetidos na mesma nota
    * continuam a mostrar o texto, mas só o primeiro ensina o atraso e conta para `cameraHits`.
    * Sem nenhuma nota por julgar perto: durante a música conta como toque errado (parte o combo),
-   * a menos que seja um vizinho da mesma mão de um acerto recente (`NEIGHBOUR_GRACE_S`, o dedo ao
-   * lado arrastado); fora da música (contagem, cauda ou pausa), não conta nada. Em pausa ou no
-   * fim, null.
+   * a menos que seja a mesma faixa ou uma vizinha da mesma mão de um acerto recente
+   * (`NEIGHBOUR_GRACE_S`, o dedo ao lado arrastado ou um segundo disparo do mesmo dedo); fora da
+   * música (contagem, cauda ou pausa), não conta nada. Em pausa ou no fim, null.
    */
   press(lane: number, now: number, fromCamera = true): PressResult | null {
     if (this.state === 'paused' || this.state === 'over') return null;
@@ -155,7 +155,7 @@ export class GameRun {
       if (!this.isMusicTime(now)) return null;
       if (
         this.lastHit &&
-        Math.abs(lane - this.lastHit.lane) === 1 &&
+        Math.abs(lane - this.lastHit.lane) <= 1 &&
         lane < this.chart.split === this.lastHit.lane < this.chart.split &&
         now - this.lastHit.at <= NEIGHBOUR_GRACE_S
       )
