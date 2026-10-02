@@ -698,6 +698,9 @@ class Session {
           levelId: g.levelId,
         },
         levelProgress: result.levelProgress,
+        // o nível que esta ronda acabou de abrir já fica escolhido, para o menu do jogo (e o seu
+        // "Jogar") mostrarem logo esse nível selecionado
+        ...(result.result.unlocked ? { gameLevel: result.result.unlocked } : {}),
       });
       return;
     }
@@ -721,10 +724,13 @@ class Session {
     run: GameRun,
     progress: LevelProgress,
   ): { result: GameResult; levelProgress: LevelProgress } {
-    const base = run.result(false);
-    const stars = starsFor(base.accuracy);
     const index = levelIndex(id);
     const prev = progress[id] ?? { stars: 0, points: 0, accuracy: 0 };
+    // o recorde é por nível (não por dificuldade, como no Treino): bate o máximo de pontos já
+    // guardado para este `id`, para "Novo recorde!" e o próprio recorde fazerem sentido a repetir
+    const base = run.result(false);
+    const best = base.points > 0 && base.points > prev.points;
+    const stars = starsFor(base.accuracy);
     const levelProgress = {
       ...progress,
       [id]: {
@@ -738,7 +744,7 @@ class Session {
       next && !isUnlocked(index + 1, progress) && isUnlocked(index + 1, levelProgress)
         ? next.id
         : null;
-    return { result: { ...base, stars, unlocked, levelId: id }, levelProgress };
+    return { result: { ...base, best, stars, unlocked, levelId: id }, levelProgress };
   }
 
   /** Guarda o atraso aprendido na ronda (câmara) se houver toques suficientes para confiar nele. */

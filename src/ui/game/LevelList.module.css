@@ -52,3 +52,11 @@
   letter-spacing: 4px;
   color: var(--cyan);
 }
+/* condição de desbloqueio, visível (decisão 70): uma só linha, discreta, debaixo da lista de
+   níveis ou do resultado com 0 estrelas */
+.unlockLine {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}

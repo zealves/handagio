@@ -2,6 +2,7 @@
 // resultado. A pausa não fecha o cartão: fica aqui, por cima da pista congelada (Tarefa 3).
 import { type SyntheticEvent, useEffect, useId, useRef, useState } from 'react';
 import { session } from '../../app/session';
+import { instrumentInfo } from '../../audio/instruments';
 import { DIFFICULTIES, LAG_MAX_MS, LAG_MIN_MS, LAG_STEP_MS } from '../../game/config';
 import { isUnlocked, LEVELS, levelIndex } from '../../game/levels';
 import { changedLagMs } from '../../game/run';
@@ -11,7 +12,7 @@ import { getState, useStore } from '../../state/store';
 import { InstrumentPicker } from '../shell/InstrumentPicker';
 import { FingerPicker } from './FingerPicker';
 import s from './GameDialog.module.css';
-import { LevelList, Stars } from './LevelList';
+import { LevelList, Stars, UnlockHintLine } from './LevelList';
 
 export function GameDialog() {
   const game = useStore((st) => st.game);
@@ -132,6 +133,8 @@ export function GameDialog() {
   };
   const r = game?.phase === 'over' ? game.result : null;
   const learnedLag = r ? changedLagMs(r) : null;
+  // instrumento que o Treino toca de facto (startGame cai no piano fora dos melódicos)
+  const gameMelody = instrumentInfo(instrument).kind === 'melodic' ? instrument : 'piano';
   // "Próximo nível" só aparece se existir e já estiver aberto (pode já o estar de uma ronda
   // anterior, não só por esta: repetir um nível já todo com 3 estrelas não esconde o botão)
   const next = r?.levelId ? LEVELS[levelIndex(r.levelId) + 1] : undefined;
@@ -206,7 +209,13 @@ export function GameDialog() {
                   onClick={() => setInstrumentOpen((v) => !v)}
                   data-testid="game-instrument"
                 >
-                  <span>{tr.instrument(instrumentText(instrument).name)}</span>
+                  {/* o Treino só toca melodias: um instrumento não melódico (bateria, teremim…)
+                      cai no piano no `startGame` — mostra-se aqui o que soa de facto na ronda,
+                      não a escolha do store, com uma nota curta quando há essa troca */}
+                  <span>
+                    {tr.instrument(instrumentText(gameMelody).name)}
+                    {gameMelody !== instrument ? ` ${tr.instrumentFallback}` : ''}
+                  </span>
                   <span aria-hidden="true">{instrumentOpen ? '▾' : '▸'}</span>
                 </button>
                 {instrumentOpen && (
@@ -239,9 +248,18 @@ export function GameDialog() {
               ref={startRef}
               type="button"
               className={s.primary}
-              onClick={() =>
-                tab === 'levels' ? session.startLevel(chosenLevel) : session.startGame(chosen)
-              }
+              onClick={() => {
+                if (tab !== 'levels') {
+                  session.startGame(chosen);
+                  return;
+                }
+                // um `gameLevel` guardado pode ter ficado bloqueado (progresso apagado à mão,
+                // por exemplo); nesse caso o 1.º nível, sempre aberto, substitui-o
+                const toPlay = isUnlocked(levelIndex(chosenLevel), progress)
+                  ? chosenLevel
+                  : LEVELS[0].id;
+                session.startLevel(toPlay);
+              }}
               data-testid="game-start"
             >
               {tr.start}
@@ -302,6 +320,15 @@ export function GameDialog() {
                   {tr.unlocked(levelName(r.unlocked))}
                 </p>
               )}
+              {/* o recorde do nível, como no Treino (`tr.best`/`tr.noBest`), só visível no
+                  `title` do cartão até aqui: no toque não há tooltip, por isso ganha também
+                  texto no próprio resultado */}
+              <p className={s.counts} data-testid="level-best">
+                {progress[r.levelId] ? tr.best(progress[r.levelId].points) : tr.noBest}
+              </p>
+              {/* mesma dica visível do separador Níveis (decisão 70): com 0 estrelas o nível
+                  continua fechado, por isso a condição de desbloqueio repete-se aqui */}
+              {(r.stars ?? 0) === 0 && <UnlockHintLine testId="game-unlock-hint" />}
             </>
           )}
           {r.best && (
