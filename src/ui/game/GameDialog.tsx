@@ -151,9 +151,9 @@ export function GameDialog() {
                 data-testid={`game-level-${d}`}
               >
                 <b>{tr.levels[d]}</b>
-                <span>
-                  {tr.levelDesc[d]} · {best[d] ? tr.best(best[d]) : tr.noBest}
-                </span>
+                {/* velocidade e recorde em linhas próprias: os três cartões com a mesma altura */}
+                <span>{tr.levelDesc[d]}</span>
+                <span>{best[d] ? tr.best(best[d]) : tr.noBest}</span>
               </button>
             ))}
           </div>

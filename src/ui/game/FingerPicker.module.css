@@ -86,8 +86,9 @@
   height: var(--h);
   max-height: 120px;
   border-radius: 999px 999px 10px 10px;
-  border: 1px solid var(--line);
-  background: transparent;
+  /* desligado mas escolhível: um pouco de cor e um contorno forte, para parecer tocável */
+  border: 1px solid var(--line-strong);
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
   transition:
     background 0.15s ease,
     box-shadow 0.15s ease,
@@ -103,10 +104,15 @@
   background: var(--c);
   box-shadow: 0 0 10px var(--c);
 }
-.finger:disabled .pill {
-  background: var(--muted);
-  border-color: var(--line);
-  opacity: 0.45;
+.finger:hover:not(:disabled) .pill {
+  border-color: var(--ink);
+}
+/* os polegares (que não jogam) ficam mais apagados do que os dedos desligados: só um contorno
+   tracejado, sem fundo */
+.thumb:disabled .pill {
+  background: transparent;
+  border: 1px dashed var(--line-strong);
+  opacity: 0.4;
   box-shadow: none;
 }
 .palm {

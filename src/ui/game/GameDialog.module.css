@@ -45,6 +45,7 @@
 }
 .level {
   display: grid;
+  align-content: start;
   gap: 1px;
   min-height: 44px;
   padding: 8px 6px;
@@ -73,9 +74,30 @@
   min-height: 44px;
   display: flex;
   align-items: center;
+  gap: 10px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
+  list-style: none;
+}
+.advanced summary::-webkit-details-marker {
+  display: none;
+}
+/* o `display: flex` tira o triângulo nativo: uma seta desenhada no lugar dele, para baixo
+   quando aberto, para o "Avançado" continuar a parecer um controlo */
+.advanced summary::before {
+  content: '';
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-left: 2px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+.advanced[open] summary::before {
+  transform: rotate(45deg);
 }
 .advanced .lag {
   margin-top: 10px;
