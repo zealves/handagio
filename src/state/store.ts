@@ -5,7 +5,6 @@ import { DEFAULT_CUSTOM_NOTES, type NoteMode } from '../app/notes';
 import { migratePrefs, sanitizePrefs } from '../ui/shell/logic';
 import { DEFAULT_GAME_FINGERS, GAME_INPUT_LAG_MS } from '../game/config';
 import { LEVELS, type LevelProgress } from '../game/levels';
-import type { Difficulty } from '../game/types';
 import type { LearnedRange } from '../vision/adaptive';
 import type { TonicAt } from '../vision/fingerMap';
 import type { Lang } from '../i18n/types';
@@ -74,18 +73,12 @@ export interface Prefs extends SoundSettings {
   coachDone: CoachId[];
   /** Língua da interface (a inicial vem de `detectLang`, em main.tsx). */
   lang: Lang;
-  /** Modo de jogo: recorde (pontos) por dificuldade. Fora dos presets. */
-  gameBest: Record<Difficulty, number>;
-  /** Última dificuldade escolhida. */
-  gameDifficulty: Difficulty;
   /** Atraso da câmara descontado aos toques (ms). */
   gameLagMs: number;
   /** Modo de jogo: dedos que jogam (pela ordem do ecrã). */
   gameFingers: number[];
   /** Modo de jogo: progresso de cada nível (estrelas, pontos e precisão), neste aparelho. */
   levelProgress: LevelProgress;
-  /** Tab aberta no menu do jogo. */
-  gameTab: 'levels' | 'practice';
   /** Último nível escolhido (ou o primeiro, por defeito). */
   gameLevel: string;
 }
@@ -177,12 +170,9 @@ export const DEFAULT_PREFS: Prefs = {
   showFps: false,
   coachDone: [],
   lang: 'pt',
-  gameBest: { easy: 0, medium: 0, hard: 0 },
-  gameDifficulty: 'easy',
   gameLagMs: GAME_INPUT_LAG_MS,
   gameFingers: [...DEFAULT_GAME_FINGERS],
   levelProgress: {},
-  gameTab: 'levels',
   gameLevel: LEVELS[0].id,
 };
 

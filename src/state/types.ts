@@ -34,10 +34,9 @@ export interface Calibration {
 /** Modo de jogo na interface (o `GameRun` a 60 fps fica em `live.game`). */
 export interface GameUi {
   phase: 'setup' | 'playing' | 'paused' | 'over';
-  difficulty: import('../game/types').Difficulty;
   /** Dedos da ronda (pela ordem do ecrã), para a pista. */
   fingers: number[];
   result: import('../game/types').GameResult | null;
-  /** Nível desta ronda (null = Treino). */
+  /** Nível desta ronda. */
   levelId: string | null;
 }

@@ -362,32 +362,24 @@ describe('sanitizePrefs: modo de jogo', () => {
     expect(sanitizePrefs({ gameFingers: 'x' }).gameFingers).toEqual([2, 1, 6, 7]);
     expect(sanitizePrefs({ gameFingers: [0, 5] }).gameFingers).toEqual([2, 1, 6, 7]);
   });
-  it('mantém valores válidos', () => {
-    const p = {
-      gameBest: { easy: 1200, medium: 0, hard: 50 },
-      gameDifficulty: 'hard',
-      gameLagMs: 90,
-    };
-    expect(sanitizePrefs(p)).toEqual(p);
+  it('mantém o atraso válido e corrige o estragado', () => {
+    expect(sanitizePrefs({ gameLagMs: 90 }).gameLagMs).toBe(90);
+    expect(sanitizePrefs({ gameLagMs: 999 }).gameLagMs).toBe(300);
+    expect(sanitizePrefs({ gameLagMs: 'a' }).gameLagMs).toBe(120);
+    // o atraso fica em passos de 10 ms
+    expect(sanitizePrefs({ gameLagMs: 134 }).gameLagMs).toBe(130);
   });
-  it('corrige recordes, dificuldade e atraso estragados', () => {
-    expect(
+  // gameBest, gameDifficulty e gameTab eram do Treino (decisão 71, sem ele): o `merge` do store
+  // ainda pode trazer essas chaves de uma gravação antiga, mas `sanitizePrefs` não as sabe mais
+  // validar — têm só de não rebentar; o `partialize` já não as volta a gravar
+  it('chaves antigas do Treino (gameBest, gameDifficulty, gameTab) não rebentam', () => {
+    expect(() =>
       sanitizePrefs({
         gameBest: { easy: -3, medium: 'x', hard: 12.7 },
         gameDifficulty: 'insane',
-        gameLagMs: 999,
+        gameTab: 'practice',
       }),
-    ).toEqual({
-      gameBest: { easy: 0, medium: 0, hard: 12 },
-      gameDifficulty: 'easy',
-      gameLagMs: 300,
-    });
-    expect(sanitizePrefs({ gameBest: null, gameLagMs: 'a' })).toEqual({
-      gameBest: { easy: 0, medium: 0, hard: 0 },
-      gameLagMs: 120,
-    });
-    // o atraso fica em passos de 10 ms
-    expect(sanitizePrefs({ gameLagMs: 134 }).gameLagMs).toBe(130);
+    ).not.toThrow();
   });
 });
 
@@ -413,12 +405,6 @@ describe('sanitizePrefs: níveis do jogo', () => {
     expect(sanitizePrefs({ levelProgress: null }).levelProgress).toEqual({});
     expect(sanitizePrefs({ levelProgress: 'x' }).levelProgress).toEqual({});
     expect(sanitizePrefs({ levelProgress: {} }).levelProgress).toEqual({});
-  });
-  it('tab do jogo inválida volta a níveis', () => {
-    expect(sanitizePrefs({ gameTab: 'practice' }).gameTab).toBe('practice');
-    expect(sanitizePrefs({ gameTab: 'levels' }).gameTab).toBe('levels');
-    expect(sanitizePrefs({ gameTab: 'x' }).gameTab).toBe('levels');
-    expect(sanitizePrefs({ gameTab: null }).gameTab).toBe('levels');
   });
   it('nível desconhecido volta ao primeiro', () => {
     expect(sanitizePrefs({ gameLevel: 'lofi' }).gameLevel).toBe('lofi');

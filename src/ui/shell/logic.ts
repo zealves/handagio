@@ -13,7 +13,6 @@ import {
 } from '../../audio/theory';
 import {
   DEFAULT_GAME_FINGERS,
-  DIFFICULTIES,
   GAME_INPUT_LAG_MS,
   LAG_MAX_MS,
   LAG_MIN_MS,
@@ -21,7 +20,6 @@ import {
   normalizeGameFingers,
 } from '../../game/config';
 import { LEVELS, type LevelProgress } from '../../game/levels';
-import type { Difficulty } from '../../game/types';
 import { DEFAULT_SOUND } from '../../state/store';
 import { isLang } from '../../i18n/types';
 import type { CoachId, Engine, SheetTab } from '../../state/types';
@@ -227,8 +225,11 @@ export function migratePrefs(old: unknown, version: number): Record<string, unkn
 
 /**
  * Validação das preferências guardadas a cada arranque (a migração só corre quando a versão
- * muda): uma forma de tocar desconhecida (de outra versão da app) passa a "Uma nota"; os
- * recordes, dificuldade, atraso e dedos do modo de jogo também são validados.
+ * muda): uma forma de tocar desconhecida (de outra versão da app) passa a "Uma nota"; o atraso,
+ * os dedos e o progresso dos níveis do modo de jogo também são validados. `gameBest`,
+ * `gameDifficulty` e `gameTab`, chaves antigas do Treino, podem chegar aqui (o `merge` do store
+ * ainda as traz) mas saem sem mal: não há campo para as receber e o `partialize` não as volta
+ * a gravar.
  */
 export function sanitizePrefs<T extends Record<string, unknown>>(p: T): T {
   const out: Record<string, unknown> = { ...p };
@@ -242,20 +243,6 @@ export function sanitizePrefs<T extends Record<string, unknown>>(p: T): T {
     out.coachDone = Array.isArray(p.coachDone)
       ? p.coachDone.filter((c): c is CoachId => COACH_IDS.includes(c as CoachId))
       : [];
-  if ('gameBest' in p) {
-    const b = (p.gameBest && typeof p.gameBest === 'object' ? p.gameBest : {}) as Record<
-      string,
-      unknown
-    >;
-    out.gameBest = Object.fromEntries(
-      DIFFICULTIES.map((d) => {
-        const v = b[d];
-        return [d, typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.floor(v) : 0];
-      }),
-    );
-  }
-  if ('gameDifficulty' in p && !DIFFICULTIES.includes(p.gameDifficulty as Difficulty))
-    out.gameDifficulty = 'easy';
   if ('gameFingers' in p)
     out.gameFingers = normalizeGameFingers(p.gameFingers) ?? [...DEFAULT_GAME_FINGERS];
   if ('gameLagMs' in p) {
@@ -266,7 +253,6 @@ export function sanitizePrefs<T extends Record<string, unknown>>(p: T): T {
         : GAME_INPUT_LAG_MS;
   }
   if ('levelProgress' in p) out.levelProgress = sanitizeLevelProgress(p.levelProgress);
-  if ('gameTab' in p && p.gameTab !== 'levels' && p.gameTab !== 'practice') out.gameTab = 'levels';
   if ('gameLevel' in p && !LEVELS.some((l) => l.id === p.gameLevel))
     out.gameLevel = LEVELS[0].id;
   return out as T;
