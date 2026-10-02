@@ -11,7 +11,7 @@ type Run = {
   viewNow(now: number): number;
 };
 type Vsc = {
-  session: { gameBars: number | null };
+  session: { gameBars: number | null; startGame(d: string): void; pauseGame(): void };
   audio: { now: number; voiceMidi(key: number | string): number | null };
   live: { game: Run | null };
   store: { getState(): Record<string, unknown> & { set(p: Record<string, unknown>): void } };
@@ -147,47 +147,75 @@ test.describe('modo de jogo', () => {
     await expect(page.getByTestId('game-dialog').getByTestId('game-start')).toBeVisible();
   });
 
-  // BUG CONHECIDO (ver task-3-report.md): o Esc no resultado chama `closeForPhase` → `backToMenu`,
-  // que muda a fase para `setup` sem nunca tornar `open` falso (fica `true` em `over` e em
-  // `setup`), por isso o efeito de `GameDialog.tsx` que chama `showModal()` (key `[open]`) não
-  // volta a correr; o Esc já tinha fechado o `<dialog>` nativo (o cancel/close por omissão do
-  // Escape), por isso o cartão fica fechado apesar de a fase já ser `setup`. `game-menu` (clique)
-  // não tem este problema: nunca chama `d.close()`, o `<dialog>` nunca fecha de verdade.
-  test.fail(
-    'Esc no resultado volta ao menu em vez de sair para o livre',
-    async ({ page }) => {
-      await page.evaluate(() => {
-        (window as unknown as { __vsc: Vsc }).__vsc.session.gameBars = 2;
-      });
-      await startEasy(page);
-      await hitNotes(page, 99);
-      const result = page.getByTestId('game-result');
-      await expect(result).toBeVisible({ timeout: 15_000 });
-      await page.keyboard.press('Escape');
-      await expect(result).toBeHidden();
-      // o `close` nativo do <dialog> chega numa tarefa à parte (ver comentário em GameDialog.tsx)
-      await expect
-        .poll(async () => ((await field(page, 'game')) as { phase: string } | null)?.phase)
-        .toBe('setup');
-      await expect(page.getByTestId('game-dialog')).toBeVisible();
-    },
-  );
+  test('Esc no resultado volta ao menu com o Começar focado', async ({ page }) => {
+    await page.evaluate(() => {
+      (window as unknown as { __vsc: Vsc }).__vsc.session.gameBars = 2;
+    });
+    await startEasy(page);
+    await hitNotes(page, 99);
+    const result = page.getByTestId('game-result');
+    await expect(result).toBeVisible({ timeout: 15_000 });
+    await page.keyboard.press('Escape');
+    await expect(result).toBeHidden();
+    await expect
+      .poll(async () => ((await field(page, 'game')) as { phase: string } | null)?.phase)
+      .toBe('setup');
+    const dlg = page.getByTestId('game-dialog');
+    await expect(dlg).toBeVisible();
+    await expect(dlg.getByTestId('game-start')).toBeFocused();
+    expect(await dlg.evaluate((el) => el.scrollTop)).toBe(0);
+  });
 
-  // BUG CONHECIDO (ver task-3-report.md): o mesmo `<dialog>` nativo que fecha sozinho com o Esc
-  // (cancel/close por omissão) tem uma corrida independente da fase: ao contrário de um clique em
-  // `game-menu`/`game-free` (que nunca chama `d.close()` e por isso nunca passa por esta corrida),
-  // o Esc por vezes fecha o `<dialog>` sem que `onNativeClose` chegue a chamar `closeForPhase`
-  // (confirmado isolando `session.stopGame`/`openGame`: `stopGame` nunca é chamado nesses casos),
-  // por isso `game` fica por vezes como estava antes do Esc. É uma corrida de tempo (~50–75% das
-  // vezes nos testes manuais), não determinística, por isso fica marcado `fixme` em vez de
-  // `test.fail` (que exigiria falhar sempre): correr sempre seria instável nos dois sentidos.
-  test.fixme('Esc no menu sai para o livre', async ({ page }) => {
+  test('Esc no menu sai para o livre', async ({ page }) => {
     await page.getByTestId('mode-game').click();
     const dlg = page.getByTestId('game-dialog');
     await expect(dlg).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(dlg).toBeHidden();
-    expect(await field(page, 'game')).toBeNull();
+    await expect.poll(() => field(page, 'game')).toBeNull();
+    await expect(page.getByTestId('pills')).toBeVisible();
+  });
+
+  test('Esc logo a seguir a abrir o menu sai para o livre', async ({ page }) => {
+    await page.getByTestId('mode-game').click();
+    // sem esperar pelo cartão visível: o Esc chega logo a seguir ao `showModal()`
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('game-dialog')).toBeHidden();
+    await expect.poll(() => field(page, 'game')).toBeNull();
+  });
+
+  test('pausa e Esc continua a ronda', async ({ page }) => {
+    await startEasy(page);
+    await page.keyboard.press('p');
+    await expect(page.getByTestId('game-paused')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('game-paused')).toBeHidden();
+    await expect
+      .poll(async () => ((await field(page, 'game')) as { phase: string }).phase)
+      .toBe('playing');
+    await expect(page.getByTestId('game-dialog')).toBeHidden();
+  });
+
+  test('pausar logo a seguir a Começar fica em pausa', async ({ page }) => {
+    await page.getByTestId('mode-game').click();
+    const dlg = page.getByTestId('game-dialog');
+    await expect(dlg).toBeVisible();
+    // o `close` do cartão do menu chega numa tarefa à parte, já com o <dialog> aberto na pausa
+    const closedBetween = await page.evaluate(async () => {
+      const v = (window as unknown as { __vsc: Vsc }).__vsc;
+      const d = document.querySelector<HTMLDialogElement>('[data-testid="game-dialog"]')!;
+      v.session.startGame('easy');
+      // deixa o React fechar o cartão (microtarefas), mas pausa antes da tarefa do `close`
+      for (let i = 0; i < 5; i++) await Promise.resolve();
+      const closed = !d.open;
+      v.session.pauseGame();
+      return closed;
+    });
+    expect(closedBetween).toBe(true);
+    await expect(page.getByTestId('game-paused')).toBeVisible();
+    await page.waitForTimeout(300);
+    expect(((await field(page, 'game')) as { phase: string }).phase).toBe('paused');
+    await expect(page.getByTestId('game-paused')).toBeVisible();
   });
 
   test('esconder o separador pausa a partida sem recorde', async ({ page }) => {
