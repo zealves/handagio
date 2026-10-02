@@ -1,6 +1,7 @@
 // Modo de jogo: partitura procedural (melodia nas faixas + bateria e baixo). Pura e
 // determinística: a mesma semente dá a mesma ronda.
 import { COUNT_IN_STEPS, DIFFICULTY, MIN_NOTE_GAP_S } from './config';
+import type { BassLine, DrumStyle } from './levels';
 import { mulberry32 } from './rng';
 import type { BackingEvent, Chart, ChartNote, Difficulty } from './types';
 
@@ -14,8 +15,12 @@ const SAME_LANE_GAP = 4;
 /** No tempo 1 de cada compasso, a probabilidade de a melodia ir para uma nota do acorde. */
 const CHORD_PULL = 0.7;
 
-/** Slots do kit acústico (`src/audio/drums/acoustic.ts`). */
-export const DRUM_SLOT = { kick: 0, snare: 1, hat: 2, crash: 9 } as const;
+/**
+ * Slots do kit acústico (`src/audio/drums/acoustic.ts`: bombo, tarola, choques, prato aberto,
+ * palmas…, crash no 9). O `tr808` (`src/audio/drums/tr808.ts`) usa a mesma ordem nos primeiros
+ * 5 sons (bombo, tarola, choques, aberto, palmas), por isso os mesmos números servem aos dois.
+ */
+export const DRUM_SLOT = { kick: 0, snare: 1, hat: 2, openHat: 3, clap: 4, crash: 9 } as const;
 
 /**
  * Probabilidade de uma nota em cada tempo (da primeira à última secção) e, quando há nota,
@@ -43,6 +48,14 @@ export interface GenerateOptions {
   bars?: number;
   /** Faixas da mão esquerda ([0, split)); por defeito metade. */
   split?: number;
+  /** BPM; por defeito o da dificuldade. Também usado no intervalo mínimo entre notas. */
+  bpm?: number;
+  /** Padrão da bateria por compasso; por defeito `straight` (o de sempre). */
+  drums?: DrumStyle;
+  /** Padrão do baixo por compasso; por defeito `eighths` (o de sempre). */
+  bassLine?: BassLine;
+  /** Atraso das colcheias em contratempo (passos; 0 = direito), guardado na `Chart`. */
+  swing?: number;
 }
 
 type Rnd = () => number;
@@ -53,6 +66,7 @@ export interface Onset {
 
 export function generateChart(o: GenerateOptions): Chart {
   const cfg = DIFFICULTY[o.difficulty];
+  const bpm = o.bpm ?? cfg.bpm;
   const bars = Math.max(2, Math.round(o.bars ?? cfg.bars));
   const lanes = Math.max(2, Math.min(8, Math.round(o.lanes)));
   const rng = mulberry32(o.seed);
@@ -118,12 +132,19 @@ export function generateChart(o: GenerateOptions): Chart {
   // logo na mesma mão, e com duas mãos essas já estão a ≥ 1 tempo). Com uma só mão, 1) não
   // faz nada e 2) e 3) dão o mesmo que antes. Nenhum dos passos tira nem muda a final.
   const hands = alternateHands(body, split, lanes);
-  const playable = enforceMinGap(hands, minGapSteps(cfg.bpm), split, lanes);
+  const playable = enforceMinGap(hands, minGapSteps(bpm), split, lanes);
   const notes = spaceLanes(playable, lanes).map((n, k, all): ChartNote => ({
     ...n,
     dur: k + 1 < all.length ? Math.min(BEAT, all[k + 1].step - n.step) : BEAT,
   }));
-  return { bpm: cfg.bpm, bars, lanes, notes, backing: backing(bars, o.difficulty, prog) };
+  return {
+    bpm,
+    bars,
+    lanes,
+    notes,
+    backing: backing(bars, o.difficulty, prog, o.drums ?? 'straight', o.bassLine ?? 'eighths'),
+    swing: o.swing ?? 0,
+  };
 }
 
 function beatOnsets(rng: Rnd, d: (typeof DENSITY)[Difficulty], p: number): number[] {
@@ -247,7 +268,13 @@ export function spaceLanes(ns: Onset[], lanes: number): Onset[] {
   return out;
 }
 
-function backing(bars: number, d: Difficulty, prog: number[]): BackingEvent[] {
+function backing(
+  bars: number,
+  d: Difficulty,
+  prog: number[],
+  drums: DrumStyle,
+  bassLine: BassLine,
+): BackingEvent[] {
   const ev: BackingEvent[] = [];
   const drum = (step: number, slot: number, vel: number) =>
     ev.push({ step, kind: 'drum', slot, vel });
@@ -264,13 +291,35 @@ function backing(bars: number, d: Difficulty, prog: number[]): BackingEvent[] {
       ev.push({ step: base, kind: 'bass', degree: 0, dur: BAR, vel: 0.7 });
       continue;
     }
-    for (let s = 0; s < BAR; s += hatEvery) drum(base + s, DRUM_SLOT.hat, 0.45);
-    drum(base, DRUM_SLOT.kick, 0.9);
-    drum(base + 8, DRUM_SLOT.kick, 0.8);
-    drum(base + 4, DRUM_SLOT.snare, 0.7);
-    drum(base + 12, DRUM_SLOT.snare, 0.7);
-    for (const s of [0, 2, 8, 10])
-      ev.push({ step: base + s, kind: 'bass', degree, dur: 2, vel: 0.7 });
+    if (drums === 'straight') {
+      for (let s = 0; s < BAR; s += hatEvery) drum(base + s, DRUM_SLOT.hat, 0.45);
+      drum(base, DRUM_SLOT.kick, 0.9);
+      drum(base + 8, DRUM_SLOT.kick, 0.8);
+      drum(base + 4, DRUM_SLOT.snare, 0.7);
+      drum(base + 12, DRUM_SLOT.snare, 0.7);
+    } else if (drums === 'swing') {
+      for (let s = 0; s < BAR; s += 2) drum(base + s, DRUM_SLOT.hat, 0.35);
+      drum(base, DRUM_SLOT.kick, 0.85);
+      drum(base + 10, DRUM_SLOT.kick, 0.7);
+      drum(base + 4, DRUM_SLOT.snare, 0.6);
+      drum(base + 12, DRUM_SLOT.snare, 0.6);
+    } else {
+      for (const s of [0, 4, 8, 12]) drum(base + s, DRUM_SLOT.kick, 0.95);
+      drum(base + 4, DRUM_SLOT.clap, 0.7);
+      drum(base + 12, DRUM_SLOT.clap, 0.7);
+      for (const s of [2, 6, 10, 14]) drum(base + s, DRUM_SLOT.openHat, 0.4);
+    }
+    if (bassLine === 'eighths') {
+      for (const s of [0, 2, 8, 10])
+        ev.push({ step: base + s, kind: 'bass', degree, dur: 2, vel: 0.7 });
+    } else if (bassLine === 'walk') {
+      // caminhada em semínimas: I, III, V e de volta ao III do acorde (`degreeToMidi` sobe a
+      // oitava se o grau passar o tamanho da escala, por isso não há limite aqui)
+      [0, 2, 4, 2].forEach((add, k) =>
+        ev.push({ step: base + k * 4, kind: 'bass', degree: degree + add, dur: 4, vel: 0.65 }));
+    } else {
+      for (const s of [2, 6, 10, 14]) ev.push({ step: base + s, kind: 'bass', degree, dur: 2, vel: 0.7 });
+    }
   }
   // ordenação estável: no mesmo passo fica a ordem de inserção
   return ev

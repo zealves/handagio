@@ -10,6 +10,7 @@ import {
   progressionFor,
   spaceLanes,
 } from './generator';
+import { LEVELS } from './levels';
 
 const seeds = Array.from({ length: 20 }, (_, k) => k + 1);
 
@@ -207,6 +208,110 @@ describe('generateChart', () => {
         const last = bass[bass.length - 1];
         expect(last.step).toBe((c.bars - 1) * 16);
         if (last.kind === 'bass') expect(last.degree).toBe(0);
+      }
+  });
+});
+
+describe('estilos do acompanhamento, BPM e swing', () => {
+  const at = (c: ReturnType<typeof generateChart>, slot: number, bar = 0) =>
+    c.backing
+      .filter((e) => e.step >= bar * 16 && e.step < (bar + 1) * 16 && e.kind === 'drum' && e.slot === slot)
+      .map((e) => e.step);
+  const bassAt = (c: ReturnType<typeof generateChart>, bar = 0) =>
+    c.backing.filter((e) => e.step >= bar * 16 && e.step < (bar + 1) * 16 && e.kind === 'bass');
+
+  it("bateria 'swing': bombo em [0, 10], choques a cada 2", () => {
+    const c = generateChart({ difficulty: 'easy', seed: 3, scaleSize: 7, lanes: 4, bars: 4, drums: 'swing' });
+    expect(at(c, DRUM_SLOT.kick)).toEqual([0, 10]);
+    expect(at(c, DRUM_SLOT.snare)).toEqual([4, 12]);
+    expect(at(c, DRUM_SLOT.hat)).toEqual([0, 2, 4, 6, 8, 10, 12, 14]);
+  });
+
+  it("bateria 'four': bombo em [0,4,8,12], palmas em [4,12], prato aberto em [2,6,10,14]", () => {
+    const c = generateChart({ difficulty: 'easy', seed: 3, scaleSize: 7, lanes: 4, bars: 4, drums: 'four' });
+    expect(at(c, DRUM_SLOT.kick)).toEqual([0, 4, 8, 12]);
+    expect(at(c, DRUM_SLOT.clap)).toEqual([4, 12]);
+    expect(at(c, DRUM_SLOT.openHat)).toEqual([2, 6, 10, 14]);
+  });
+
+  it("baixo 'walk': semínimas nos passos [0,4,8,12], graus [d, d+2, d+4, d+2]", () => {
+    const c = generateChart({ difficulty: 'easy', seed: 3, scaleSize: 7, lanes: 4, bars: 4, bassLine: 'walk' });
+    const bass = bassAt(c, 0);
+    const d = progressionFor(7)[0];
+    expect(bass.map((b) => b.step)).toEqual([0, 4, 8, 12]);
+    expect(bass.map((b) => (b.kind === 'bass' ? b.degree : null))).toEqual([d, d + 2, d + 4, d + 2]);
+  });
+
+  it("baixo 'pulse': colcheias em contratempo [2,6,10,14]", () => {
+    const c = generateChart({ difficulty: 'easy', seed: 3, scaleSize: 7, lanes: 4, bars: 4, bassLine: 'pulse' });
+    expect(bassAt(c, 0).map((b) => b.step)).toEqual([2, 6, 10, 14]);
+  });
+
+  it('o último compasso fica igual em todos os estilos de bateria e de baixo', () => {
+    const base = generateChart({ difficulty: 'easy', seed: 3, scaleSize: 7, lanes: 4, bars: 4 });
+    const lastBar = (c: ReturnType<typeof generateChart>) => c.backing.filter((e) => e.step >= 3 * 16);
+    for (const drums of ['straight', 'swing', 'four'] as const)
+      for (const bassLine of ['eighths', 'walk', 'pulse'] as const) {
+        const c = generateChart({
+          difficulty: 'easy', seed: 3, scaleSize: 7, lanes: 4, bars: 4, drums, bassLine,
+        });
+        expect(lastBar(c)).toEqual(lastBar(base));
+      }
+  });
+
+  it('o bpm substitui o da dificuldade, no bpm da Chart e no gap mínimo entre notas', () => {
+    const c = generateChart({ difficulty: 'easy', seed: 3, scaleSize: 7, lanes: 4, bpm: 150 });
+    expect(c.bpm).toBe(150);
+    const gap = minGapSteps(150);
+    c.notes.forEach((n, k) => {
+      if (k === 0) return;
+      expect(n.step - c.notes[k - 1].step).toBeGreaterThanOrEqual(gap);
+    });
+  });
+
+  it('o swing passa para a Chart (0 por defeito)', () => {
+    expect(generateChart({ difficulty: 'easy', seed: 3, scaleSize: 7, lanes: 4 }).swing).toBe(0);
+    expect(
+      generateChart({ difficulty: 'easy', seed: 3, scaleSize: 7, lanes: 4, swing: 0.6 }).swing,
+    ).toBe(0.6);
+  });
+
+  it('os invariantes de hoje valem com os parâmetros dos níveis, em 20 sementes cada', () => {
+    const split = 2;
+    const lanes = 4;
+    const hand = (lane: number) => (lane < split ? 0 : 1);
+    for (const lvl of LEVELS)
+      for (const seed of seeds) {
+        const c = generateChart({
+          difficulty: lvl.difficulty,
+          seed,
+          scaleSize: 7,
+          lanes,
+          split,
+          bars: lvl.bars,
+          bpm: lvl.bpm,
+          drums: lvl.style.drums,
+          bassLine: lvl.style.bassLine,
+          swing: lvl.style.swing,
+        });
+        expect(c.bpm).toBe(lvl.bpm);
+        expect(c.swing).toBe(lvl.style.swing);
+        const gap = minGapSteps(lvl.bpm);
+        const lastOf = new Map<number, number>();
+        c.notes.forEach((n, k) => {
+          expect(n.lane).toBeGreaterThanOrEqual(0);
+          expect(n.lane).toBeLessThan(c.lanes);
+          const h = hand(n.lane);
+          const p = lastOf.get(h);
+          if (p !== undefined) expect(n.step - p).toBeGreaterThanOrEqual(gap);
+          lastOf.set(h, n.step);
+          if (k === 0) return;
+          const prev = c.notes[k - 1];
+          if (n.lane === prev.lane) expect(n.step - prev.step).toBeGreaterThanOrEqual(4);
+        });
+        const last = c.notes[c.notes.length - 1];
+        expect(last.step).toBe((c.bars - 1) * 16);
+        expect(last.lane % 7).toBe(0);
       }
   });
 });

@@ -29,6 +29,8 @@ export interface Chart {
   notes: ChartNote[];
   /** Ordenados por `step`. */
   backing: BackingEvent[];
+  /** Atraso das colcheias em contratempo (passos; 0 = direito). */
+  swing: number;
 }
 
 export type Judgement = 'perfect' | 'good';

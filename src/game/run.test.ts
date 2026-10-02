@@ -17,6 +17,7 @@ const chart: Chart = {
     { step: 0, kind: 'bass', degree: 0, dur: 2, vel: 0.7 },
     { step: 4, kind: 'drum', slot: 1, vel: 0.7 },
   ],
+  swing: 0,
 };
 // 120 BPM: semicolcheia de 0,125 s; o compasso de entrada começa em t0 = 10 (passo 32 do relógio)
 const timing = { startStep: 32, t0: 10, stepDur: 0.125, lag: 0.1, lead: 2 };
@@ -304,6 +305,54 @@ describe('GameRun', () => {
     run.pause(11);
     run.resume(80, 16);
     expect(run.times[0]).toBe(18);
+  });
+});
+
+// Chart com swing: notas nos passos 0 e 2 (2 cai no contratempo, `((s % 4) + 4) % 4 === 2`) e
+// um evento de acompanhamento também no passo 2.
+const swingChart: Chart = {
+  bpm: 120,
+  bars: 2,
+  lanes: 4,
+  notes: [
+    { step: 0, lane: 0, dur: 4 },
+    { step: 2, lane: 1, dur: 2 },
+  ],
+  backing: [{ step: 2, kind: 'drum', slot: 2, vel: 0.5 }],
+  swing: 0.6,
+};
+const makeSwing = () => {
+  const played: { ev: BackingEvent; when: number }[] = [];
+  const run = new GameRun(
+    swingChart,
+    { playBacking: (ev, when) => played.push({ ev, when }) },
+    { ...timing },
+  );
+  return { run, played };
+};
+
+describe('GameRun com swing', () => {
+  it('os tempos das notas levam o atraso do swing na colcheia em contratempo (passo 2)', () => {
+    const { run } = makeSwing();
+    const { stepDur } = timing;
+    expect(run.times).toEqual([run.start, run.start + (2 + 0.6) * stepDur]);
+  });
+
+  it('um evento de acompanhamento no contratempo toca com o mesmo atraso do swing', () => {
+    const { run, played } = makeSwing();
+    // passo 2 do relógio (absStep 50), no tempo direito (sem swing) que o relógio lhe dá
+    run.onStep(50, 12.25);
+    expect(played).toEqual([{ ev: swingChart.backing[0], when: 12.25 + 0.6 * timing.stepDur }]);
+  });
+
+  it('a pausa e a retoma mantêm o swing (a mesma distância entre os tempos)', () => {
+    const { run } = makeSwing();
+    const gapBefore = run.times[1] - run.times[0];
+    run.pause(12.2);
+    run.resume(80, 16);
+    expect(run.times[1] - run.times[0]).toBeCloseTo(gapBefore);
+    // e `timeOf` continua certo depois da retoma, com o novo `start`
+    expect(run.timeOf(2)).toBeCloseTo(run.times[1]);
   });
 });
 

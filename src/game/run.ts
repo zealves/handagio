@@ -93,7 +93,7 @@ export class GameRun {
     this.lag = timing.lag;
     this.start = t0 + COUNT_IN_STEPS * stepDur;
     this.countTo = this.start;
-    this.times = chart.notes.map((n) => this.start + n.step * stepDur);
+    this.times = chart.notes.map((n) => this.timeOf(n.step));
     // o atraso aprendido pode subir até `LAG_MAX_MS`: o fim espera por ele
     this.end = this.start + chart.bars * 16 * stepDur + END_TAIL_S + LAG_MAX_MS / 1000;
     this.judge = new Judge(
@@ -106,18 +106,30 @@ export class GameRun {
     this.hitAt = new Float64Array(chart.lanes).fill(-Infinity);
   }
 
+  /** Tempo de áudio do passo `s` da partitura (com o swing nas colcheias em contratempo). */
+  timeOf(s: number): number {
+    return (
+      this.start +
+      s * this.timing.stepDur +
+      (((s % 4) + 4) % 4 === 2 ? this.chart.swing * this.timing.stepDur : 0)
+    );
+  }
+
   /** Passo do relógio (já com o tempo de áudio): agenda o acompanhamento desse passo. */
   onStep(absStep: number, time: number): void {
     if (this.state === 'paused' || this.state === 'over') return;
     if (this.resumeStep !== null && absStep < this.resumeStep) {
       const k = absStep - (this.resumeStep - COUNT_IN_STEPS);
+      // a contagem da retoma não leva swing: é só um pulso a direito a cada tempo
       if (k >= 0 && k % STEPS_PER_BEAT === 0) this.deps.playBacking(COUNT_HAT, time);
       return;
     }
     const rel = absStep - this.startStep - COUNT_IN_STEPS;
     const b = this.chart.backing;
+    const t =
+      ((rel % 4) + 4) % 4 === 2 ? time + this.chart.swing * this.timing.stepDur : time;
     while (this.bi < b.length && b[this.bi].step < rel) this.bi++;
-    while (this.bi < b.length && b[this.bi].step === rel) this.deps.playBacking(b[this.bi++], time);
+    while (this.bi < b.length && b[this.bi].step === rel) this.deps.playBacking(b[this.bi++], t);
   }
 
   /**
