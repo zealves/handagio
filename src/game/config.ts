@@ -61,6 +61,18 @@ export const LAG_SAVE_MIN_HITS = 8;
 export const roundLagMs = (seconds: number): number =>
   Math.round((seconds * 1000) / LAG_STEP_MS) * LAG_STEP_MS;
 
+/**
+ * Intervalo mínimo entre duas notas (s). Na câmara, um toque precisa de dobrar, confirmar
+ * (2–3 imagens a 30 fps), esticar e voltar a dobrar: abaixo disto as notas "não contam".
+ */
+export const MIN_NOTE_GAP_S = 0.3;
+/** Atalhos do seletor de dedos (pela ordem do ecrã). */
+export const FINGER_PRESETS = {
+  left: [4, 3, 2, 1],
+  right: [6, 7, 8, 9],
+  pairs: [2, 1, 6, 7],
+} as const satisfies Record<string, readonly number[]>;
+
 /** Compasso de entrada (semicolcheias). */
 export const COUNT_IN_STEPS = 16;
 /** Tempo depois do último compasso antes do resultado (s). */

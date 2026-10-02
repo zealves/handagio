@@ -9,6 +9,7 @@ export class Score {
   perfect = 0;
   good = 0;
   miss = 0;
+  lateTaps = 0;
   private offsetSum = 0;
 
   /** ×1, ×2 a partir de 10 seguidos, ×3 a partir de 20, ×4 a partir de 30. */
@@ -33,6 +34,11 @@ export class Score {
     this.combo = 0;
   }
 
+  /** Um "Tarde!" da câmara (dobra vista depois da janela). */
+  lateTap(): void {
+    this.lateTaps++;
+  }
+
   result(total: number): Omit<GameResult, 'best' | 'lagMs' | 'startLagMs'> {
     const hits = this.perfect + this.good;
     return {
@@ -44,6 +50,7 @@ export class Score {
       miss: this.miss,
       total,
       meanOffsetMs: hits ? Math.round((this.offsetSum / hits) * 1000) : null,
+      lateTaps: this.lateTaps,
     };
   }
 }

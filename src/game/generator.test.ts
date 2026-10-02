@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { COUNT_IN_STEPS, DIFFICULTIES, DIFFICULTY } from './config';
-import { DRUM_SLOT, generateChart, progressionFor, spaceLanes } from './generator';
+import {
+  alternateHands,
+  DRUM_SLOT,
+  enforceMinGap,
+  generateChart,
+  minGapSteps,
+  progressionFor,
+  spaceLanes,
+} from './generator';
 
 const seeds = Array.from({ length: 20 }, (_, k) => k + 1);
 
@@ -199,5 +207,104 @@ describe('generateChart', () => {
         expect(last.step).toBe((c.bars - 1) * 16);
         if (last.kind === 'bass') expect(last.degree).toBe(0);
       }
+  });
+});
+
+describe('notas possíveis na câmara', () => {
+  it('intervalo mínimo em passos: 0,30 s arredondado para cima', () => {
+    expect(minGapSteps(90)).toBe(2);
+    expect(minGapSteps(110)).toBe(3);
+    expect(minGapSteps(130)).toBe(3);
+  });
+
+  it('enforceMinGap tira as notas demasiado juntas e mantém a final', () => {
+    const ns = [
+      { step: 0, lane: 0 },
+      { step: 2, lane: 1 },
+      { step: 3, lane: 2 },
+      { step: 8, lane: 0 },
+      { step: 10, lane: 1 },
+    ];
+    // a final (10) fica; a do 8 sai por estar a 2 passos dela
+    expect(enforceMinGap(ns, 3)).toEqual([
+      { step: 0, lane: 0 },
+      { step: 3, lane: 2 },
+      { step: 10, lane: 1 },
+    ]);
+  });
+
+  it('alternateHands: notas a menos de 1 tempo vão para mãos diferentes', () => {
+    // 4 faixas, 2 da esquerda: 0 e 1 são da esquerda
+    const out = alternateHands(
+      [
+        { step: 0, lane: 0 },
+        { step: 2, lane: 1 },
+        { step: 8, lane: 1 },
+        { step: 16, lane: 3 },
+      ],
+      2,
+      4,
+    );
+    // a do passo 2 passa para a direita (a faixa mais próxima: 2); as outras ficam
+    expect(out).toEqual([
+      { step: 0, lane: 0 },
+      { step: 2, lane: 2 },
+      { step: 8, lane: 1 },
+      { step: 16, lane: 3 },
+    ]);
+  });
+
+  it('alternateHands com uma só mão não muda nada', () => {
+    const ns = [
+      { step: 0, lane: 0 },
+      { step: 2, lane: 1 },
+    ];
+    expect(alternateHands(ns, 0, 4)).toEqual(ns);
+    expect(alternateHands(ns, 4, 4)).toEqual(ns);
+  });
+
+  it('alternateHands: se a final colidir com a anterior, a anterior sai', () => {
+    expect(
+      alternateHands(
+        [
+          { step: 0, lane: 2 },
+          { step: 13, lane: 0 },
+          { step: 16, lane: 1 },
+        ],
+        2,
+        4,
+      ),
+    ).toEqual([
+      { step: 0, lane: 2 },
+      { step: 16, lane: 1 },
+    ]);
+  });
+
+  it('gerador: nunca menos de 0,30 s entre notas e mãos alternadas nas próximas', () => {
+    for (const d of DIFFICULTIES)
+      for (const seed of seeds)
+        for (const [lanes, split] of [
+          [4, 2],
+          [4, 0],
+          [4, 4],
+          [6, 3],
+          [8, 4],
+          [3, 1],
+          [2, 1],
+        ] as const) {
+          const c = generateChart({ difficulty: d, seed, scaleSize: 7, lanes, split });
+          const gap = minGapSteps(DIFFICULTY[d].bpm);
+          const both = split > 0 && split < lanes;
+          c.notes.forEach((n, k) => {
+            if (k === 0) return;
+            const prev = c.notes[k - 1];
+            expect(n.step - prev.step).toBeGreaterThanOrEqual(gap);
+            if (both && n.step - prev.step < 4) expect(n.lane < split).not.toBe(prev.lane < split);
+            if (n.lane === prev.lane) expect(n.step - prev.step).toBeGreaterThanOrEqual(4);
+          });
+          const last = c.notes[c.notes.length - 1];
+          expect(last.step).toBe((c.bars - 1) * 16);
+          expect(last.lane % 7).toBe(0);
+        }
   });
 });

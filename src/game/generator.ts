@@ -1,6 +1,6 @@
 // Modo de jogo: partitura procedural (melodia nas faixas + bateria e baixo). Pura e
 // determinística: a mesma semente dá a mesma ronda.
-import { COUNT_IN_STEPS, DIFFICULTY } from './config';
+import { COUNT_IN_STEPS, DIFFICULTY, MIN_NOTE_GAP_S } from './config';
 import { mulberry32 } from './rng';
 import type { BackingEvent, Chart, ChartNote, Difficulty } from './types';
 
@@ -41,10 +41,12 @@ export interface GenerateOptions {
   lanes: number;
   /** Compassos (diagnóstico e testes); por defeito os da dificuldade. Mínimo 2. */
   bars?: number;
+  /** Faixas da mão esquerda ([0, split)); por defeito metade. */
+  split?: number;
 }
 
 type Rnd = () => number;
-interface Onset {
+export interface Onset {
   step: number;
   lane: number;
 }
@@ -106,7 +108,9 @@ export function generateChart(o: GenerateOptions): Chart {
   );
   body.push(end);
 
-  const notes = spaceLanes(body, lanes).map((n, k, all): ChartNote => ({
+  const split = Math.max(0, Math.min(lanes, Math.round(o.split ?? Math.floor(lanes / 2))));
+  const playable = alternateHands(enforceMinGap(body, minGapSteps(cfg.bpm)), split, lanes);
+  const notes = spaceLanes(playable, lanes).map((n, k, all): ChartNote => ({
     ...n,
     dur: k + 1 < all.length ? Math.min(BEAT, all[k + 1].step - n.step) : BEAT,
   }));
@@ -134,6 +138,52 @@ function nextLane(rng: Rnd, cur: number, lanes: number, targets: number[] | null
 
 const nearest = (xs: number[], to: number): number =>
   xs.reduce((best, x) => (Math.abs(x - to) < Math.abs(best - to) ? x : best), xs[0] ?? 0);
+
+/** `MIN_NOTE_GAP_S` em passos (semicolcheias) a este BPM, arredondado para cima. */
+export function minGapSteps(bpm: number): number {
+  const stepDur = 60 / bpm / BEAT;
+  return Math.ceil(MIN_NOTE_GAP_S / stepDur - 1e-9);
+}
+
+/**
+ * Tira as notas a menos de `steps` da anterior que ficou (ordenadas). A última (a final na
+ * tónica) fica sempre: se colidir, sai a anterior.
+ */
+export function enforceMinGap(ns: Onset[], steps: number): Onset[] {
+  const sorted = [...ns].sort((a, b) => a.step - b.step);
+  const out: Onset[] = [];
+  sorted.forEach((n, k) => {
+    const prev = out[out.length - 1];
+    if (!prev || n.step - prev.step >= steps) out.push(n);
+    else if (k === sorted.length - 1) {
+      out.pop();
+      out.push(n);
+    }
+  });
+  return out;
+}
+
+/**
+ * Notas a menos de 1 tempo da anterior vão para a outra mão (faixas `[0, split)` são da
+ * esquerda), para a faixa mais próxima dela. Com uma só mão não muda nada. A final não muda: se
+ * colidir com a anterior, sai a anterior.
+ */
+export function alternateHands(ns: Onset[], split: number, lanes: number): Onset[] {
+  if (split <= 0 || split >= lanes) return ns;
+  const left = (l: number) => l < split;
+  const out = [...ns];
+  for (let k = 1; k < out.length; k++) {
+    const prev = out[k - 1];
+    const n = out[k];
+    if (n.step - prev.step >= BEAT || left(n.lane) !== left(prev.lane)) continue;
+    if (k === out.length - 1) {
+      out.splice(k - 1, 1);
+      break;
+    }
+    out[k] = { ...n, lane: left(prev.lane) ? split : split - 1 };
+  }
+  return out;
+}
 
 /**
  * Ordena e garante 1 tempo entre notas seguidas na mesma faixa (muda para a faixa ao lado).

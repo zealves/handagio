@@ -41,4 +41,11 @@ describe('Score', () => {
     expect(r.accuracy).toBe(0);
     expect(r.meanOffsetMs).toBeNull();
   });
+
+  it('conta as dobras vistas tarde', () => {
+    const s = new Score();
+    s.lateTap();
+    s.lateTap();
+    expect(s.result(0).lateTaps).toBe(2);
+  });
 });

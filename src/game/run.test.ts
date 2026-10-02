@@ -117,6 +117,14 @@ describe('GameRun', () => {
     expect(run.last).toEqual({ kind: 'late', at: 12.4 });
   });
 
+  it('"Tarde" da câmara conta como dobra vista tarde (o do teclado não)', () => {
+    const { run } = make();
+    run.press(0, 12.4);
+    run.press(0, 12.4);
+    run.press(0, 12.3, false);
+    expect(run.score.lateTaps).toBe(2);
+  });
+
   it('contagem, falhados e fim da ronda', () => {
     const { run } = make();
     expect(run.update(11)).toBe(false);

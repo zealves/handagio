@@ -131,6 +131,7 @@ export class GameRun {
     const out = this.judge.press(lane, now - (fromCamera ? this.lag : 0));
     if (!out) return null;
     const near = isNear(out);
+    if (fromCamera && out.kind === 'late') this.score.lateTap();
     const learns = !near || this.nearLearned[out.index] === 0;
     if (fromCamera && learns) {
       if (near) this.nearLearned[out.index] = 1;

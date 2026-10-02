@@ -44,6 +44,8 @@ export interface GameResult {
   total: number;
   /** Atraso médio dos acertos em ms (positivo = tarde); null sem acertos. */
   meanOffsetMs: number | null;
+  /** "Tarde!" da câmara na ronda. */
+  lateTaps: number;
   best: boolean;
   /** Atraso com que a ronda começou (ms, arredondado como `lagMs`). */
   startLagMs: number;
