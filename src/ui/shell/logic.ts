@@ -20,7 +20,7 @@ import {
   LAG_STEP_MS,
   normalizeGameFingers,
 } from '../../game/config';
-import { LEVELS } from '../../game/levels';
+import { LEVELS, type LevelProgress } from '../../game/levels';
 import type { Difficulty } from '../../game/types';
 import { DEFAULT_SOUND } from '../../state/store';
 import { isLang } from '../../i18n/types';
@@ -273,9 +273,9 @@ export function sanitizePrefs<T extends Record<string, unknown>>(p: T): T {
 }
 
 /** Progresso dos níveis guardado: só os ids de `LEVELS`, com os campos validados; o resto cai fora. */
-function sanitizeLevelProgress(v: unknown): Record<string, { stars: number; points: number; accuracy: number }> {
+function sanitizeLevelProgress(v: unknown): LevelProgress {
   const src = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
-  const out: Record<string, { stars: number; points: number; accuracy: number }> = {};
+  const out: LevelProgress = {};
   for (const l of LEVELS) {
     const entry = src[l.id];
     if (!entry || typeof entry !== 'object') continue;
