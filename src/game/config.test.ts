@@ -4,6 +4,7 @@ import {
   DIFFICULTIES,
   DIFFICULTY,
   hiddenHandIdx,
+  playingHandIdx,
   idleHandSide,
   laneOf,
   normalizeGameFingers,
@@ -108,5 +109,15 @@ describe('mulberry32', () => {
     const xs = Array.from({ length: 50 }, () => a());
     expect(Array.from({ length: 50 }, () => b())).toEqual(xs);
     expect(xs.every((x) => x >= 0 && x < 1)).toBe(true);
+  });
+});
+
+describe('playingHandIdx', () => {
+  it('dá o lado da mão que joga só quando os dedos são todos de uma mão', () => {
+    expect(playingHandIdx([1, 2, 3])).toBe(0);
+    expect(playingHandIdx([6, 7, 8])).toBe(1);
+    expect(playingHandIdx([3, 6])).toBeNull();
+    expect(playingHandIdx([])).toBeNull();
+    expect(playingHandIdx(null)).toBeNull();
   });
 });

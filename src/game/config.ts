@@ -49,6 +49,16 @@ export function idleHandSide(fingers: readonly number[] | null): 'left' | 'right
 }
 
 /**
+ * Índice (0 = esquerda, 1 = direita) da mão que joga quando todos os `fingers` são da mesma mão,
+ * ou null. Com uma só mão à vista, a sessão põe-na sempre nesse lado (`assignHands`, `onlySide`):
+ * sozinha, a mão pode cair em qualquer lado e os seus dedos não tocariam nenhuma faixa.
+ */
+export function playingHandIdx(fingers: readonly number[] | null): 0 | 1 | null {
+  const idle = idleHandSide(fingers);
+  return idle === 'left' ? 1 : idle === 'right' ? 0 : null;
+}
+
+/**
  * Índice (0 = esquerda, 1 = direita) da mão a esconder no overlay, ou null para não esconder
  * nenhuma (decisão 73). `idleHandSide` diz qual seria pelos dedos escolhidos; só se segue essa
  * resposta quando a mão que joga está mesmo identificada em `assignedHands` — senão esconder-

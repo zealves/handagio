@@ -37,6 +37,21 @@ describe('handTracker', () => {
     expect(l).toBe(hand);
     expect(r).toBeNull();
   });
+  it('uma mão com um lado imposto (jogo só com uma mão): fica nesse lado, contra o rótulo e o ecrã', () => {
+    const st = createHandAssignState();
+    st.labelsInverted = false;
+    // à direita no ecrã e com um rótulo confiável "Right", mas o jogo só usa a mão esquerda
+    for (const x of [0.7, 0.72, 0.74]) {
+      const hand = syntheticHand(false, x);
+      const [l, r] = assignHands([hand], [{ label: 'Right', score: 0.95 }], st, 0);
+      expect(l).toBe(hand);
+      expect(r).toBeNull();
+    }
+    // com duas mãos à vista o lado imposto não conta: ficam pela posição do pulso
+    const a = syntheticHand(false, 0.8);
+    const b = syntheticHand(false, 0.2);
+    expect(assignHands([a, b], [], st, 0)).toEqual([b, a]);
+  });
   it('sem nada aprendido, o rótulo vem trocado (vídeo sem espelho)', () => {
     expect(DEFAULT_LABELS_INVERTED).toBe(true);
     const hand = syntheticHand(false, 0.7);

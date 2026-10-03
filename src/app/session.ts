@@ -20,6 +20,7 @@ import { getState, setState, useStore, type Store } from '../state/store';
 import {
   DIFFICULTY,
   hiddenHandIdx,
+  playingHandIdx,
   LAG_SAVE_MIN_HITS,
   MAX_HIT_STEPS,
   MAX_SONG_HIT_STEPS,
@@ -1242,7 +1243,10 @@ class Session {
     this.lastProcT = now;
     live.hands = hands;
     live.handsT = now;
-    const assigned = assignHands(hands, handedness, this.handState);
+    // jogo com os dedos de uma só mão: a mão sozinha à vista é a que joga (`playingHandIdx`)
+    const game = getState().game;
+    const onlySide = game ? playingHandIdx(game.fingers) : null;
+    const assigned = assignHands(hands, handedness, this.handState, onlySide);
     live.assignedHands = assigned;
     // A calibração recolhe as dobras de todos os dedos, polegares incluídos, mesmo com os
     // polegares desligados (o gestureEngine não calcula a dobra dos dedos inativos).

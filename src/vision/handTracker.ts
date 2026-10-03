@@ -109,12 +109,16 @@ function learn(state: HandAssignState, left: Handedness | null, right: Handednes
  *   um lado, visto há no máximo `PREV_KEEP_FRAMES`): mantém o lado; um rótulo confiável que
  *   aponte para o outro só a muda ao fim de `LABEL_SWITCH_FRAMES` fotogramas seguidos.
  * - Uma mão nova: (a) pela lateralidade, se o rótulo for confiável; (c) senão, pelo lado do ecrã.
+ * - `onlySide`: com uma só mão à vista, vai sempre para esse lado (o jogo com os dedos de uma só
+ *   mão: a mão que se mostra é a que joga, seja qual for o rótulo ou o lado do ecrã). Com duas
+ *   mãos não conta.
  * `state` guarda o que passa de um fotograma para o outro.
  */
 export function assignHands(
   list: HandLandmarks[],
   handedness: readonly (Handedness | null | undefined)[] = [],
   state: HandAssignState = createHandAssignState(),
+  onlySide: 0 | 1 | null = null,
 ): AssignedHands {
   const out: AssignedHands = [null, null];
   const before: [Pt | null, Pt | null] = [state.prev[0], state.prev[1]];
@@ -133,7 +137,10 @@ export function assignHands(
     const d = state.prev.map((p) => (p ? Math.hypot(p.x - w.x, p.y - w.y) : Infinity));
     const near: 0 | 1 = d[0] <= d[1] ? 0 : 1;
     let side: 0 | 1;
-    if (d[near] < CONTINUITY_DIST) {
+    if (onlySide !== null) {
+      side = onlySide;
+      state.disagree = 0;
+    } else if (d[near] < CONTINUITY_DIST) {
       side = near;
       if (labelSide !== null && labelSide !== near) {
         if (++state.disagree >= LABEL_SWITCH_FRAMES) {

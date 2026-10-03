@@ -37,7 +37,7 @@ type Vsc = {
     /** Último efeito passado a `setMouth` ('off' no jogo, decisão 73). */
     readonly mouthFxMode: string;
   };
-  live: { game: Run | null };
+  live: { game: Run | null; assignedHands: [unknown, unknown] };
   store: { getState(): Record<string, unknown> & { set(p: Record<string, unknown>): void } };
   syntheticHand(closed: boolean[] | boolean, x?: number, y?: number): unknown;
 };
@@ -949,7 +949,7 @@ test.describe('modo de jogo', () => {
     expect(r.stoppedReverb).toBeCloseTo(0.2); // sair do jogo repõe o reverb do jogador
   });
 
-  test('só a mão direita escolhida: com só essa mão à vista, o diagnóstico esconde a esquerda', async ({
+  test('só a mão direita escolhida: a mão sozinha joga do lado direito e a esquerda esconde-se', async ({
     page,
   }) => {
     await page.getByTestId('mode-game').click();
@@ -967,19 +967,22 @@ test.describe('modo de jogo', () => {
       // só a mão direita à vista (pulso a x = 0.7, o lado direito do ecrã já espelhado)
       v.session.feedHands([v.syntheticHand(false, 0.7)]);
       const after = v.session.hiddenHandSide();
-      // só a mão esquerda à vista (a que não joga): continua sem se identificar a que joga, por
-      // isso nada se esconde (minor 5 da revisão final: um só lado identificado, e é o errado)
-      v.session.feedHands([v.syntheticHand(false, 0.3)]);
-      const onlyIdleSeen = v.session.hiddenHandSide();
+      // uma só mão à vista no lado esquerdo do ecrã: com os dedos só da mão direita, a mão
+      // sozinha é a que joga, seja qual for o lado (antes caía na esquerda e não tocava nada)
+      const lone = v.syntheticHand(false, 0.3);
+      v.session.feedHands([lone]);
+      const onlyOneSeen = v.session.hiddenHandSide();
+      const loneOnRight = v.live.assignedHands[1] !== null && v.live.assignedHands[0] === null;
       // as duas mãos à vista (esquerda a x = 0.3, direita a x = 0.7): a que joga (direita) está
       // mesmo identificada, por isso esconde-se a esquerda (minor 5 da revisão final)
       v.session.feedHands([v.syntheticHand(false, 0.3), v.syntheticHand(false, 0.7)]);
       const bothSeen = v.session.hiddenHandSide();
-      return { before, after, onlyIdleSeen, bothSeen };
+      return { before, after, onlyOneSeen, loneOnRight, bothSeen };
     });
     expect(hidden.before).toBeNull();
     expect(hidden.after).toBe('left');
-    expect(hidden.onlyIdleSeen).toBeNull();
+    expect(hidden.onlyOneSeen).toBe('left');
+    expect(hidden.loneOnRight).toBe(true);
     expect(hidden.bothSeen).toBe('left');
   });
 });
