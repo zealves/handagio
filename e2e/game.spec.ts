@@ -20,6 +20,8 @@ type Vsc = {
     restartGame(): void;
     nextLevel(): void;
     pauseGame(): void;
+    resumeGame(): void;
+    stopGame(): void;
     readonly gameMelody: string | null;
     feedHands(
       h: unknown[],
@@ -27,7 +29,14 @@ type Vsc = {
     ): void;
     hiddenHandSide(): 'left' | 'right' | null;
   };
-  audio: { now: number; voiceMidi(key: number | string): number | null };
+  audio: {
+    now: number;
+    voiceMidi(key: number | string): number | null;
+    /** Reverb a aplicar agora, já com o reforço da energia somado (diagnóstico). */
+    readonly reverbLevel: number;
+    /** Último efeito passado a `setMouth` ('off' no jogo, decisão 73). */
+    readonly mouthFxMode: string;
+  };
   live: { game: Run | null };
   store: { getState(): Record<string, unknown> & { set(p: Record<string, unknown>): void } };
   syntheticHand(closed: boolean[] | boolean, x?: number, y?: number): unknown;
@@ -880,6 +889,66 @@ test.describe('modo de jogo', () => {
     await expect(page.getByTestId('game-power-uses')).toContainText('Energia usada: 1 vez');
   });
 
+  test('energia: o reverb sobe enquanto ativa, cai na pausa e ao sair; o efeito da boca não se aplica no jogo', async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      const v = (window as unknown as { __vsc: Vsc }).__vsc;
+      v.session.gameBars = 2;
+      v.store.getState().set({ reverb: 0.2, mouthFx: 'wah' });
+    });
+    await startEasy(page);
+
+    const r = await page.evaluate(async () => {
+      const v = (window as unknown as { __vsc: Vsc }).__vsc;
+      const run = v.live.game!;
+      while (v.audio.now < run.countTo) await new Promise((res) => setTimeout(res, 5));
+
+      // o jogo nunca aplica o efeito de som da boca (decisão 73), mesmo com 'wah' escolhido
+      const mouthOff = v.audio.mouthFxMode;
+      const baseline = v.audio.reverbLevel;
+
+      run.energy = 1;
+      document.body.dispatchEvent(
+        new KeyboardEvent('keydown', { key: ' ', code: 'Space', bubbles: true }),
+      );
+      const deadline1 = v.audio.now + 3;
+      while (!run.powerActive(v.audio.now)) {
+        if (v.audio.now > deadline1) throw new Error('a energia não ativou a tempo');
+        await new Promise((res) => setTimeout(res, 5));
+      }
+      const boostedActive = v.audio.reverbLevel;
+
+      // a pausa tira o reforço já no próprio clique (sem precisar de um tick do rAF)
+      v.session.pauseGame();
+      const pausedReverb = v.audio.reverbLevel;
+
+      v.session.resumeGame();
+      const deadline2 = Date.now() + 3000;
+      while (v.audio.reverbLevel <= baseline) {
+        if (Date.now() > deadline2) throw new Error('o reverb não voltou a subir a tempo');
+        await new Promise((res) => setTimeout(res, 5));
+      }
+      const resumedReverb = v.audio.reverbLevel;
+
+      document.body.dispatchEvent(
+        new KeyboardEvent('keyup', { key: ' ', code: 'Space', bubbles: true }),
+      );
+      // sai do jogo a meio: repõe o reverb do jogador (endGame -> setPowerReverb(false))
+      v.session.stopGame();
+      const stoppedReverb = v.audio.reverbLevel;
+
+      return { mouthOff, baseline, boostedActive, pausedReverb, resumedReverb, stoppedReverb };
+    });
+
+    expect(r.mouthOff).toBe('off');
+    expect(r.baseline).toBeCloseTo(0.2);
+    expect(r.boostedActive).toBeCloseTo(0.5); // 0,2 + POWER_REVERB_BOOST (0,3, config.ts)
+    expect(r.pausedReverb).toBeCloseTo(0.2); // a pausa tira o reforço, mesmo com a energia ativa
+    expect(r.resumedReverb).toBeCloseTo(0.5); // a retoma repõe-no sozinha (ainda sobra energia)
+    expect(r.stoppedReverb).toBeCloseTo(0.2); // sair do jogo repõe o reverb do jogador
+  });
+
   test('só a mão direita escolhida: com só essa mão à vista, o diagnóstico esconde a esquerda', async ({
     page,
   }) => {
@@ -898,9 +967,19 @@ test.describe('modo de jogo', () => {
       // só a mão direita à vista (pulso a x = 0.7, o lado direito do ecrã já espelhado)
       v.session.feedHands([v.syntheticHand(false, 0.7)]);
       const after = v.session.hiddenHandSide();
-      return { before, after };
+      // só a mão esquerda à vista (a que não joga): continua sem se identificar a que joga, por
+      // isso nada se esconde (minor 5 da revisão final: um só lado identificado, e é o errado)
+      v.session.feedHands([v.syntheticHand(false, 0.3)]);
+      const onlyIdleSeen = v.session.hiddenHandSide();
+      // as duas mãos à vista (esquerda a x = 0.3, direita a x = 0.7): a que joga (direita) está
+      // mesmo identificada, por isso esconde-se a esquerda (minor 5 da revisão final)
+      v.session.feedHands([v.syntheticHand(false, 0.3), v.syntheticHand(false, 0.7)]);
+      const bothSeen = v.session.hiddenHandSide();
+      return { before, after, onlyIdleSeen, bothSeen };
     });
     expect(hidden.before).toBeNull();
     expect(hidden.after).toBe('left');
+    expect(hidden.onlyIdleSeen).toBeNull();
+    expect(hidden.bothSeen).toBe('left');
   });
 });

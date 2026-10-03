@@ -1,5 +1,6 @@
 // Modo de jogo: constantes (dedos, tempo, janelas do juiz e pontos).
 import type { Difficulty } from './types';
+import type { AssignedHands } from '../vision/types';
 
 /**
  * Slots comuns aos kits usados pelo jogo (`src/audio/drums/acoustic.ts` e `tr808.ts`): bombo,
@@ -47,6 +48,25 @@ export function idleHandSide(fingers: readonly number[] | null): 'left' | 'right
   return null;
 }
 
+/**
+ * Índice (0 = esquerda, 1 = direita) da mão a esconder no overlay, ou null para não esconder
+ * nenhuma (decisão 73). `idleHandSide` diz qual seria pelos dedos escolhidos; só se segue essa
+ * resposta quando a mão que joga está mesmo identificada em `assignedHands` — senão esconder-
+ * se-ia a única mão à vista, só porque ficou atribuída ao lado errado (uma mão sozinha à frente
+ * da câmara pode cair em qualquer lado, ver `assignHands`).
+ */
+export function hiddenHandIdx(
+  fingers: readonly number[] | null,
+  assignedHands: AssignedHands,
+): 0 | 1 | null {
+  const idle = idleHandSide(fingers);
+  const idleIdx: 0 | 1 | null = idle === 'left' ? 0 : idle === 'right' ? 1 : null;
+  const playingIdx: 0 | 1 | null = idleIdx === 0 ? 1 : idleIdx === 1 ? 0 : null;
+  return idleIdx !== null && playingIdx !== null && assignedHands[playingIdx] !== null
+    ? idleIdx
+    : null;
+}
+
 /** Dedos válidos, sem repetidos, pela ordem do ecrã; null com menos de `MIN_GAME_FINGERS`. */
 export function normalizeGameFingers(v: unknown): number[] | null {
   if (!Array.isArray(v)) return null;
@@ -83,6 +103,12 @@ export const ENERGY_GOOD = 0.025;
 export const POWER_S = 8;
 /** Durante a energia ativa, cada acerto vale isto vezes mais (já com o multiplicador do combo). */
 export const POWER_MULTIPLIER = 2;
+/** Quanto o reverb sobe enquanto a energia está ativa (limitado a 1; repõe-se ao acabar). */
+export const POWER_REVERB_BOOST = 0.3;
+/** Reverb a aplicar: o do jogador, ou com `POWER_REVERB_BOOST` somado enquanto a energia está
+ *  ativa (decisão 73), sem nunca passar de 1. */
+export const powerReverb = (base: number, active: boolean): number =>
+  active ? Math.min(1, base + POWER_REVERB_BOOST) : base;
 
 /** Atraso por defeito da câmara e da deteção (ms), descontado aos toques; a afinar com mãos reais. */
 export const GAME_INPUT_LAG_MS = 120;

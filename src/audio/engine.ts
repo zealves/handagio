@@ -81,6 +81,8 @@ export class AudioEngine {
   private fadingTails = new Map<VoiceKey, SampleVoice>();
   private theremin: ThereminVoice[] | null = null;
   private ksCache = new Map<string, AudioBuffer>();
+  /** Último efeito passado a `setMouth` (diagnóstico: confirma que o jogo pede `'off'`). */
+  private lastMouthFx: MouthFxId = 'off';
   private params: EngineParams = {
     volume: 0.75,
     muted: false,
@@ -251,6 +253,7 @@ export class AudioEngine {
   }
 
   setMouth(amount: number, fx: MouthFxId): void {
+    this.lastMouthFx = fx;
     if (this.ready) this.mouth.apply(amount, fx, this.ctx.currentTime);
   }
 
@@ -357,6 +360,16 @@ export class AudioEngine {
   /** Fontes de amostras ainda a soar, incluindo caudas já largadas (diagnóstico). */
   get sampleSources(): number {
     return sampleSources();
+  }
+
+  /** Reverb a aplicar agora, já com o reforço da energia do jogo somado (diagnóstico). */
+  get reverbLevel(): number {
+    return this.params.reverb;
+  }
+
+  /** Último efeito passado a `setMouth` (diagnóstico: `'off'` no jogo, `mouthFx` do store fora). */
+  get mouthFxMode(): MouthFxId {
+    return this.lastMouthFx;
   }
 
   // ---------- percussão ----------

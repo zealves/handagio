@@ -1,12 +1,11 @@
 // Desenho do overlay do palco: esqueleto das mãos em néon (ciano → magenta), anéis nas pontas dos
 // dedos, ondas de disparo com o nome da nota, colunas do modo movimento e contorno dos lábios.
 import { audio } from '../../audio/engine';
-import { idleHandSide } from '../../game/config';
+import { hiddenHandIdx } from '../../game/config';
 import { t } from '../../i18n';
 import { getState } from '../../state/store';
 import { live } from '../../state/live';
 import { MOUTH_FX } from '../../state/types';
-import type { AssignedHands } from '../../vision/types';
 import { activeScreenOrder, isActive } from '../../vision/fingerMap';
 import { FINGER_COLORS, NEON } from '../theme';
 
@@ -53,25 +52,6 @@ const PLAYING_PILL_H = 1.6; // × r (bem mais alta que o anel, mas ainda "deitad
 const PLAYING_PILL_GROW = 0.35;
 /** Raio constante (× sc) do anel dos dedos que não jogam: pequeno, não cresce com a dobra. */
 const OTHER_FINGER_R = 7;
-
-/**
- * Índice (0 = esquerda, 1 = direita) da mão a esconder, ou null para não esconder nenhuma.
- * `idleHandSide` (lógica pura, `game/config.ts`) diz qual seria pelos dedos escolhidos; só se
- * segue essa resposta quando a mão que joga está mesmo identificada em `assignedHands` — senão
- * esconder-se-ia a única mão à vista, só porque ficou atribuída ao lado errado (uma mão sozinha
- * à frente da câmara pode cair em qualquer lado, ver `assignHands`).
- */
-export function hiddenHandIdx(
-  fingers: readonly number[] | null,
-  assignedHands: AssignedHands,
-): 0 | 1 | null {
-  const idle = idleHandSide(fingers);
-  const idleIdx: 0 | 1 | null = idle === 'left' ? 0 : idle === 'right' ? 1 : null;
-  const playingIdx: 0 | 1 | null = idleIdx === 0 ? 1 : idleIdx === 1 ? 0 : null;
-  return idleIdx !== null && playingIdx !== null && assignedHands[playingIdx] !== null
-    ? idleIdx
-    : null;
-}
 
 export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, reduced: boolean) {
   const now = performance.now();

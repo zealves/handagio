@@ -19,9 +19,11 @@ import { live, pushBurst } from '../state/live';
 import { getState, setState, useStore, type Store } from '../state/store';
 import {
   DIFFICULTY,
+  hiddenHandIdx,
   LAG_SAVE_MIN_HITS,
   MAX_HIT_STEPS,
   MAX_SONG_HIT_STEPS,
+  powerReverb,
   roundLagMs,
 } from '../game/config';
 import { crashSlotFor, generateChart } from '../game/generator';
@@ -52,7 +54,6 @@ import {
 import { MotionDetector } from '../vision/motionFallback';
 import type { Pt } from '../vision/types';
 import { FINGER_COLORS } from '../ui/theme';
-import { hiddenHandIdx } from '../ui/stage/drawOverlay';
 import { isTypingTarget } from '../lib/keys';
 import { fingerChordOf, fingerMidiOf } from './notes';
 
@@ -82,8 +83,6 @@ const SONG_BASS_OCTAVE_DROP = 2;
 const PROCEDURAL_BASS_OCTAVE_DROP = 1;
 /** Boca aberta o suficiente para ativar a energia do jogo (decisão 73; o espaço já chega a 1). */
 const MOUTH_ACTIVATE = 0.6;
-/** Quanto o reverb sobe enquanto a energia está ativa (limitado a 1; repõe-se ao acabar). */
-const POWER_REVERB_BOOST = 0.3;
 
 const fingerPan = (i: number) => (i - 4.5) / 6;
 /** Chave da voz: o dedo (nota única ou fundamental) ou `dedo:k` para as outras notas do acorde. */
@@ -247,7 +246,7 @@ class Session {
       volume: s.volume,
       muted: s.muted,
       // com a energia do jogo ativa o reverb sobe (decisão 73); repõe-se com `powerReverbOn`
-      reverb: this.powerReverbOn ? Math.min(1, s.reverb + POWER_REVERB_BOOST) : s.reverb,
+      reverb: powerReverb(s.reverb, this.powerReverbOn),
       echo: s.echo,
       filter: s.filter,
       drive: s.drive,
