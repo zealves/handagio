@@ -1,5 +1,5 @@
-/* Separador Níveis do menu do jogo: 3 cartões numa só linha, como a dificuldade do Treino
-   (GameDialog.module.css `.levels`), para o Jogar continuar visível sem scroll a 1280×800. */
+/* Lista dos níveis do menu do jogo: 3 cartões numa só linha, para o Jogar continuar visível
+   sem scroll a 1280×800. */
 .list {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

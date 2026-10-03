@@ -72,13 +72,13 @@ export function GameDialog() {
   // resultado a chamar `backToMenu()` — e nesse caso o efeito acima não chama `showModal()` (o
   // <dialog> já estava aberto), que é quem foca; sem isto o botão que tinha o foco desaparece com
   // o cartão anterior e o foco cai para <body>. Vindo da ronda (o ✕ da pista), o `showModal()`
-  // do efeito acima focaria o separador Níveis (o 1.º botão focável); aqui fica também no Jogar,
-  // como nos outros regressos.
+  // do efeito acima focaria o 1.º botão focável (o cartão do primeiro nível); aqui fica também
+  // no Jogar, como nos outros regressos.
   // Só foca o Jogar nesse regresso (fase anterior ronda/pausa/resultado): na primeira vez que o
-  // menu abre (fase anterior nula) o foco por defeito fica no primeiro botão (o separador
-  // Níveis), como seria sem este efeito — focar o Jogar aí só serviria para, com o cartão a
-  // transbordar do ecrã (telemóveis pequenos), arrastar o scroll para baixo e esconder o título.
-  // `preventScroll` e repor o scroll a 0 mantêm o cartão visto do topo neste regresso.
+  // menu abre (fase anterior nula) o foco por defeito fica no primeiro botão (o cartão do
+  // primeiro nível), como seria sem este efeito — focar o Jogar aí só serviria para, com o
+  // cartão a transbordar do ecrã (telemóveis pequenos), arrastar o scroll para baixo e esconder
+  // o título. `preventScroll` e repor o scroll a 0 mantêm o cartão visto do topo neste regresso.
   useEffect(() => {
     const prevPhase = prevPhaseRef.current;
     prevPhaseRef.current = game?.phase ?? null;
@@ -256,6 +256,11 @@ export function GameDialog() {
             <dd>{r.maxCombo}</dd>
           </dl>
           <p className={s.counts}>{tr.counts(r.perfect, r.good, r.miss)}</p>
+          {r.wrongTaps > 0 && (
+            <p className={s.counts} data-testid="game-wrong-taps">
+              {tr.wrongTaps(r.wrongTaps)}
+            </p>
+          )}
           {r.meanOffsetMs !== null && <p className={s.counts}>{tr.offset(r.meanOffsetMs)}</p>}
           {learnedLag !== null && (
             <p className={s.counts} data-testid="game-lag-learned">
@@ -276,15 +281,10 @@ export function GameDialog() {
               {progress[r.levelId]?.points ? tr.best(progress[r.levelId].points) : tr.noBest}
             </p>
           )}
-          {/* mesma dica visível do separador Níveis (decisão 70), mas só quando há mesmo um
+          {/* mesma dica visível da lista dos níveis (decisão 70), mas só quando há mesmo um
               nível seguinte por abrir (`nextLocked`); alinhada à esquerda como as outras linhas
               do cartão, ao contrário da da lista, que fica centrada */}
           {nextLocked && <UnlockHintLine testId="game-unlock-hint" left />}
-          {r.wrongTaps > 0 && (
-            <p className={s.counts} data-testid="game-wrong-taps">
-              {tr.wrongTaps(r.wrongTaps)}
-            </p>
-          )}
           <div className={s.actions}>
             <button
               type="button"

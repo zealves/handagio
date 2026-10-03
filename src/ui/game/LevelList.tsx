@@ -1,12 +1,11 @@
-// Modo de jogo, separador Níveis: um cartão por nível, com o nome, o instrumento e as estrelas.
-// Os 3 cartões ficam numa só linha, como a dificuldade do Treino (`.levels` em GameDialog), para
-// o Jogar continuar visível sem scroll a 1280×800 (decisão 69); o recorde, mais longo, vai para
-// o `title` (dica nativa ao pairar o rato) em vez de ocupar mais uma linha. A condição de
-// desbloqueio ("Faz ★ no nível anterior") também lá vai, mas ganha ainda uma linha visível
-// partilhada (`UnlockHintLine`) debaixo da lista enquanto houver algum nível bloqueado: sem
-// tooltip no toque e com um botão `disabled` que nunca recebe foco, o `title` sozinho era
-// invisível para quem joga no telemóvel (decisão 70). Um nível bloqueado mostra o cadeado; tocar
-// num aberto só o seleciona — quem começa a ronda é o botão Jogar, em comum com o Treino
+// Modo de jogo, menu: um cartão por nível, com o nome, o instrumento e as estrelas. Os 3 cartões
+// ficam numa só linha, para o Jogar continuar visível sem scroll a 1280×800 (decisão 69); o
+// recorde, mais longo, vai para o `title` (dica nativa ao pairar o rato) em vez de ocupar mais
+// uma linha. A condição de desbloqueio ("Faz ★ no nível anterior") também lá vai, mas ganha
+// ainda uma linha visível partilhada (`UnlockHintLine`) debaixo da lista enquanto houver algum
+// nível bloqueado: sem tooltip no toque e com um botão `disabled` que nunca recebe foco, o
+// `title` sozinho era invisível para quem joga no telemóvel (decisão 70). Um nível bloqueado
+// mostra o cadeado; tocar num aberto só o seleciona — quem começa a ronda é o botão Jogar
 // (GameDialog.tsx).
 import { instrumentText, levelName } from '../../i18n/data';
 import { useT } from '../../i18n';
