@@ -23,6 +23,7 @@ Versões segundo [SemVer](https://semver.org/lang/pt-BR/). A mais recente fica n
 - A nota, o alvo e o dedo no desenho das mãos usam sempre a cor do dedo; "Cedo!"/"Tarde!" ficam brancos, e os falhados e os errados, vermelhos. O alvo de cada faixa passa a ser uma pílula com a forma da nota, maior do que antes. Com o jogo a decorrer ou em pausa, o desenho das mãos destaca os dedos que jogam (pílulas maiores, da sua cor, a encher com a dobra e a crescer quando soam, sem o nome da nota nem o clarão redondo por cima) e apaga os outros dedos e o esqueleto.
 - No resultado, a dica de desbloqueio só aparece se existir mesmo um nível seguinte por abrir, e um recorde de 0 pontos mostra "Sem recorde".
 - Os níveis 2 e 3, agora Noite e Neon (os ids `lofi` e `electro` ficam os mesmos; o progresso guardado não se perde), trocam a melodia ao acaso por músicas escritas à mão, com tapete de acordes, baixo e bateria próprios para cada uma, sem swing e com instrumentos mais agradáveis de ouvir (vibrafone e pluck).
+- Energia: encher a barra (acertando notas) e abrir a boca — ou premir Espaço no teclado — ativa-a durante 8 segundos, com os pontos a dobrar e a pista a brilhar a dourado. Jogar só com uma mão deixa de mostrar a outra no ecrã. A boca deixa de aplicar o efeito de som do modo livre dentro do jogo.
 
 ## [3.2.0] — 2026-10-01
 
