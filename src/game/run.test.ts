@@ -159,10 +159,11 @@ describe('GameRun', () => {
   });
 
   it('com 8 toques da câmara, o resultado traz o atraso aprendido', () => {
-    // 8 notas diferentes, cada uma 0,3 s cedo (sem atraso): são sempre "Cedo" e o atraso desce
-    // até ao mínimo
+    // 8 notas diferentes: a primeira certa (um Cedo antes dela cairia na entrada, que não é
+    // música) e as outras 0,3 s cedo (sem atraso): são sempre "Cedo" e o atraso desce até ao mínimo
     const { run } = new8();
-    for (let k = 0; k < 8; k++) expect(run.press(k, 12 + k * 0.5 - 0.3)?.kind).toBe('early');
+    expect(run.press(0, 12)?.kind).toBe('perfect');
+    for (let k = 1; k < 8; k++) expect(run.press(k, 12 + k * 0.5 - 0.3)?.kind).toBe('early');
     expect(run.cameraHits).toBe(8);
     expect(run.result().lagMs).toBe(0);
     expect(run.result().lagMs).toBe(Math.round((run.lag * 1000) / 10) * 10);
@@ -346,34 +347,60 @@ describe('GameRun.isMusicTime', () => {
 });
 
 describe('GameRun.press: toques errados', () => {
-  it('um toque solto fora da música não conta como erro', () => {
+  it('um toque solto fora da música não conta como erro nem soa', () => {
     const { run } = make();
     expect(run.press(2, 11)).toBeNull();
+    run.update(11.5);
     expect(run.score.wrongTaps).toBe(0);
   });
 
-  it('um toque solto durante a música, sem nota por perto, conta como erro e parte o combo', () => {
+  it('um toque solto durante a música, sem nota por perto, conta como erro depois da janela e parte o combo', () => {
     const { run } = make();
     expect(run.press(0, 12.1)?.kind).toBe('perfect');
     expect(run.score.combo).toBe(1);
-    expect(run.press(3, 12.2)).toEqual({ kind: 'wrong', lane: 3 });
+    // soa logo (stray), mas só conta quando passa NEIGHBOUR_GRACE_S sem acerto vizinho
+    expect(run.press(3, 12.2)).toEqual({ kind: 'stray', lane: 3 });
+    run.update(12.3);
+    expect(run.score.wrongTaps).toBe(0);
+    run.update(12.4);
     expect(run.score.wrongTaps).toBe(1);
     expect(run.score.combo).toBe(0);
-    expect(run.last).toEqual({ kind: 'wrong', at: 12.2 });
+    expect(run.last).toEqual({ kind: 'wrong', at: 12.4 });
   });
 
-  it('tolerância: um vizinho da mesma mão dentro de 0,15 s não conta como erro', () => {
+  it('tolerância: um vizinho da mesma mão dentro de 0,15 s depois de um acerto não conta como erro', () => {
     const run = makeOneNote(2); // split 2: faixas 0 e 1 da mesma mão
     expect(run.press(0, 12.1)?.kind).toBe('perfect');
-    expect(run.press(1, 12.2)).toBeNull(); // 0,1 s depois, dentro de NEIGHBOUR_GRACE_S (0,15)
+    expect(run.press(1, 12.2)?.kind).toBe('stray'); // 0,1 s depois, dentro de NEIGHBOUR_GRACE_S
+    run.update(12.6);
     expect(run.score.wrongTaps).toBe(0);
+  });
+
+  it('tolerância: o vizinho primeiro (10 ms antes) e depois o acerto não conta como erro', () => {
+    const run = makeOneNote(2);
+    expect(run.press(1, 12.09)?.kind).toBe('stray');
+    expect(run.press(0, 12.1)?.kind).toBe('perfect');
+    run.update(12.6);
+    expect(run.score.wrongTaps).toBe(0);
+    expect(run.score.combo).toBe(1);
+  });
+
+  it('o vizinho primeiro sem acerto nos 0,15 s seguintes conta como erro depois do update', () => {
+    const run = makeOneNote(2);
+    expect(run.press(1, 12.25)?.kind).toBe('stray');
+    expect(run.score.wrongTaps).toBe(0);
+    run.update(12.35);
+    expect(run.score.wrongTaps).toBe(0);
+    run.update(12.45);
+    expect(run.score.wrongTaps).toBe(1);
   });
 
   it('a 0,2 s (além de NEIGHBOUR_GRACE_S) o mesmo vizinho já conta como erro', () => {
     const run = makeOneNote(2);
     run.press(0, 12.1);
     expect(NEIGHBOUR_GRACE_S).toBeLessThan(0.2);
-    expect(run.press(1, 12.3)).toEqual({ kind: 'wrong', lane: 1 });
+    expect(run.press(1, 12.3)?.kind).toBe('stray');
+    run.update(12.6);
     expect(run.score.wrongTaps).toBe(1);
   });
 
@@ -381,38 +408,103 @@ describe('GameRun.press: toques errados', () => {
     const run = makeOneNote(2);
     expect(run.press(0, 12.1)?.kind).toBe('perfect');
     // a câmara "ressalta" (histerese/disparo duplo) e deteta outra vez a mesma faixa
-    expect(run.press(0, 12.2)).toBeNull(); // 0,1 s depois, dentro de NEIGHBOUR_GRACE_S (0,15)
+    run.press(0, 12.2); // 0,1 s depois, dentro de NEIGHBOUR_GRACE_S (0,15)
+    run.update(12.6);
     expect(run.score.wrongTaps).toBe(0);
   });
 
   it('a 0,2 s (além de NEIGHBOUR_GRACE_S) o mesmo disparo repetido já conta como erro', () => {
     const run = makeOneNote(2);
     run.press(0, 12.1);
-    expect(run.press(0, 12.3)).toEqual({ kind: 'wrong', lane: 0 });
+    run.press(0, 12.3);
+    run.update(12.6);
     expect(run.score.wrongTaps).toBe(1);
   });
 
-  it('um vizinho de mão diferente conta como erro mesmo dentro da janela', () => {
+  it('um vizinho de mão diferente conta como erro mesmo dentro da janela (antes ou depois)', () => {
     const run = makeOneNote(1); // split 1: a faixa 0 fica sozinha de um lado, a 1 já é da outra mão
+    run.press(1, 12.1 - 0.01);
     expect(run.press(0, 12.1)?.kind).toBe('perfect');
-    expect(run.press(1, 12.1 + 0.05)).toEqual({ kind: 'wrong', lane: 1 });
-    expect(run.score.wrongTaps).toBe(1);
+    run.press(1, 12.1 + 0.05);
+    run.update(12.6);
+    expect(run.score.wrongTaps).toBe(2);
   });
 
-  it('a 2 faixas de distância conta como erro mesmo na mesma mão e dentro da janela', () => {
+  it('a 2 faixas de distância conta como erro mesmo na mesma mão e dentro da janela (antes ou depois)', () => {
     const run = makeOneNote(3); // split 3: faixas 0, 1 e 2 são todas da mesma mão
+    run.press(2, 12.1 - 0.01);
     expect(run.press(0, 12.1)?.kind).toBe('perfect');
-    expect(run.press(2, 12.1 + 0.05)).toEqual({ kind: 'wrong', lane: 2 });
+    run.press(2, 12.1 + 0.05);
+    run.update(12.6);
+    expect(run.score.wrongTaps).toBe(2);
+  });
+
+  it('a tolerância é por faixa: um acerto da outra mão não apaga o de uma faixa vizinha', () => {
+    // faixa 0 em 12 s (esquerda) e faixa 4 em 12,5 s (direita)
+    const { run } = new8();
+    expect(run.press(0, 12)?.kind).toBe('perfect');
+    expect(run.press(1, 12.5)?.kind).toBe('perfect');
+    // 0,1 s depois do acerto na faixa 0 seria perdoado; aqui 0,6 s depois, mesmo havendo um
+    // acerto mais recente noutra faixa (a 1, também vizinha): este vem do acerto da faixa 1
+    run.press(2, 12.55);
+    // a faixa 5 (outra mão) só tem acertos longe: conta
+    run.press(5, 12.55);
+    run.update(12.8);
     expect(run.score.wrongTaps).toBe(1);
   });
 
-  it('Cedo/Tarde partem o combo mas não contam como erro', () => {
+  it('Cedo/Tarde partem o combo; o primeiro na mesma nota não conta como erro', () => {
     const { run } = make();
     expect(run.press(0, 12.1)?.kind).toBe('perfect');
     expect(run.score.combo).toBe(1);
     expect(run.press(0, 14.4)?.kind).toBe('late');
     expect(run.score.combo).toBe(0);
     expect(run.score.wrongTaps).toBe(0);
+  });
+
+  it('insistir: o segundo Cedo/Tarde e os seguintes na mesma nota contam como toques errados', () => {
+    const { run } = make();
+    // nota da faixa 1 em 12,5 s; lag 0,1: toque em 12,3 é julgado em 12,2 (−0,3: Cedo)
+    expect(run.press(1, 12.3)?.kind).toBe('early');
+    expect(run.score.wrongTaps).toBe(0);
+    expect(run.press(1, 12.31)?.kind).toBe('early');
+    expect(run.press(1, 12.32)?.kind).toBe('early');
+    expect(run.score.wrongTaps).toBe(2);
+    // a nota continua por julgar: um acerto a seguir conta
+    expect(run.press(1, 12.6)?.kind).toBe('perfect');
+  });
+});
+
+describe('GameRun.press: o juiz decide o que é música', () => {
+  it('última nota com atraso de 0,25 s: um Bom a +0,12 s conta e soa, já depois de isMusicTime(now)', () => {
+    const { run } = make(0.25);
+    run.update(13);
+    const now = 14 + 0.25 + 0.12; // última nota em 14 s
+    expect(run.isMusicTime(now)).toBe(false);
+    run.update(now);
+    const r = run.press(0, now);
+    expect(r?.kind).toBe('good');
+    expect(run.score.good).toBe(1);
+    run.update(now + 0.1);
+    expect(run.score.miss).toBe(2); // só as duas primeiras, que ficaram por tocar
+  });
+
+  it('depois de uma retoma, uma nota em countTo apanha um toque do teclado 0,15 s cedo', () => {
+    const { run } = make();
+    run.press(0, 12.1);
+    run.pause(12.5); // a nota da faixa 1 (12,5 s) fica a ser o primeiro passo por ouvir
+    run.resume(80, 16);
+    expect(run.times[1]).toBeCloseTo(run.countTo);
+    run.update(run.countTo - 0.15);
+    expect(run.state).toBe('countdown');
+    expect(run.press(1, run.countTo - 0.15, false)?.kind).toBe('good');
+    expect(run.score.good).toBe(1);
+  });
+
+  it('um Cedo na contagem (antes da música) não soa nem conta', () => {
+    const { run } = make();
+    expect(run.press(0, 11.7, false)).toBeNull(); // 0,3 s antes da primeira nota, na entrada
+    expect(run.score.combo).toBe(0);
   });
 });
 

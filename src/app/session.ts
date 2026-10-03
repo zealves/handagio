@@ -283,15 +283,16 @@ class Session {
     this.releaseFingerNote(i);
   }
 
-  /** Toque de um dedo durante o jogo: só soa e só é julgado durante a música (nunca na contagem,
-   *  na cauda nem em pausa); cada dobra numa faixa soa (a nota da faixa), e os pontos dependem
-   *  só do juiz. */
+  /** Toque de um dedo durante o jogo: a ronda decide se é música (`GameRun.press`: um acerto
+   *  que o juiz aceita conta sempre, mesmo com o atraso da câmara a levá-lo para lá da última
+   *  nota ou um toque cedo na contagem; o resto só durante a música, nunca em pausa). Quando é,
+   *  soa a nota da faixa; os pontos dependem só do juiz. */
   private gamePress(i: number, velocity: number, fromKey: boolean): void {
     const g = this.game!;
-    if (!g.run.isMusicTime(audio.now)) return;
     const lane = g.fingers.indexOf(i);
     if (lane < 0) return;
     const r = g.run.press(lane, audio.now, !fromKey);
+    if (!r) return;
     const midi = degreeToMidi(lane, tuningOf({ ...g.tuning, instrument: g.sound.melody }));
     this.fingerNote[i] = [midi];
     audio.noteOn(i, g.sound.melody, midi, velocity, fingerPan(i));

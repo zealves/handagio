@@ -31,10 +31,15 @@ export interface RunTiming {
   lead: number;
 }
 
+/**
+ * O que um toque deu. `stray`: sem nota por julgar perto; soa, e só conta como errado no
+ * `update` se nenhum acerto vizinho chegar dentro de `NEIGHBOUR_GRACE_S` (ou logo perdoado,
+ * se veio depois de um). null: fora da música (ou em pausa), nada soa nem conta.
+ */
 export type PressResult =
   | (Hit & { lane: number; note: ChartNote })
   | (Near & { lane: number })
-  | { kind: 'wrong'; lane: number };
+  | { kind: 'stray'; lane: number };
 
 const isNear = (r: Hit | Near): r is Near => r.kind === 'early' || r.kind === 'late';
 
@@ -68,8 +73,8 @@ export class GameRun {
   readonly hitAt: Float64Array;
   /** Último juízo, para o texto do canvas. */
   last: { kind: Judgement | 'miss' | 'early' | 'late' | 'wrong'; at: number } | null = null;
-  /** Faixa e instante (tempo de áudio) do último acerto, para a tolerância do vizinho. */
-  private lastHit: { lane: number; at: number } | null = null;
+  /** Toques soltos à espera de `NEIGHBOUR_GRACE_S`: um acerto vizinho perdoa-os (tempo de áudio). */
+  private pendingStrays: { lane: number; at: number }[] = [];
   /** Compasso 1 (fim da entrada) e fim da ronda; mudam com a pausa. */
   start: number;
   end: number;
@@ -82,6 +87,8 @@ export class GameRun {
   cameraHits = 0;
   /** Notas que já ensinaram o atraso com um Cedo/Tarde (só o primeiro de cada nota conta). */
   private readonly nearLearned: Uint8Array;
+  /** Cedo/Tarde já dados a cada nota: do segundo em diante contam como toques errados. */
+  private readonly nearCount: Uint8Array;
   private startStep: number;
   private bi = 0;
   private pausedAt: number | null = null;
@@ -110,6 +117,7 @@ export class GameRun {
     );
     this.judgedAt = new Float64Array(chart.notes.length);
     this.nearLearned = new Uint8Array(chart.notes.length);
+    this.nearCount = new Uint8Array(chart.notes.length);
     this.hitAt = new Float64Array(chart.lanes).fill(-Infinity);
   }
 
@@ -133,36 +141,33 @@ export class GameRun {
     }
     const rel = absStep - this.startStep - COUNT_IN_STEPS;
     const b = this.chart.backing;
-    const t =
-      ((rel % 4) + 4) % 4 === 2 ? time + this.chart.swing * this.timing.stepDur : time;
+    const t = ((rel % 4) + 4) % 4 === 2 ? time + this.chart.swing * this.timing.stepDur : time;
     while (this.bi < b.length && b[this.bi].step < rel) this.bi++;
     while (this.bi < b.length && b[this.bi].step === rel) this.deps.playBacking(b[this.bi++], t);
   }
 
   /**
    * Toque numa faixa agora (`now` em tempo de áudio). Os da câmara descontam o atraso e
-   * ensinam-no (`LAG_LEARN` do desvio); os do teclado não. Cedo/Tarde repetidos na mesma nota
-   * continuam a mostrar o texto, mas só o primeiro ensina o atraso e conta para `cameraHits`.
-   * Sem nenhuma nota por julgar perto: durante a música conta como toque errado (parte o combo),
-   * a menos que seja a mesma faixa ou uma vizinha da mesma mão de um acerto recente
-   * (`NEIGHBOUR_GRACE_S`, o dedo ao lado arrastado ou um segundo disparo do mesmo dedo); fora da
-   * música (contagem, cauda ou pausa), não conta nada. Em pausa ou no fim, null.
+   * ensinam-no (`LAG_LEARN` do desvio); os do teclado não. Um acerto que o juiz aceita conta
+   * sempre (mesmo com `now` já fora da música por causa do atraso, ou na contagem a apanhar a
+   * primeira nota cedo); o resto só durante a música (em `now` ou no tempo julgado), senão null.
+   * Cedo/Tarde partem o combo; do segundo em diante na mesma nota contam também como toques
+   * errados (insistir não compensa), e só o primeiro ensina o atraso e conta para `cameraHits`.
+   * Sem nenhuma nota por julgar perto, o toque fica pendente (`stray`) e só conta como errado no
+   * `update`: perdoa-se se houve ou se chega um acerto na mesma faixa ou numa vizinha da mesma
+   * mão até `NEIGHBOUR_GRACE_S` antes ou depois (o dedo ao lado arrastado, antes ou depois do
+   * certo, ou um segundo disparo do mesmo dedo).
    */
   press(lane: number, now: number, fromCamera = true): PressResult | null {
     if (this.state === 'paused' || this.state === 'over') return null;
-    const out = this.judge.press(lane, now - (fromCamera ? this.lag : 0));
+    const t = now - (fromCamera ? this.lag : 0);
+    const out = this.judge.press(lane, t);
+    if (!out || isNear(out)) {
+      if (!this.isMusicTime(now) && !this.isMusicTime(t)) return null;
+    }
     if (!out) {
-      if (!this.isMusicTime(now)) return null;
-      if (
-        this.lastHit &&
-        Math.abs(lane - this.lastHit.lane) <= 1 &&
-        lane < this.chart.split === this.lastHit.lane < this.chart.split &&
-        now - this.lastHit.at <= NEIGHBOUR_GRACE_S
-      )
-        return null;
-      this.score.wrongTap();
-      this.last = { kind: 'wrong', at: now };
-      return { kind: 'wrong', lane };
+      if (!this.nearHit(lane, now)) this.pendingStrays.push({ lane, at: now });
+      return { kind: 'stray', lane };
     }
     const near = isNear(out);
     if (fromCamera && out.kind === 'late') this.score.lateTap();
@@ -177,14 +182,45 @@ export class GameRun {
     }
     this.last = { kind: out.kind, at: now };
     if (near) {
-      this.score.nearTap();
+      if (this.nearCount[out.index] > 0) this.score.wrongTap();
+      else this.score.nearTap();
+      if (this.nearCount[out.index] < 255) this.nearCount[out.index]++;
       return { ...out, lane };
     }
     this.score.hit(out.kind, out.offset);
     this.judgedAt[out.index] = now;
     this.hitAt[lane] = now;
-    this.lastHit = { lane, at: now };
+    // um toque solto vizinho pouco antes deste acerto foi o dedo ao lado arrastado
+    this.pendingStrays = this.pendingStrays.filter(
+      (p) => !(this.sameHandNear(p.lane, lane) && now - p.at <= NEIGHBOUR_GRACE_S),
+    );
     return { ...out, lane, note: this.chart.notes[out.index] };
+  }
+
+  /** As faixas `a` e `b` são a mesma ou vizinhas, da mesma mão. */
+  private sameHandNear(a: number, b: number): boolean {
+    return Math.abs(a - b) <= 1 && a < this.chart.split === b < this.chart.split;
+  }
+
+  /** Houve um acerto na mesma faixa ou numa vizinha da mesma mão até `NEIGHBOUR_GRACE_S` antes. */
+  private nearHit(lane: number, now: number): boolean {
+    for (let l = Math.max(0, lane - 1); l <= Math.min(this.hitAt.length - 1, lane + 1); l++)
+      if (this.sameHandNear(l, lane) && now - this.hitAt[l] <= NEIGHBOUR_GRACE_S) return true;
+    return false;
+  }
+
+  /** Conta como errados os toques soltos pendentes cuja janela já passou (todos, com `all`). */
+  private flushStrays(now: number, all = false): void {
+    if (!this.pendingStrays.length) return;
+    const keep: { lane: number; at: number }[] = [];
+    for (const p of this.pendingStrays) {
+      if (!all && now - p.at <= NEIGHBOUR_GRACE_S) keep.push(p);
+      else {
+        this.score.wrongTap();
+        this.last = { kind: 'wrong', at: now };
+      }
+    }
+    this.pendingStrays = keep;
   }
 
   /** Durante a música: do fim da contagem à última nota + NEAR_S (antes, depois e em pausa, nada soa nem conta). */
@@ -197,6 +233,7 @@ export class GameRun {
   /** A cada fotograma: falhados, fase e fim. Devolve true na chamada em que a ronda acaba. */
   update(now: number): boolean {
     if (this.state === 'over' || this.state === 'paused') return false;
+    this.flushStrays(now);
     for (const k of this.judge.sweep(now - this.lag)) {
       this.score.missed();
       this.judgedAt[k] = now;
@@ -204,6 +241,7 @@ export class GameRun {
     }
     this.state = now < this.countTo ? 'countdown' : 'playing';
     if (now >= this.end && this.judge.done) {
+      this.flushStrays(now, true);
       this.state = 'over';
       return true;
     }
@@ -246,7 +284,7 @@ export class GameRun {
     }
     for (let l = 0; l < this.hitAt.length; l++) this.hitAt[l] += dt;
     if (this.last) this.last = { ...this.last, at: this.last.at + dt };
-    if (this.lastHit) this.lastHit = { ...this.lastHit, at: this.lastHit.at + dt };
+    for (const p of this.pendingStrays) p.at += dt;
     this.start = newStart;
     this.end += dt;
     this.startStep = barStep - this.pRel;
@@ -270,6 +308,7 @@ export class GameRun {
   /** Acaba já a ronda (pausa na cauda): as notas ainda por julgar contam como falhadas. */
   finishNow(now: number): void {
     if (this.state === 'over') return;
+    this.flushStrays(now, true);
     for (const k of this.judge.sweep(Infinity)) {
       this.score.missed();
       this.judgedAt[k] = now;

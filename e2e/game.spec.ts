@@ -363,6 +363,9 @@ test.describe('modo de jogo', () => {
       document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', bubbles: true }));
       const on = v.audio.voiceMidi(2) !== null;
       document.body.dispatchEvent(new KeyboardEvent('keyup', { key: 'd', bubbles: true }));
+      // só conta depois da tolerância do vizinho (0,15 s sem um acerto ao lado)
+      const tapAt = v.audio.now;
+      while (v.audio.now < tapAt + 0.25) await new Promise((res) => setTimeout(res, 5));
       return { on, wrong: run.score.wrongTaps - before };
     });
     expect(r.on).toBe(true);
@@ -552,7 +555,7 @@ test.describe('modo de jogo', () => {
     expect(
       ((await field(page, 'levelProgress')) as Record<string, { stars: number }>).pop.stars,
     ).toBeGreaterThanOrEqual(1);
-    // o progresso não muda o som do Treino
+    // o progresso não muda o instrumento escolhido fora do jogo
     expect(await field(page, 'instrument')).toBe(before);
 
     await page.getByTestId('game-next').click();
