@@ -2,7 +2,7 @@
 
 Versões segundo [SemVer](https://semver.org/lang/pt-BR/). A mais recente fica no topo.
 
-## [3.3.0] — 2026-10-01
+## [3.3.0] — 2026-10-03
 
 - Modo de jogo: no início escolhes Tocar livre ou Jogar, e lá dentro trocas no interruptor Livre | Jogo do cabeçalho. As notas descem pela pista e dobras o dedo certo quando chegam à linha. Cada dobra toca a nota da faixa por cima de bateria e baixo, numa música nova a cada ronda; os pontos dependem do tempo.
 - Escolhes os dedos que jogam (de 2 a 8; por exemplo, só a mão direita).
@@ -23,7 +23,13 @@ Versões segundo [SemVer](https://semver.org/lang/pt-BR/). A mais recente fica n
 - A nota, o alvo e o dedo no desenho das mãos usam sempre a cor do dedo; "Cedo!"/"Tarde!" ficam brancos, e os falhados e os errados, vermelhos. O alvo de cada faixa passa a ser uma pílula com a forma da nota, maior do que antes. Com o jogo a decorrer ou em pausa, o desenho das mãos destaca os dedos que jogam (pílulas maiores, da sua cor, a encher com a dobra e a crescer quando soam, sem o nome da nota nem o clarão redondo por cima) e apaga os outros dedos e o esqueleto.
 - No resultado, a dica de desbloqueio só aparece se existir mesmo um nível seguinte por abrir, e um recorde de 0 pontos mostra "Sem recorde".
 - Os níveis 2 e 3, agora Noite e Neon (os ids `lofi` e `electro` ficam os mesmos; o progresso guardado não se perde), trocam a melodia ao acaso por músicas escritas à mão, com tapete de acordes, baixo e bateria próprios para cada uma, sem swing e com instrumentos mais agradáveis de ouvir (vibrafone e pluck).
-- Energia: encher a barra (acertando notas) e abrir a boca — ou premir Espaço no teclado — ativa-a durante 8 segundos, com os pontos a dobrar e a pista a brilhar a dourado. Jogar só com uma mão deixa de mostrar a outra no ecrã. A boca deixa de aplicar o efeito de som do modo livre dentro do jogo.
+- Energia: encher a barra (acertando notas) e fechar a mão — ou premir Espaço no teclado — ativa-a durante 8 segundos, com os pontos a dobrar e a pista a brilhar a dourado. Os dedos da mão a fechar-se não contam como toques errados.
+- No jogo não se deteta a cara, o que poupa os computadores mais lentos. A boca só aplica efeitos no modo livre.
+- Jogar só com uma mão deixa de mostrar a outra no ecrã, e a mão sozinha à frente da câmara joga sempre, seja qual for o lado onde aparece.
+- Barra de vida: cada acerto sobe-a; as falhas, os toques errados e os "Cedo!"/"Tarde!" descem-na. Se chegar a zero, a música para e aparece "Falhaste!", com a parte da música que tocaste, sem estrelas nem recorde. Com a vida baixa, os bordos do ecrã pulsam a vermelho.
+- As falhas e os toques errados também gastam energia; com a energia ativa, cada falha corta-lhe 1 segundo.
+- Durante a partida aparecem as notas acertadas e falhadas; o resultado mostra também as acertadas, as falhadas e o combo máximo.
+- Na Noite, o tapete de acordes passa a ser um coro, mais leve: o som anterior acumulava graves ao lado do contrabaixo e soava abafado.
 
 ## [3.2.0] — 2026-10-01
 

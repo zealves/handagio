@@ -22,6 +22,16 @@ A app aprende a tua mão enquanto tocas: vai vendo até onde cada dedo estica e 
 
 Sem câmara, toca com o teclado: **A S D F** (mão esquerda) e **J K L Ç** (mão direita); **G** e **H** são os polegares. Segura **Espaço** para simular a boca aberta. O teclado de piano e os pads (botão ⌨ no cabeçalho) também se tocam com o rato ou com toque.
 
+### Modo de jogo
+
+No ecrã inicial, ou no interruptor **Livre | Jogo** do cabeçalho, escolhe **Jogar**. As notas descem pela pista e dobras o dedo certo quando chegam à linha.
+
+- **Níveis:** há três músicas (Pop, Noite e Neon). Cada uma abre a seguinte quando chegas a uma estrela, ou seja, a 50% de precisão.
+- **Dedos:** escolhes os dedos que jogam, de 2 a 8. Dá para jogar só com uma mão.
+- **Barra de vida:** cada acerto sobe-a e cada falha ou toque errado desce-a. Se chegar a zero, a música para.
+- **Energia:** os acertos enchem a barra. Com a barra cheia, fecha a mão (ou prime **Espaço** no teclado) e os pontos valem a dobrar durante 8 segundos. As falhas também gastam energia.
+- **Pausa:** com o botão, o **P** ou o **Esc**.
+
 ### Como os dedos tocam notas
 
 Na tab **Notas** escolhes como cada dedo sabe que nota tocar. A fila "os teus dedos tocam" mostra sempre o que cada dedo toca (com o nome do acorde), da esquerda para a direita.
