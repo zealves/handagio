@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isUnlocked, LEVELS, levelIndex, starsFor } from './levels';
+import { NEON, NIGHT } from './songs';
 
 describe('starsFor', () => {
   it('segue os limiares de precisão', () => {
@@ -34,5 +35,16 @@ describe('LEVELS', () => {
 
   it("levelIndex('lofi') é o segundo nível", () => {
     expect(levelIndex('lofi')).toBe(1);
+  });
+
+  it('os níveis 2 e 3 têm música escrita, sem swing, com os instrumentos novos', () => {
+    const night = LEVELS[levelIndex('lofi')];
+    const neon = LEVELS[levelIndex('electro')];
+    expect(night.song).toBe(NIGHT);
+    expect(neon.song).toBe(NEON);
+    expect([night.bpm, neon.bpm]).toEqual([90, 112]);
+    expect(night.style).toMatchObject({ melody: 'vibes', pad: 'pad', bass: 'contrabass', kit: 'drums', scale: 'Dórica', root: 2, swing: 0 });
+    expect(neon.style).toMatchObject({ melody: 'pluck', pad: 'pad', bass: 'bass', kit: 'tr808', scale: 'Menor', root: 9, swing: 0 });
+    expect(LEVELS[0].song).toBeUndefined();
   });
 });

@@ -776,6 +776,7 @@ class Session {
       audio.drum(g.sound.kit, ev.slot, ev.vel, 0, when);
       return;
     }
+    if (ev.kind === 'pad') return; // o tapete ainda não toca (falta ligar `style.pad`)
     const melodyOctave = tuningOf({ ...g.tuning, instrument: g.sound.melody }).octave;
     const midi = degreeToMidi(ev.degree, {
       root: g.tuning.root,

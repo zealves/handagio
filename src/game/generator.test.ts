@@ -9,10 +9,13 @@ import {
   minGapSteps,
   mirrorLane,
   progressionFor,
+  songLane,
   spaceLanes,
   swungStep,
 } from './generator';
-import { levelIndex, LEVELS } from './levels';
+import { LEVELS } from './levels';
+import { NEON, NIGHT, type DrumHit } from './songs';
+import type { BackingEvent } from './types';
 
 const seeds = Array.from({ length: 20 }, (_, k) => k + 1);
 
@@ -358,11 +361,12 @@ describe('estilos do acompanhamento, BPM e swing', () => {
       }
   });
 
-  it('com uma só mão e swing (como o Lo-fi), o intervalo real nunca fica abaixo de 0,30 s', () => {
+  it('com uma só mão e swing (como o antigo Lo-fi), o intervalo real nunca fica abaixo de 0,30 s', () => {
     // split 0 (uma só mão): sem `alternateHands` a ajudar, é só o `enforceMinGap` com swing que
     // garante a distância real; antes da correção, uma colcheia em contratempo seguida de uma
     // nota no tempo seguinte podia ficar a ~0,22 s (96 BPM, swing 0,6) em vez de 0,30 s.
-    const lofi = LEVELS[levelIndex('lofi')];
+    // o Lo-fi antigo (96 BPM, swing 0,6); hoje o nível tem música escrita e não tem swing
+    const lofi = { difficulty: 'medium' as const, bpm: 96, bars: 32, swing: 0.6 };
     const stepDur = 60 / lofi.bpm / 4;
     for (const lanes of [3, 4, 5])
       for (const seed of seeds) {
@@ -374,9 +378,9 @@ describe('estilos do acompanhamento, BPM e swing', () => {
           split: 0,
           bars: lofi.bars,
           bpm: lofi.bpm,
-          drums: lofi.style.drums,
-          bassLine: lofi.style.bassLine,
-          swing: lofi.style.swing,
+          drums: 'swing',
+          bassLine: 'walk',
+          swing: lofi.swing,
         });
         c.notes.forEach((n, k) => {
           if (k === 0) return;
@@ -576,5 +580,194 @@ describe('notas possíveis na câmara', () => {
         // por ronda: ~50 no Médio e ~120 no Difícil com 4 faixas; aqui basta muitas
         expect(fast, `${d} ${lanes}/${split}`).toBeGreaterThanOrEqual(seeds.length * 20);
       }
+  });
+});
+
+/** Assinatura FNV-1a do JSON de uma `Chart`, para confirmar que o nível 1 não mudou. */
+const signature = (v: unknown): string => {
+  const s = JSON.stringify(v);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16);
+};
+
+describe('sem música, a partitura procedural fica igual', () => {
+  it('o nível 1 (Pop) dá exatamente a mesma Chart que antes das músicas escritas', () => {
+    // assinaturas guardadas antes de juntar `song` ao gerador
+    const pop = LEVELS[0];
+    const expected: [number, number, string][] = [
+      [4, 2, '449a0d38'],
+      [8, 4, 'a2ce328e'],
+      [6, 3, 'a67caddf'],
+      [3, 0, '1c66d627'],
+    ];
+    for (const [lanes, split, sig] of expected) {
+      const c = generateChart({
+        difficulty: pop.difficulty,
+        seed: pop.seed,
+        scaleSize: 7,
+        lanes,
+        split,
+        bars: pop.bars,
+        bpm: pop.bpm,
+        drums: pop.style.drums,
+        bassLine: pop.style.bassLine,
+        swing: pop.style.swing,
+        kit: pop.style.kit,
+      });
+      expect(c.notes).toHaveLength(73);
+      expect(signature(c)).toBe(sig);
+    }
+  });
+
+  it('os outros estilos procedurais também ficam iguais', () => {
+    expect(signature(generateChart({ difficulty: 'medium', seed: 7, scaleSize: 7, lanes: 4 }))).toBe(
+      '1aceb0f0',
+    );
+    const hard = generateChart({
+      difficulty: 'hard',
+      seed: 3,
+      scaleSize: 5,
+      lanes: 6,
+      drums: 'four',
+      bassLine: 'pulse',
+      kit: 'tr808',
+      swing: 0.6,
+    });
+    expect(signature(hard)).toBe('da2c3f18');
+  });
+});
+
+describe('com uma música escrita (Song)', () => {
+  const SONGS = [
+    { song: NIGHT, bpm: 90, kit: 'drums' },
+    { song: NEON, bpm: 112, kit: 'tr808' },
+  ];
+  const chartOf = (s: (typeof SONGS)[number], lanes: number, split: number, bars?: number) =>
+    generateChart({
+      difficulty: 'medium',
+      seed: 1,
+      scaleSize: 7,
+      lanes,
+      split,
+      bpm: s.bpm,
+      kit: s.kit,
+      song: s.song,
+      bars,
+    });
+
+  it('songLane: com 8 faixas é o grau; com menos, o desenho mantém-se (nunca desce quando o grau sobe)', () => {
+    expect(Array.from({ length: 8 }, (_, d) => songLane(d, 8))).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    for (const lanes of [2, 3, 4, 5, 6, 7])
+      for (let d = 1; d <= 7; d++) {
+        expect(songLane(d, lanes)).toBeGreaterThanOrEqual(songLane(d - 1, lanes));
+        expect(songLane(d, lanes)).toBeLessThan(lanes);
+      }
+    expect(songLane(0, 4)).toBe(0);
+    expect(songLane(7, 4)).toBe(3);
+  });
+
+  it('com 8 faixas, as notas são exatamente as da música, nas duas passagens', () => {
+    for (const s of SONGS) {
+      const c = chartOf(s, 8, 4);
+      expect(c.bars).toBe(s.song.bars * 2);
+      const expected = [0, 1].flatMap((pass) =>
+        s.song.melody.map((n) => ({ step: pass * s.song.bars * 16 + n.step, lane: n.degree })),
+      );
+      expect(c.notes.map(({ step, lane }) => ({ step, lane }))).toEqual(expected);
+      const last = c.notes[c.notes.length - 1];
+      expect(last.step).toBe((c.bars - 1) * 16);
+      expect(last.lane % 7).toBe(0);
+      // a duração escrita, limitada pela nota seguinte
+      expect(c.notes[0].dur).toBe(s.song.melody[0].dur);
+    }
+  });
+
+  it('com 4 e 6 faixas (e uma só mão), os invariantes de sempre', () => {
+    for (const s of SONGS)
+      for (const [lanes, split] of [
+        [4, 2],
+        [6, 3],
+        [4, 0],
+      ]) {
+        const c = chartOf(s, lanes, split);
+        const gap = minGapSteps(s.bpm);
+        const hand = (l: number) => (split <= 0 || l < split ? 0 : 1);
+        const lastOf = new Map<number, number>();
+        expect(c.notes.length).toBeGreaterThan(c.bars);
+        c.notes.forEach((n, k) => {
+          expect(n.lane).toBeGreaterThanOrEqual(0);
+          expect(n.lane).toBeLessThan(lanes);
+          const p = lastOf.get(hand(n.lane));
+          if (p !== undefined) expect(n.step - p).toBeGreaterThanOrEqual(gap);
+          lastOf.set(hand(n.lane), n.step);
+          if (k > 0 && n.lane === c.notes[k - 1].lane)
+            expect(n.step - c.notes[k - 1].step).toBeGreaterThanOrEqual(4);
+        });
+        const last = c.notes[c.notes.length - 1];
+        expect(last.step).toBe((c.bars - 1) * 16);
+        expect(last.lane % 7).toBe(0);
+      }
+  });
+
+  it('`bars` mais curto corta a música e acaba na tónica', () => {
+    const c = chartOf(SONGS[0], 8, 4, 4);
+    expect(c.bars).toBe(4);
+    const last = c.notes[c.notes.length - 1];
+    expect(last.step).toBe(3 * 16);
+    expect(last.lane % 7).toBe(0);
+    expect(c.notes.every((n) => n.step <= 3 * 16)).toBe(true);
+  });
+
+  it('um tapete por compasso (exceto o último), com a tríade do acorde e volume baixo', () => {
+    for (const s of SONGS) {
+      const c = chartOf(s, 8, 4);
+      const pads = c.backing.filter((e) => e.kind === 'pad');
+      expect(pads.map((p) => p.step)).toEqual(Array.from({ length: c.bars - 1 }, (_, b) => b * 16));
+      pads.forEach((p, bar) => {
+        if (p.kind !== 'pad') return;
+        const root = s.song.chords[bar % s.song.bars];
+        expect(p.degrees).toEqual([root, root + 2, root + 4]);
+        expect(p.dur).toBe(16);
+        expect(p.vel).toBeCloseTo(0.25);
+      });
+    }
+  });
+
+  it('bateria e baixo vêm da música; a entrada e o último compasso mantêm-se', () => {
+    for (const s of SONGS) {
+      const c = chartOf(s, 8, 4);
+      const inBar = (bar: number) => (e: BackingEvent) => e.step >= bar * 16 && e.step < (bar + 1) * 16;
+      const drumsOf = (bar: number) =>
+        c.backing
+          .filter(inBar(bar))
+          .flatMap((e) => (e.kind === 'drum' ? [`${e.step - bar * 16}:${e.slot}:${e.vel}`] : []))
+          .sort();
+      const hits = (h: DrumHit[]) => h.map((x) => `${x.step}:${x.slot}:${x.vel}`).sort();
+      for (let bar = 0; bar < c.bars - 1; bar++) {
+        const sb = bar % s.song.bars;
+        const pattern = s.song.drums.chorusBars.includes(sb) ? s.song.drums.chorus : s.song.drums.verse;
+        expect(drumsOf(bar)).toEqual(hits(pattern));
+        const bass = c.backing
+          .filter(inBar(bar))
+          .flatMap((e) => (e.kind === 'bass' ? [{ step: e.step - bar * 16, degree: e.degree, dur: e.dur }] : []));
+        const written = s.song.bass
+          .filter((b) => Math.floor(b.step / 16) === sb)
+          .map((b) => ({ step: b.step - sb * 16, degree: b.degree, dur: b.dur }));
+        expect(bass).toEqual(written);
+      }
+      const intro = c.backing.filter((e) => e.step < 0);
+      expect(intro).toHaveLength(4);
+      expect(intro.every((e) => e.kind === 'drum' && e.slot === DRUM_SLOT.hat)).toBe(true);
+      const end = c.backing.filter(inBar(c.bars - 1));
+      expect(end).toEqual([
+        { step: (c.bars - 1) * 16, kind: 'drum', slot: DRUM_SLOT.kick, vel: 0.9 },
+        { step: (c.bars - 1) * 16, kind: 'drum', slot: crashSlotFor(s.kit), vel: 0.6 },
+        { step: (c.bars - 1) * 16, kind: 'bass', degree: 0, dur: 16, vel: 0.7 },
+      ]);
+    }
   });
 });

@@ -11,10 +11,14 @@ export interface ChartNote {
   dur: number;
 }
 
-/** Acompanhamento: bateria (kit acústico) ou baixo (grau da escala). Steps negativos = entrada. */
+/**
+ * Acompanhamento: bateria (slot do kit), baixo (grau da escala) ou tapete de acordes (graus da
+ * tríade, nas músicas escritas). Steps negativos = entrada.
+ */
 export type BackingEvent =
   | { step: number; kind: 'drum'; slot: number; vel: number }
-  | { step: number; kind: 'bass'; degree: number; dur: number; vel: number };
+  | { step: number; kind: 'bass'; degree: number; dur: number; vel: number }
+  | { step: number; kind: 'pad'; degrees: number[]; dur: number; vel: number };
 
 /**
  * Partitura de uma ronda. O gerador procedural produz isto; um leitor de MIDI ou músicas

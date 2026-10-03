@@ -562,7 +562,7 @@ test.describe('modo de jogo', () => {
     await expect(page.getByTestId('game-track')).toBeVisible();
     expect(
       await page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.session.gameMelody),
-    ).toBe('epiano');
+    ).toBe('vibes');
     expect(((await field(page, 'game')) as { levelId: string | null }).levelId).toBe('lofi');
     await page.getByTestId('game-exit').click();
 

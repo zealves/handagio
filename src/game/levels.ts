@@ -1,6 +1,7 @@
 // Níveis do modo de jogo: cada um é uma música fixa (semente) com um estilo de som. A ordem é a
 // de desbloqueio; para juntar um nível acrescenta-se uma entrada (e o nome em i18n pelo id).
 import type { ScaleName } from '../audio/theory'; // só o tipo: `src/game` continua sem áudio
+import { NEON, NIGHT, type Song } from './songs';
 import type { Difficulty } from './types';
 
 export type DrumStyle = 'straight' | 'swing' | 'four';
@@ -16,6 +17,8 @@ export interface SoundStyle {
   bassLine: BassLine;
   /** Atraso das colcheias em contratempo (passos; 0 = direito). */
   swing: number;
+  /** Instrumento do tapete de acordes (só nos níveis com `song`). */
+  pad?: string;
 }
 export interface Level {
   id: string;
@@ -24,6 +27,11 @@ export interface Level {
   bars: number;
   seed: number;
   style: SoundStyle;
+  /**
+   * Música escrita à mão (`songs.ts`); sem ela, a partitura é procedural (pela semente). Com
+   * ela, `drums`, `bassLine` e `seed` não se usam: a bateria e o baixo vêm da música.
+   */
+  song?: Song;
 }
 export type LevelProgress = Record<string, { stars: number; points: number; accuracy: number }>;
 
@@ -31,7 +39,8 @@ export type LevelProgress = Record<string, { stars: number; points: number; accu
 export const STAR_THRESHOLDS = [0.5, 0.7, 0.9] as const;
 
 /**
- * Sementes escolhidas (lanes: 4, split: 2, como no teclado por defeito): de 20 candidatas por
+ * Sementes escolhidas (hoje só o Pop é procedural; os níveis 2 e 3 têm música escrita e as
+ * sementes deles ficam só por compatibilidade) (lanes: 4, split: 2, como no teclado por defeito): de 20 candidatas por
  * nível (sementes 1–20, geradas com `generateChart` e os parâmetros de cada nível: `bars`,
  * `bpm`, `style.drums`, `style.bassLine`, `style.swing`), fica a primeira a cumprir as três
  * condições:
@@ -52,12 +61,12 @@ export const LEVELS: readonly Level[] = [
   { id: 'pop', difficulty: 'easy', bpm: 90, bars: 32, seed: SEED_POP,
     style: { melody: 'piano', kit: 'drums', bass: 'bass', scale: 'Maior', root: 0, octave: 4,
              drums: 'straight', bassLine: 'eighths', swing: 0 } },
-  { id: 'lofi', difficulty: 'medium', bpm: 96, bars: 32, seed: SEED_LOFI,
-    style: { melody: 'epiano', kit: 'drums', bass: 'contrabass', scale: 'Dórica', root: 2, octave: 4,
-             drums: 'swing', bassLine: 'walk', swing: 0.6 } },
-  { id: 'electro', difficulty: 'hard', bpm: 118, bars: 32, seed: SEED_ELECTRO,
-    style: { melody: 'synth', kit: 'tr808', bass: 'bass', scale: 'Menor', root: 9, octave: 4,
-             drums: 'four', bassLine: 'pulse', swing: 0 } },
+  { id: 'lofi', difficulty: 'medium', bpm: 90, bars: 32, seed: SEED_LOFI, song: NIGHT,
+    style: { melody: 'vibes', pad: 'pad', kit: 'drums', bass: 'contrabass', scale: 'Dórica', root: 2,
+             octave: 4, drums: 'swing', bassLine: 'walk', swing: 0 } },
+  { id: 'electro', difficulty: 'hard', bpm: 112, bars: 32, seed: SEED_ELECTRO, song: NEON,
+    style: { melody: 'pluck', pad: 'pad', kit: 'tr808', bass: 'bass', scale: 'Menor', root: 9,
+             octave: 4, drums: 'four', bassLine: 'pulse', swing: 0 } },
 ];
 
 export const starsFor = (acc: number): 0 | 1 | 2 | 3 =>
