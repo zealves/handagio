@@ -43,7 +43,7 @@ describe('LEVELS', () => {
     expect(night.song).toBe(NIGHT);
     expect(neon.song).toBe(NEON);
     expect([night.bpm, neon.bpm]).toEqual([90, 112]);
-    expect(night.style).toMatchObject({ melody: 'vibes', pad: 'pad', bass: 'contrabass', kit: 'drums', scale: 'Dórica', root: 2, swing: 0 });
+    expect(night.style).toMatchObject({ melody: 'vibes', pad: 'choir', bass: 'contrabass', kit: 'drums', scale: 'Dórica', root: 2, swing: 0 });
     expect(neon.style).toMatchObject({ melody: 'pluck', pad: 'pad', bass: 'bass', kit: 'tr808', scale: 'Menor', root: 9, swing: 0 });
     expect(LEVELS[0].song).toBeUndefined();
   });

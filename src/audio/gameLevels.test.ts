@@ -19,7 +19,7 @@ describe('estilos dos níveis', () => {
   });
 
   it('os instrumentos das músicas escritas existem e o tapete é melódico', () => {
-    for (const id of ['vibes', 'pluck', 'pad', 'contrabass']) expect(instrumentInfo(id).id).toBe(id);
+    for (const id of ['vibes', 'pluck', 'pad', 'choir', 'contrabass']) expect(instrumentInfo(id).id).toBe(id);
     expect(instrumentInfo('pad').kind).not.toBe('drum');
     for (const { style } of LEVELS)
       if (style.pad) {

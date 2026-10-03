@@ -65,7 +65,7 @@ export const LEVELS: readonly Level[] = [
     style: { melody: 'piano', kit: 'drums', bass: 'bass', scale: 'Maior', root: 0, octave: 4,
              drums: 'straight', bassLine: 'eighths', swing: 0 } },
   { id: 'lofi', difficulty: 'medium', bpm: 90, bars: 32, seed: SEED_LOFI, song: NIGHT,
-    style: { melody: 'vibes', pad: 'pad', kit: 'drums', bass: 'contrabass', scale: 'Dórica', root: 2,
+    style: { melody: 'vibes', pad: 'choir', kit: 'drums', bass: 'contrabass', scale: 'Dórica', root: 2,
              octave: 4, drums: 'swing', bassLine: 'walk', swing: 0 } },
   { id: 'electro', difficulty: 'hard', bpm: 112, bars: 32, seed: SEED_ELECTRO, song: NEON,
     style: { melody: 'pluck', pad: 'pad', kit: 'tr808', bass: 'bass', scale: 'Menor', root: 9,
