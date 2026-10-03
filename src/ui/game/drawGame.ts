@@ -32,6 +32,20 @@ const JUDGE_S = 0.6;
 const MISS_FADE_S = 0.5;
 /** Largura mínima (px) de uma faixa para escrever o nome do dedo. */
 const LABEL_MIN_LANE = 56;
+/**
+ * Forma de uma nota (e do alvo na linha de impacto, à mesma profundidade): largura como fração
+ * da faixa, altura como fração dessa largura (com um mínimo em px, para não desaparecer longe no
+ * topo da pista).
+ */
+const NOTE_W_RATIO = 0.86;
+const NOTE_H_RATIO = 0.38;
+const NOTE_MIN_H = 10;
+/** O alvo é maior que a nota: 1,2× a largura (sem passar 0,95× a faixa) e 1,4× a altura. */
+const TARGET_W_FACTOR = 1.2;
+const TARGET_H_FACTOR = 1.4;
+const TARGET_MAX_LANE_FRAC = 0.95;
+/** Quanto o alvo cresce no pico do clarão de um acerto (fração do seu próprio tamanho). */
+const TARGET_FLASH_GROW = 0.25;
 /** Cor de um falhado e de um toque errado ("Errado!"). */
 const MISS_COLOR = '#ff5c7a';
 /**
@@ -112,8 +126,8 @@ export function drawGame(
     if (e < 0) continue;
     const lane = run.chart.notes[k].lane;
     const lw = widthAt(e) / n;
-    const nw = lw * 0.86;
-    const nh = Math.max(10, nw * 0.38);
+    const nw = lw * NOTE_W_RATIO;
+    const nh = Math.max(NOTE_MIN_H, nw * NOTE_H_RATIO);
     g.save();
     g.globalAlpha = alpha;
     g.fillStyle = st === NOTE_MISS ? MISS_COLOR : color(lane);
@@ -128,17 +142,17 @@ export function drawGame(
   // linha de impacto: um alvo-pílula por faixa, com a forma das notas (maior, para a área de
   // toque se ver bem), que acende num acerto
   const lw1 = widthAt(1) / n;
-  const nw1 = lw1 * 0.86;
-  const nh1 = Math.max(10, nw1 * 0.38);
-  const targetW = Math.min(1.2 * nw1, lw1 * 0.95);
-  const targetH = 1.4 * nh1;
+  const nw1 = lw1 * NOTE_W_RATIO;
+  const nh1 = Math.max(NOTE_MIN_H, nw1 * NOTE_H_RATIO);
+  const targetW = Math.min(TARGET_W_FACTOR * nw1, lw1 * TARGET_MAX_LANE_FRAC);
+  const targetH = TARGET_H_FACTOR * nh1;
   for (let l = 0; l < n; l++) {
     const x = laneX(l, 1);
     // guarda contra `hitAt` no futuro (retoma): sem isto o clarão acenderia ao máximo durante a
     // contagem, para um acerto que já lá estava antes da pausa
     const sinceHit = now - run.hitAt[l];
     const flash = sinceHit >= 0 ? Math.max(0, 1 - sinceHit / FLASH_S) : 0;
-    const scale = 1 + 0.25 * flash;
+    const scale = 1 + TARGET_FLASH_GROW * flash;
     const tw = targetW * scale;
     const th = targetH * scale;
     g.save();

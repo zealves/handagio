@@ -243,16 +243,6 @@ export function GameDialog() {
               {tr.unlocked(levelName(r.unlocked))}
             </p>
           )}
-          {/* o recorde do nível só visível no `title` do cartão da lista até aqui: no toque não
-              há tooltip, por isso ganha também texto no próprio resultado. Um recorde de 0
-              pontos (ainda por bater) mostra a mesma `noBest` da lista */}
-          <p className={s.counts} data-testid="level-best">
-            {progress[r.levelId]?.points ? tr.best(progress[r.levelId].points) : tr.noBest}
-          </p>
-          {/* mesma dica visível do separador Níveis (decisão 70), mas só quando há mesmo um
-              nível seguinte por abrir (`nextLocked`); alinhada à esquerda como as outras linhas
-              do cartão, ao contrário da da lista, que fica centrada */}
-          {nextLocked && <UnlockHintLine testId="game-unlock-hint" left />}
           {r.best && (
             <p className={s.newBest} data-testid="game-new-best">
               {tr.newBest}
@@ -277,6 +267,19 @@ export function GameDialog() {
               {tr.lateTaps(r.lateTaps)}
             </p>
           )}
+          {/* o recorde do nível só visível no `title` do cartão da lista até aqui: no toque não
+              há tooltip, por isso ganha também texto no próprio resultado. Com um recorde novo
+              já há "Novo recorde!" lá em cima (seria redundante repetir os mesmos pontos); um
+              recorde de 0 pontos (ainda por bater) mostra a mesma `noBest` da lista */}
+          {!r.best && (
+            <p className={s.counts} data-testid="level-best">
+              {progress[r.levelId]?.points ? tr.best(progress[r.levelId].points) : tr.noBest}
+            </p>
+          )}
+          {/* mesma dica visível do separador Níveis (decisão 70), mas só quando há mesmo um
+              nível seguinte por abrir (`nextLocked`); alinhada à esquerda como as outras linhas
+              do cartão, ao contrário da da lista, que fica centrada */}
+          {nextLocked && <UnlockHintLine testId="game-unlock-hint" left />}
           {r.wrongTaps > 0 && (
             <p className={s.counts} data-testid="game-wrong-taps">
               {tr.wrongTaps(r.wrongTaps)}

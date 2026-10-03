@@ -230,13 +230,14 @@ class Session {
     if (!audio.ready || !isActive(i, s.thumbs) || this.cal) return;
     const info = instrumentInfo(s.instrument);
     const fx = live.fx[i];
-    fx.flash = 1;
-    // com o jogo aberto o dedo não toca a sua nota: vai para o juiz, que só a toca durante a
-    // música (gamePress); fora de uma ronda (menu, resultado) ou fora da música, nada soa
+    // com o jogo aberto o dedo não toca a sua nota: vai para o juiz, que só a toca (e só acende
+    // o clarão) durante a música (gamePress); fora de uma ronda (menu, resultado) ou fora da
+    // música, nada soa nem pisca
     if (s.game) {
       if (this.game) this.gamePress(i, velocity, fromKey);
       return;
     }
+    fx.flash = 1;
     const when = quantizeTime(audio.now, this.clock.anchor, this.clock.bpm, s.quantize);
     if (info.kind === 'drum') {
       const slot = slotOf(i, s.thumbs);
@@ -295,6 +296,7 @@ class Session {
     this.fingerNote[i] = [midi];
     audio.noteOn(i, g.sound.melody, midi, velocity, fingerPan(i));
     const fx = live.fx[i];
+    fx.flash = 1;
     fx.midi = midi;
     fx.label = noteName(midi);
     // larga a nota ao fim da duração da partitura (ou antes, se o dedo subir: `fingerOff`)
@@ -813,7 +815,9 @@ class Session {
       f.down = true;
       if (this.gestureOptions().continuous) {
         this.fingerContinuous(i, KEY_CONT_LEVEL, 0);
-        live.fx[i].flash = 1;
+        // o teremim já não soa com o jogo aberto (`fingerContinuous`); sem isto o clarão
+        // acenderia na mesma, com a última nota tocada antes de o jogo abrir
+        if (!getState().game) live.fx[i].flash = 1;
       } else this.fingerOn(i, KEY_VELOCITY, 0, true);
     };
     const up = (e: KeyboardEvent) => {

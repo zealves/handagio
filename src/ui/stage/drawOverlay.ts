@@ -34,6 +34,19 @@ export const LIP_IDS = [
   61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291, 375, 321, 405, 314, 17, 84, 181, 91, 146,
 ];
 
+/** Com o jogo a decorrer ou em pausa: opacidade do esqueleto, mais discreta que fora do jogo. */
+const SKELETON_GAME_ALPHA = 0.4;
+/** Anel dos dedos sem faixa (não jogam): cinzento, bem apagado e sem brilho. */
+const OTHER_FINGER_COLOR = '#8a93a6';
+const OTHER_FINGER_ALPHA = 0.25;
+/**
+ * Pílula dos dedos que jogam, em vez do anel de sempre (raio `r`, diâmetro `2r`): bem maior nas
+ * duas direções, continuando mais larga que alta, como as notas e os alvos da pista
+ * (`drawGame.ts`).
+ */
+const PLAYING_PILL_W = 2.6; // × r (≈ 1,3 × o diâmetro do anel)
+const PLAYING_PILL_H = 1.6; // × r (bem mais alta que o anel, mas ainda "deitada")
+
 export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, reduced: boolean) {
   const now = performance.now();
   const s = getState();
@@ -78,7 +91,7 @@ export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, r
       g.lineWidth = Math.max(2.5, W / 300);
       g.shadowColor = NEON.cyan;
       g.shadowBlur = glow * sc;
-      g.globalAlpha = inGame ? 0.4 : 1;
+      g.globalAlpha = inGame ? SKELETON_GAME_ALPHA : 1;
       g.beginPath();
       for (const [a, b] of CONN) {
         g.moveTo(lm[a].x * W, lm[a].y * H);
@@ -152,9 +165,9 @@ export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, r
     if (!playing) {
       g.beginPath();
       g.arc(x, y, r, 0, Math.PI * 2);
-      g.globalAlpha = 0.25;
+      g.globalAlpha = OTHER_FINGER_ALPHA;
       g.lineWidth = 2 * sc;
-      g.strokeStyle = '#8a93a6';
+      g.strokeStyle = OTHER_FINGER_COLOR;
       g.stroke();
       g.globalAlpha = 1;
       continue;
@@ -165,9 +178,9 @@ export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, r
     g.shadowBlur = glow * sc * (0.6 + f.curl);
     g.beginPath();
     if (inGame) {
-      // pílula com a forma da nota, ~1,3× o anel de sempre, que enche com a dobra do dedo
-      const pw = r * 2 * 1.3;
-      const ph = pw * 0.44;
+      // pílula com a forma da nota, bem maior que o anel de sempre, que enche com a dobra do dedo
+      const pw = r * PLAYING_PILL_W;
+      const ph = r * PLAYING_PILL_H;
       g.roundRect(x - pw / 2, y - ph / 2, pw, ph, ph / 2);
     } else {
       g.arc(x, y, r, 0, Math.PI * 2);
