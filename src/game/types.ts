@@ -39,7 +39,7 @@ export type Judgement = 'perfect' | 'good';
 
 export interface GameResult {
   points: number;
-  /** 0..1: (Perfeito + 0,5 × Bom) / notas. */
+  /** 0..1: (Perfeito + 0,5 × Bom) / (notas + 0,5 × toques errados), limitada a 1. */
   accuracy: number;
   maxCombo: number;
   perfect: number;
