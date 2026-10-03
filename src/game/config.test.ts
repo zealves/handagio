@@ -3,6 +3,7 @@ import {
   DEFAULT_GAME_FINGERS,
   DIFFICULTIES,
   DIFFICULTY,
+  idleHandSide,
   laneOf,
   normalizeGameFingers,
   roundLagMs,
@@ -30,6 +31,20 @@ describe('dedos do jogo', () => {
   it('o atraso arredonda a 10 ms', () => {
     expect(roundLagMs(0.1234)).toBe(120);
     expect(roundLagMs(0.126)).toBe(130);
+  });
+});
+
+describe('idleHandSide', () => {
+  it('só com dedos de uma só mão diz o lado da outra (a que fica de fora)', () => {
+    // dedos todos < 5 (esquerda): quem fica de fora é a direita
+    expect(idleHandSide([4, 3, 2, 1])).toBe('right');
+    // dedos todos ≥ 5 (direita): quem fica de fora é a esquerda
+    expect(idleHandSide([6, 7, 8, 9])).toBe('left');
+  });
+  it('dedos das duas mãos, ou nenhum, não escondem nenhuma', () => {
+    expect(idleHandSide(DEFAULT_GAME_FINGERS)).toBeNull();
+    expect(idleHandSide([])).toBeNull();
+    expect(idleHandSide(null)).toBeNull();
   });
 });
 

@@ -61,12 +61,18 @@ const MISS_COLOR = '#ff5c7a';
  */
 const MISS_MAX_DEPTH = 1.04;
 
-/** Cor da energia (Star Power), cheia ou ativa: dourada, em vez do ciano de sempre. */
-const POWER_GOLD = '#ffd166';
-/** Barra da energia: fina, vertical, à direita da pista, perto do fundo. */
+/**
+ * Barra da energia: vertical, à direita da pista, perto do fundo (ecrãs largos); abaixo de
+ * `ENERGY_NARROW_W` a pista já quase enche a largura (sem espaço à direita), por isso passa a
+ * horizontal, por baixo da pontuação.
+ */
 const ENERGY_BAR_W = 10;
 const ENERGY_BAR_H = 150;
 const ENERGY_BAR_GAP = 20;
+const ENERGY_NARROW_W = 625;
+const ENERGY_BAR_H_NARROW = 8;
+const ENERGY_BAR_W_NARROW_MAX = 110;
+const ENERGY_BAR_W_NARROW_MIN = 40;
 /** Período (s) do pulsar do texto "Abre a boca!"/"Espaço!" com a barra cheia. */
 const POWER_PULSE_S = 1.1;
 
@@ -118,9 +124,10 @@ export function drawGame(
     g.beginPath();
     g.moveTo(xt, top);
     g.lineTo(xb, yAt(eEnd));
-    // a divisória do meio separa as duas mãos
-    g.strokeStyle = l === n / 2 ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.12)';
-    g.lineWidth = l === n / 2 ? 2 : 1;
+    // a divisória grossa é mesmo a fronteira das duas mãos (`chart.split`): com faixas de uma só
+    // mão não há nenhuma (`split` fica 0 ou `n`, fora do intervalo 1..n-1 deste ciclo)
+    g.strokeStyle = l === run.chart.split ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.12)';
+    g.lineWidth = l === run.chart.split ? 2 : 1;
     g.stroke();
   }
   g.restore();
@@ -134,9 +141,9 @@ export function drawGame(
     g.lineTo(cx + widthAt(eEnd) / 2, yAt(eEnd));
     g.lineTo(cx - widthAt(eEnd) / 2, yAt(eEnd));
     g.closePath();
-    g.strokeStyle = POWER_GOLD;
+    g.strokeStyle = NEON.gold;
     g.lineWidth = 3;
-    g.shadowColor = POWER_GOLD;
+    g.shadowColor = NEON.gold;
     g.shadowBlur = 24;
     g.stroke();
     g.restore();
@@ -193,9 +200,10 @@ export function drawGame(
     g.save();
     g.strokeStyle = color(l);
     g.lineWidth = 3;
-    // com a energia ativa o brilho dos alvos fica dourado (a cor do dedo continua a identificá-los)
-    g.shadowColor = powerActive ? POWER_GOLD : color(l);
-    g.shadowBlur = (powerActive ? 16 : 8) + 20 * flash;
+    // com a energia ativa o brilho dos alvos fica dourado, mais forte (a cor do dedo continua a
+    // identificá-los no traço)
+    g.shadowColor = powerActive ? NEON.gold : color(l);
+    g.shadowBlur = (powerActive ? 26 : 8) + 20 * flash;
     g.beginPath();
     g.roundRect(x - tw / 2, hit - th / 2, tw, th, th / 2);
     g.stroke();
@@ -205,6 +213,22 @@ export function drawGame(
       g.fill();
     }
     g.restore();
+    // além do brilho, um fino traço dourado por dentro do alvo: visível mesmo sem sombra (capturas)
+    if (powerActive) {
+      g.save();
+      g.strokeStyle = NEON.gold;
+      g.lineWidth = 1.5;
+      g.beginPath();
+      g.roundRect(
+        x - tw / 2 + 3,
+        hit - th / 2 + 3,
+        Math.max(0, tw - 6),
+        Math.max(0, th - 6),
+        Math.max(0, th / 2 - 3),
+      );
+      g.stroke();
+      g.restore();
+    }
     if (lw1 >= LABEL_MIN_LANE && labels.lanes[l]) {
       g.fillStyle = 'rgba(255,255,255,0.7)';
       g.font = '500 12px system-ui, sans-serif';
@@ -225,7 +249,7 @@ export function drawGame(
   g.fillText(pointsText, 16, 14);
   if (powerActive) {
     const pw = g.measureText(pointsText).width;
-    g.fillStyle = POWER_GOLD;
+    g.fillStyle = NEON.gold;
     g.font = '700 18px system-ui, sans-serif';
     g.fillText(labels.powerMult, 16 + pw + 8, 18);
   }
@@ -242,37 +266,67 @@ export function drawGame(
   g.fillStyle = 'rgba(53,224,255,0.85)';
   g.fillRect(0, 0, w * frac, 3);
 
-  // barra da energia (Star Power): vertical, fina, à direita da pista, perto do fundo
-  const barX = cx + widthAt(1) / 2 + ENERGY_BAR_GAP + ENERGY_BAR_W / 2;
-  const barBottom = hit;
-  const barTop = barBottom - ENERGY_BAR_H;
+  // barra da energia (Star Power): vertical à direita da pista (ecrãs largos) — acima dos alvos,
+  // para nunca lhes cair em cima — ou, abaixo de `ENERGY_NARROW_W` (a pista já quase enche a
+  // largura, sem espaço à direita), horizontal por baixo da pontuação. `barLeft`/`barTop` são
+  // sempre o canto superior esquerdo do retângulo, cheio de baixo para cima ou da esquerda para a
+  // direita, conforme a orientação.
+  const narrow = w < ENERGY_NARROW_W;
+  const promptText = keyMode ? labels.powerReadyKey : labels.powerReady;
+  g.font = '700 15px system-ui, sans-serif';
+  const promptW = g.measureText(promptText).width;
+  const barW = narrow
+    ? Math.max(ENERGY_BAR_W_NARROW_MIN, Math.min(ENERGY_BAR_W_NARROW_MAX, w - 32 - promptW - 12))
+    : ENERGY_BAR_W;
+  const barH = narrow ? ENERGY_BAR_H_NARROW : ENERGY_BAR_H;
+  const barLeft = narrow ? 16 : Math.min(cx + widthAt(1) / 2 + ENERGY_BAR_GAP, w - barW - 8);
+  const barTop = narrow ? 64 : hit - targetH / 2 - 10 - barH;
   const energyFrac = powerActive ? run.powerLeft(now) : Math.min(1, run.energy);
-  const energyColor = powerActive || powerFull ? POWER_GOLD : NEON.cyan;
+  const energyColor = powerActive || powerFull ? NEON.gold : NEON.cyan;
   g.save();
   g.fillStyle = 'rgba(255,255,255,0.12)';
   g.beginPath();
-  g.roundRect(barX - ENERGY_BAR_W / 2, barTop, ENERGY_BAR_W, ENERGY_BAR_H, ENERGY_BAR_W / 2);
+  g.roundRect(barLeft, barTop, barW, barH, Math.min(barW, barH) / 2);
   g.fill();
-  const fillH = ENERGY_BAR_H * energyFrac;
-  if (fillH > 0) {
-    g.fillStyle = energyColor;
-    g.shadowColor = energyColor;
-    g.shadowBlur = 10;
-    g.beginPath();
-    g.roundRect(barX - ENERGY_BAR_W / 2, barBottom - fillH, ENERGY_BAR_W, fillH, ENERGY_BAR_W / 2);
-    g.fill();
+  if (narrow) {
+    const fillW = barW * energyFrac;
+    if (fillW > 0) {
+      g.fillStyle = energyColor;
+      g.shadowColor = energyColor;
+      g.shadowBlur = 8;
+      g.beginPath();
+      g.roundRect(barLeft, barTop, fillW, barH, barH / 2);
+      g.fill();
+    }
+  } else {
+    const fillH = barH * energyFrac;
+    if (fillH > 0) {
+      g.fillStyle = energyColor;
+      g.shadowColor = energyColor;
+      g.shadowBlur = 10;
+      g.beginPath();
+      g.roundRect(barLeft, barTop + barH - fillH, barW, fillH, barW / 2);
+      g.fill();
+    }
   }
   g.restore();
-  // barra cheia, energia ainda por ativar: o convite a pulsar ("Abre a boca!"/"Espaço!")
+  // barra cheia, energia ainda por ativar: o convite a pulsar ("Abre a boca!"/"Espaço!"), sempre
+  // medido e encostado à barra, para nunca sair do canvas
   if (powerFull) {
     const pulse = 0.55 + 0.45 * Math.sin((now / POWER_PULSE_S) * Math.PI * 2);
     g.save();
     g.globalAlpha = pulse;
-    g.fillStyle = POWER_GOLD;
+    g.fillStyle = NEON.gold;
     g.font = '700 15px system-ui, sans-serif';
-    g.textAlign = 'center';
-    g.textBaseline = 'bottom';
-    g.fillText(keyMode ? labels.powerReadyKey : labels.powerReady, barX, barTop - 8);
+    if (narrow) {
+      g.textAlign = 'left';
+      g.textBaseline = 'middle';
+      g.fillText(promptText, barLeft + barW + 10, barTop + barH / 2);
+    } else {
+      g.textAlign = 'right';
+      g.textBaseline = 'bottom';
+      g.fillText(promptText, barLeft + barW, barTop - 8);
+    }
     g.restore();
   }
 

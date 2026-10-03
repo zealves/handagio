@@ -35,6 +35,18 @@ export const MIN_GAME_FINGERS = 2;
 export const laneOf = (finger: number, fingers: readonly number[]): number =>
   fingers.indexOf(finger);
 
+/**
+ * Lado da mão que não joga (para se esconder no overlay, decisão 73): só quando todos os
+ * `fingers` são da mesma mão (todos < 5, a esquerda, ou todos ≥ 5, a direita). Com dedos das duas
+ * mãos, ou sem nenhum escolhido, ninguém fica de fora.
+ */
+export function idleHandSide(fingers: readonly number[] | null): 'left' | 'right' | null {
+  if (!fingers || !fingers.length) return null;
+  if (fingers.every((f) => f < 5)) return 'right';
+  if (fingers.every((f) => f >= 5)) return 'left';
+  return null;
+}
+
 /** Dedos válidos, sem repetidos, pela ordem do ecrã; null com menos de `MIN_GAME_FINGERS`. */
 export function normalizeGameFingers(v: unknown): number[] | null {
   if (!Array.isArray(v)) return null;

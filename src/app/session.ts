@@ -7,10 +7,23 @@ import { cameraError, padLabels } from '../i18n/data';
 import { samples } from '../audio/samples/loader';
 import { Looper, type LoopEvent } from '../audio/looper';
 import { Clock, quantizeTime, STEPS_PER_BAR, STEPS_PER_BEAT, TapTempo } from '../audio/metronome';
-import { clamp, chordName, degreeToMidi, noteName, scaleLength, type ScaleName } from '../audio/theory';
+import {
+  clamp,
+  chordName,
+  degreeToMidi,
+  noteName,
+  scaleLength,
+  type ScaleName,
+} from '../audio/theory';
 import { live, pushBurst } from '../state/live';
 import { getState, setState, useStore, type Store } from '../state/store';
-import { DIFFICULTY, LAG_SAVE_MIN_HITS, MAX_HIT_STEPS, MAX_SONG_HIT_STEPS, roundLagMs } from '../game/config';
+import {
+  DIFFICULTY,
+  LAG_SAVE_MIN_HITS,
+  MAX_HIT_STEPS,
+  MAX_SONG_HIT_STEPS,
+  roundLagMs,
+} from '../game/config';
 import { crashSlotFor, generateChart } from '../game/generator';
 import {
   isUnlocked,
@@ -39,7 +52,7 @@ import {
 import { MotionDetector } from '../vision/motionFallback';
 import type { Pt } from '../vision/types';
 import { FINGER_COLORS } from '../ui/theme';
-import { idleHandSide } from '../ui/stage/drawOverlay';
+import { hiddenHandIdx } from '../ui/stage/drawOverlay';
 import { isTypingTarget } from '../lib/keys';
 import { fingerChordOf, fingerMidiOf } from './notes';
 
@@ -823,7 +836,11 @@ class Session {
     }
     const melodyOctave = tuningOf({ ...g.tuning, instrument: g.sound.melody }).octave;
     if (ev.kind === 'pad') {
-      const tuning = { root: g.tuning.root, scale: g.tuning.scale, octave: melodyOctave - PAD_OCTAVE_DROP };
+      const tuning = {
+        root: g.tuning.root,
+        scale: g.tuning.scale,
+        octave: melodyOctave - PAD_OCTAVE_DROP,
+      };
       for (const d of ev.degrees) {
         const midi = degreeToMidi(d, tuning);
         const key = `P${++this.loopSeq}`;
@@ -1159,13 +1176,16 @@ class Session {
         });
       }
     }
-    // A face (boca) só corre com um efeito da boca escolhido ou com o jogo aberto (a energia
-    // precisa da boca mesmo sem efeito de som, ver mais abaixo), e nunca antes das mãos: num tick
-    // sem fotograma novo ou, se não houver nenhum, depois das mãos (ver FACE_EVERY).
+    // A energia só precisa da boca com uma ronda a decorrer (a tocar ou em pausa): no menu e no
+    // resultado (this.game já null nessas fases) a boca volta a seguir só o mouthFx, como sempre.
+    const inGame = s.game?.phase === 'playing' || s.game?.phase === 'paused';
+    // A face (boca) só corre com um efeito da boca escolhido ou com uma ronda aberta, e nunca
+    // antes das mãos: num tick sem fotograma novo ou, se não houver nenhum, depois das mãos (ver
+    // FACE_EVERY).
     if (
       v &&
       this.face.ready &&
-      (s.mouthFx !== 'off' || s.game !== null) &&
+      (s.mouthFx !== 'off' || inGame) &&
       v.readyState >= 2 &&
       this.faceGap >= FACE_EVERY &&
       (!fresh || this.faceGap >= FACE_MAX_GAP)
@@ -1182,11 +1202,12 @@ class Session {
       } catch (e) {
         console.warn('[visão] erro na deteção da face', e);
       }
-    } else if (s.mouthFx === 'off' && !s.game) live.lips = null;
+    } else if (s.mouthFx === 'off' && !inGame) live.lips = null;
 
-    // boca
+    // boca (sem isto, com `mouthFx` a "Nenhum" o alvo zerava-se em todos os fotogramas e a boca
+    // nunca chegava a MOUTH_ACTIVATE, mesmo com a câmara a detetá-la bem na ronda)
     if (live.spaceHeld) live.mouthTarget = 1;
-    else if (s.mouthFx === 'off' || now - live.lipsT > 600) live.mouthTarget = 0;
+    else if ((s.mouthFx === 'off' && !inGame) || now - live.lipsT > 600) live.mouthTarget = 0;
     live.mouth += (live.mouthTarget - live.mouth) * Math.min(1, dt * 18);
     // no jogo a boca não aplica o efeito de som do modo livre: só ativa a energia (decisão 73)
     audio.setMouth(live.mouth, s.game ? 'off' : s.mouthFx);
@@ -1194,10 +1215,11 @@ class Session {
       const run = this.game.run;
       if (live.mouth >= MOUTH_ACTIVATE && run.activatePower(audio.now)) {
         audio.drum(this.game.sound.kit, crashSlotFor(this.game.sound.kit), 0.8);
-        this.setPowerReverb(true);
-      } else if (this.powerReverbOn && !run.powerActive(audio.now)) {
-        this.setPowerReverb(false);
       }
+      // sempre recalculado (não só ao ativar): uma pausa a meio da energia tira o reforço do
+      // reverb (congela-se, como a barra) e a retoma repõe-no sozinha se ainda sobrar energia,
+      // sem isto precisar de saber que veio de uma pausa
+      this.setPowerReverb(run.state !== 'paused' && run.powerActive(audio.now));
     }
     if (this.game?.run.update(audio.now)) this.finishGame();
 
@@ -1273,7 +1295,8 @@ class Session {
   hiddenHandSide(): 'left' | 'right' | null {
     const g = getState().game;
     if (!g || (g.phase !== 'playing' && g.phase !== 'paused')) return null;
-    return idleHandSide(g.fingers);
+    const idx = hiddenHandIdx(g.fingers, live.assignedHands);
+    return idx === 0 ? 'left' : idx === 1 ? 'right' : null;
   }
 
   // ---------- calibração ----------

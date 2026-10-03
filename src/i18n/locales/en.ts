@@ -480,8 +480,7 @@ const en = {
   keyboard: { piano: 'Piano keyboard', pads: (kit: string) => `Percussion pads: ${kit}` },
   game: {
     title: 'Game mode',
-    intro:
-      'Bend the right finger when the note reaches the line; points depend on timing.',
+    intro: 'Bend the right finger when the note reaches the line; points depend on timing.',
     menu: 'Game menu',
     freeMode: 'Free play',
     levels: 'Levels',
@@ -540,7 +539,7 @@ const en = {
     powerReady: 'Open your mouth!',
     powerReadyKey: 'Space!',
     powerMult: '×2',
-    powerUses: (n: number) => `Energy used: ${n} times`,
+    powerUses: (n: number) => `Energy used: ${n} ${n === 1 ? 'time' : 'times'}`,
   },
   meta: {
     htmlLang: 'en',

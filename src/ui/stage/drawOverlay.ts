@@ -1,9 +1,12 @@
 // Desenho do overlay do palco: esqueleto das mãos em néon (ciano → magenta), anéis nas pontas dos
 // dedos, ondas de disparo com o nome da nota, colunas do modo movimento e contorno dos lábios.
+import { audio } from '../../audio/engine';
+import { idleHandSide } from '../../game/config';
 import { t } from '../../i18n';
 import { getState } from '../../state/store';
 import { live } from '../../state/live';
 import { MOUTH_FX } from '../../state/types';
+import type { AssignedHands } from '../../vision/types';
 import { activeScreenOrder, isActive } from '../../vision/fingerMap';
 import { FINGER_COLORS, NEON } from '../theme';
 
@@ -52,15 +55,22 @@ const PLAYING_PILL_GROW = 0.35;
 const OTHER_FINGER_R = 7;
 
 /**
- * Lado da mão que não joga (para se esconder): só quando todos os `game.fingers` são da mesma
- * mão (todos < 5, a esquerda, ou todos ≥ 5, a direita — ver `GAME_FINGER_CHOICES`). Com dedos das
- * duas mãos, ou sem nenhum escolhido, nada se esconde.
+ * Índice (0 = esquerda, 1 = direita) da mão a esconder, ou null para não esconder nenhuma.
+ * `idleHandSide` (lógica pura, `game/config.ts`) diz qual seria pelos dedos escolhidos; só se
+ * segue essa resposta quando a mão que joga está mesmo identificada em `assignedHands` — senão
+ * esconder-se-ia a única mão à vista, só porque ficou atribuída ao lado errado (uma mão sozinha
+ * à frente da câmara pode cair em qualquer lado, ver `assignHands`).
  */
-export function idleHandSide(fingers: readonly number[] | null): 'left' | 'right' | null {
-  if (!fingers || !fingers.length) return null;
-  if (fingers.every((f) => f < 5)) return 'right';
-  if (fingers.every((f) => f >= 5)) return 'left';
-  return null;
+export function hiddenHandIdx(
+  fingers: readonly number[] | null,
+  assignedHands: AssignedHands,
+): 0 | 1 | null {
+  const idle = idleHandSide(fingers);
+  const idleIdx: 0 | 1 | null = idle === 'left' ? 0 : idle === 'right' ? 1 : null;
+  const playingIdx: 0 | 1 | null = idleIdx === 0 ? 1 : idleIdx === 1 ? 0 : null;
+  return idleIdx !== null && playingIdx !== null && assignedHands[playingIdx] !== null
+    ? idleIdx
+    : null;
 }
 
 export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, reduced: boolean) {
@@ -77,11 +87,17 @@ export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, r
   const inGame = s.game?.phase === 'playing' || s.game?.phase === 'paused';
   const playingFingers = inGame ? new Set(s.game!.fingers) : null;
   // Jogar com uma só mão (decisão 73): a outra não se desenha, nem o esqueleto nem os anéis, para
-  // não distrair. `hiddenSide` vem só do índice do dedo (sempre certo); o esqueleto, por mão, só
-  // se esconde quando a referência bate certo com `live.assignedHands` (senão fica por desenhar,
-  // mas os anéis já chegam para não distrair).
-  const hiddenSide = inGame ? idleHandSide(s.game!.fingers) : null;
-  const hiddenIdx: 0 | 1 | null = hiddenSide === 'left' ? 0 : hiddenSide === 'right' ? 1 : null;
+  // não distrair — mas só quando a mão que joga está mesmo identificada (`hiddenHandIdx`); senão a
+  // "mão que não joga" fica só esmorecida, como os dedos sem faixa de sempre.
+  const hiddenIdx = inGame ? hiddenHandIdx(s.game!.fingers, live.assignedHands) : null;
+  const hiddenSide: 'left' | 'right' | null =
+    hiddenIdx === 0 ? 'left' : hiddenIdx === 1 ? 'right' : null;
+  // A ronda (para o brilho dourado dos lábios com a energia pronta ou ativa): `viewNow` congela
+  // em pausa, como na pista.
+  const run = inGame ? live.game : null;
+  const runNow = run ? run.viewNow(audio.now) : 0;
+  const energyActive = !!run && run.powerActive(runNow);
+  const energyReady = !!run && !energyActive && run.energy >= 1;
 
   // Modo movimento: uma coluna por dedo.
   if (s.engine === 'motion') {
@@ -132,18 +148,21 @@ export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, r
     }
   }
 
-  // Modo teclado.
-  if (s.engine === 'keyboard') {
+  // Modo teclado (a dica do modo livre; no jogo o teclado já tem as suas próprias teclas na pista).
+  if (s.engine === 'keyboard' && !s.game) {
     g.fillStyle = 'rgba(232,238,255,.85)';
     g.font = `500 ${Math.round(W / 42)}px Inter, system-ui, sans-serif`;
     g.textAlign = 'center';
     g.fillText(t().start.overlayKeys(s.thumbs), W / 2, H / 2);
   }
 
-  // Lábios.
+  // Lábios: fica sempre o contorno (mesmo sem efeito de som escolhido, ver `tick`), dourado com a
+  // energia pronta ou ativa (decisão 73); no jogo não se escreve o nome do efeito por cima (não se
+  // aplica, ver `session.ts`).
   if (live.lips && now - live.lipsT < 600) {
     const lm = live.lips;
     const a = live.mouth;
+    const lipColor = energyActive || energyReady ? NEON.gold : NEON.magenta;
     g.beginPath();
     LIP_IDS.forEach((id, k) => {
       const x = lm[id].x * W;
@@ -152,17 +171,22 @@ export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, r
       else g.moveTo(x, y);
     });
     g.closePath();
-    g.strokeStyle = NEON.magenta;
+    g.strokeStyle = lipColor;
     g.lineWidth = Math.max(2, W / 400);
-    g.shadowColor = NEON.magenta;
+    g.shadowColor = lipColor;
     g.shadowBlur = glow * sc * (0.4 + a);
     g.globalAlpha = 0.5 + a * 0.5;
     g.stroke();
     g.shadowBlur = 0;
     if (a > 0.1) {
-      g.fillStyle = `rgba(255,79,216,${a * 0.3})`;
+      g.fillStyle =
+        energyActive || energyReady
+          ? `rgba(255,209,102,${a * 0.3})`
+          : `rgba(255,79,216,${a * 0.3})`;
       g.fill();
       g.globalAlpha = 1;
+    }
+    if (a > 0.1 && !inGame) {
       g.font = `600 ${Math.round(18 * sc)}px Inter, system-ui, sans-serif`;
       g.textAlign = 'center';
       g.fillStyle = '#fff';

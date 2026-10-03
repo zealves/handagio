@@ -372,8 +372,7 @@ const pt = {
   keyboard: { piano: 'Teclado de piano', pads: (kit: string) => `Pads de percussão: ${kit}` },
   game: {
     title: 'Modo de jogo',
-    intro:
-      'Dobra o dedo certo quando a nota chega à linha; os pontos dependem do tempo.',
+    intro: 'Dobra o dedo certo quando a nota chega à linha; os pontos dependem do tempo.',
     menu: 'Menu do jogo',
     freeMode: 'Modo livre',
     levels: 'Níveis',
@@ -432,7 +431,7 @@ const pt = {
     powerReady: 'Abre a boca!',
     powerReadyKey: 'Espaço!',
     powerMult: '×2',
-    powerUses: (n: number) => `Energia usada: ${n} vezes`,
+    powerUses: (n: number) => `Energia usada: ${n} ${n === 1 ? 'vez' : 'vezes'}`,
   },
   meta: {
     htmlLang: 'pt-PT',

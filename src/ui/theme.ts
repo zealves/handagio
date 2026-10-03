@@ -17,6 +17,8 @@ export const NEON = {
   blue: '#3d7bff',
   violet: '#8b5cff',
   magenta: '#ff4fd8',
+  /** Energia do jogo (Star Power), cheia ou ativa: dourado, em vez das cores de sempre. */
+  gold: '#ffd166',
 };
 
 export const prefersReducedMotion = (): boolean =>
