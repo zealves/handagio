@@ -435,7 +435,7 @@ const pt = {
     misses: 'Falhadas',
     failed: 'Falhaste!',
     reached: (pct: number) => `Tocaste ${pct}% da música`,
-    powerReady: 'Abre a boca!',
+    powerReady: 'Fecha a mão!',
     powerReadyKey: 'Espaço!',
     powerMult: '×2',
     powerUses: (n: number) => `Energia usada: ${n} ${n === 1 ? 'vez' : 'vezes'}`,

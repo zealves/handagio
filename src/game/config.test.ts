@@ -3,7 +3,9 @@ import {
   DEFAULT_GAME_FINGERS,
   DIFFICULTIES,
   DIFFICULTY,
+  FIST_CURL,
   hiddenHandIdx,
+  isFist,
   playingHandIdx,
   idleHandSide,
   laneOf,
@@ -119,5 +121,17 @@ describe('playingHandIdx', () => {
     expect(playingHandIdx([3, 6])).toBeNull();
     expect(playingHandIdx([])).toBeNull();
     expect(playingHandIdx(null)).toBeNull();
+  });
+});
+
+describe('isFist (decisão 75)', () => {
+  it('os 4 dedos compridos dobrados fazem uma mão fechada; o polegar não conta', () => {
+    expect(isFist([0, 0.9, 0.9, 0.9, 0.9])).toBe(true);
+    expect(isFist([0, FIST_CURL, FIST_CURL, FIST_CURL, FIST_CURL])).toBe(true);
+  });
+  it('um dedo que joga sozinho, ou três de quatro, não é uma mão fechada', () => {
+    expect(isFist([0, 0.9, 0, 0, 0])).toBe(false);
+    expect(isFist([1, 0.9, 0.9, 0.9, FIST_CURL - 0.01])).toBe(false);
+    expect(isFist([])).toBe(false);
   });
 });

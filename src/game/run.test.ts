@@ -821,8 +821,21 @@ describe('GameRun: vida e penalizações (decisão 74)', () => {
   });
 });
 
-describe('GameRun: tryActivatePower (borda de subida da boca)', () => {
-  it('ativa com a boca aberta, armada e a barra cheia', () => {
+describe('GameRun: tryActivatePower (borda de subida da mão fechada)', () => {
+  it('os toques soltos da própria mão a fechar-se não contam como errados', () => {
+    const run = makeOneNote(2);
+    run.energy = 1;
+    // a mão direita fecha-se (faixas 2 e 3, sem notas); a única nota é da esquerda (faixa 0)
+    expect(run.press(2, 12.1, false)?.kind).toBe('stray');
+    expect(run.press(3, 12.12, false)?.kind).toBe('stray');
+    expect(run.tryActivatePower(true, 12.15)).toBe(true);
+    run.update(12.15 + NEIGHBOUR_GRACE_S + 0.05);
+    expect(run.score.wrongTaps).toBe(0);
+    // só a nota da esquerda, entretanto passada sem toque, tirou vida
+    expect(run.life).toBeCloseTo(LIFE_START - LIFE_MISS);
+  });
+
+  it('ativa com a mão fechada, armada e a barra cheia', () => {
     const { run } = make();
     run.energy = 1;
     expect(run.tryActivatePower(true, 12.1)).toBe(true);
@@ -831,7 +844,7 @@ describe('GameRun: tryActivatePower (borda de subida da boca)', () => {
 
   it('já aberta quando a barra enche (nunca fechou entretanto): não ativa', () => {
     const { run } = make();
-    // a boca já estava aberta antes de a barra encher (desarma logo no 1.º fotograma)
+    // a mão já estava fechada antes de a barra encher (desarma logo no 1.º fotograma)
     expect(run.tryActivatePower(true, 11)).toBe(false); // na contagem, sem barra: não ativa
     run.energy = 1;
     expect(run.tryActivatePower(true, 12.1)).toBe(false); // continua aberta: não é uma borda nova
@@ -848,7 +861,7 @@ describe('GameRun: tryActivatePower (borda de subida da boca)', () => {
     expect(run.powerUses).toBe(1);
   });
 
-  it('com a boca fechada nunca ativa, e fica sempre armada', () => {
+  it('com a mão aberta nunca ativa, e fica sempre armada', () => {
     const { run } = make();
     run.energy = 1;
     expect(run.tryActivatePower(false, 12.1)).toBe(false);
@@ -856,7 +869,7 @@ describe('GameRun: tryActivatePower (borda de subida da boca)', () => {
     expect(run.powerUses).toBe(0);
   });
 
-  it('depois de ativar, mantém a boca aberta sem voltar a ativar (como activatePower)', () => {
+  it('depois de ativar, mantém a mão fechada sem voltar a ativar (como activatePower)', () => {
     const { run } = make();
     run.energy = 1;
     expect(run.tryActivatePower(true, 12.1)).toBe(true);

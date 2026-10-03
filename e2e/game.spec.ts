@@ -32,6 +32,7 @@ type Vsc = {
       handedness?: ({ label: 'Left' | 'Right'; score: number } | null)[],
     ): void;
     hiddenHandSide(): 'left' | 'right' | null;
+    readonly stats: { faceDetects: number };
   };
   audio: {
     now: number;
@@ -860,12 +861,12 @@ test.describe('modo de jogo', () => {
       const fingers = [2, 1, 6, 7];
 
       // espera pelo fim da contagem (a energia só se ativa durante a música) e põe a barra cheia
-      // pelo diagnóstico, como pediria uma câmara real com a boca fechada até aqui
+      // pelo diagnóstico, como pediria uma câmara real com a mão aberta até aqui
       while (v.audio.now < run.countTo) await new Promise((res) => setTimeout(res, 5));
       run.energy = 1;
 
-      // o espaço no teclado faz `live.mouth` subir até `MOUTH_ACTIVATE`; espera pelo tick da
-      // sessão que lê esse valor e ativa a energia (sem dormir um tempo fixo às cegas)
+      // o espaço (`live.spaceHeld`) ativa a energia no tick seguinte da sessão; espera por ele
+      // (sem dormir um tempo fixo às cegas)
       document.body.dispatchEvent(
         new KeyboardEvent('keydown', { key: ' ', code: 'Space', bubbles: true }),
       );
@@ -982,6 +983,42 @@ test.describe('modo de jogo', () => {
     expect(r.pausedReverb).toBeCloseTo(0.2); // a pausa tira o reforço, mesmo com a energia ativa
     expect(r.resumedReverb).toBeCloseTo(0.5); // a retoma repõe-no sozinha (ainda sobra energia)
     expect(r.stoppedReverb).toBeCloseTo(0.2); // sair do jogo repõe o reverb do jogador
+  });
+
+  test('energia: a mão fechada ativa-a com a barra cheia, e a face não corre no jogo', async ({
+    page,
+  }) => {
+    // com um efeito da boca escolhido, a face correria no modo livre; no jogo nunca (decisão 75)
+    await page.evaluate(() => {
+      (window as unknown as { __vsc: Vsc }).__vsc.store.getState().set({ mouthFx: 'wah' });
+    });
+    await startEasy(page);
+    const r = await page.evaluate(async () => {
+      const v = (window as unknown as { __vsc: Vsc }).__vsc;
+      const run = v.live.game!;
+      const faceBefore = v.session.stats.faceDetects;
+      while (v.audio.now < run.countTo) await new Promise((res) => setTimeout(res, 5));
+      const tick = () => new Promise((res) => requestAnimationFrame(() => res(null)));
+      // mão aberta à vista (arma a energia), depois a barra cheia e a mão fechada
+      v.session.feedHands([v.syntheticHand(false, 0.7)]);
+      await tick();
+      run.energy = 1;
+      v.session.feedHands([v.syntheticHand(true, 0.7)]);
+      await tick();
+      await tick();
+      const active = run.powerActive(v.audio.now);
+      // mantê-la fechada não volta a ativar; abrir e fechar sem barra também não
+      v.session.feedHands([v.syntheticHand(false, 0.7)]);
+      await tick();
+      v.session.feedHands([v.syntheticHand(true, 0.7)]);
+      await tick();
+      return {
+        active,
+        uses: (run as unknown as { powerUses: number }).powerUses,
+        faceInGame: v.session.stats.faceDetects - faceBefore,
+      };
+    });
+    expect(r).toEqual({ active: true, uses: 1, faceInGame: 0 });
   });
 
   test('só a mão direita escolhida: a mão sozinha joga do lado direito e a esquerda esconde-se', async ({

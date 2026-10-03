@@ -72,8 +72,8 @@ export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, r
   const hiddenIdx = inGame ? hiddenHandIdx(s.game!.fingers, live.assignedHands) : null;
   const hiddenSide: 'left' | 'right' | null =
     hiddenIdx === 0 ? 'left' : hiddenIdx === 1 ? 'right' : null;
-  // A ronda (para o brilho dourado dos lábios com a energia pronta ou ativa): `viewNow` congela
-  // em pausa, como na pista.
+  // A ronda (para o contorno dourado dos dedos que jogam com a energia pronta ou ativa):
+  // `viewNow` congela em pausa, como na pista.
   const run = inGame ? live.game : null;
   const runNow = run ? run.viewNow(audio.now) : 0;
   const energyActive = !!run && run.powerActive(runNow);
@@ -139,13 +139,12 @@ export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, r
     g.fillText(t().start.overlayKeys(s.thumbs), W / 2, H / 2);
   }
 
-  // Lábios: fica sempre o contorno (mesmo sem efeito de som escolhido, ver `tick`), dourado com a
-  // energia pronta ou ativa (decisão 73); no jogo não se escreve o nome do efeito por cima (não se
-  // aplica, ver `session.ts`).
+  // Lábios: só no modo livre, com um efeito da boca escolhido (no jogo a face não corre: a
+  // energia ativa-se com a mão fechada, decisão 75).
   if (live.lips && now - live.lipsT < 600) {
     const lm = live.lips;
     const a = live.mouth;
-    const lipColor = energyActive || energyReady ? NEON.gold : NEON.magenta;
+    const lipColor = NEON.magenta;
     g.beginPath();
     LIP_IDS.forEach((id, k) => {
       const x = lm[id].x * W;
@@ -162,14 +161,11 @@ export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, r
     g.stroke();
     g.shadowBlur = 0;
     if (a > 0.1) {
-      g.fillStyle =
-        energyActive || energyReady
-          ? `rgba(255,209,102,${a * 0.3})`
-          : `rgba(255,79,216,${a * 0.3})`;
+      g.fillStyle = `rgba(255,79,216,${a * 0.3})`;
       g.fill();
       g.globalAlpha = 1;
     }
-    if (a > 0.1 && !inGame) {
+    if (a > 0.1) {
       g.font = `600 ${Math.round(18 * sc)}px Inter, system-ui, sans-serif`;
       g.textAlign = 'center';
       g.fillStyle = '#fff';
@@ -226,7 +222,8 @@ export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, r
     g.fill();
     g.globalAlpha = Math.min(1, 0.55 + 0.45 * f.curl + pop);
     g.lineWidth = 3 * sc;
-    g.strokeStyle = c;
+    // energia pronta ou ativa: o contorno dos dedos que jogam fica dourado (é a mão a fechar)
+    g.strokeStyle = energyActive || energyReady ? NEON.gold : c;
     g.stroke();
     g.shadowBlur = 0;
     if (!inGame && fx.flash > 0) {

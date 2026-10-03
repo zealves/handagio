@@ -20,6 +20,7 @@ import { getState, setState, useStore, type Store } from '../state/store';
 import {
   DIFFICULTY,
   hiddenHandIdx,
+  isFist,
   playingHandIdx,
   LAG_SAVE_MIN_HITS,
   MAX_HIT_STEPS,
@@ -82,8 +83,6 @@ const PAD_OCTAVE_DROP = 1;
 const SONG_BASS_OCTAVE_DROP = 2;
 /** Baixo da partitura procedural (Pop): uma oitava abaixo, como sempre. */
 const PROCEDURAL_BASS_OCTAVE_DROP = 1;
-/** Boca aberta o suficiente para ativar a energia do jogo (decisão 73; o espaço já chega a 1). */
-const MOUTH_ACTIVATE = 0.6;
 
 const fingerPan = (i: number) => (i - 4.5) / 6;
 /** Chave da voz: o dedo (nota única ou fundamental) ou `dedo:k` para as outras notas do acorde. */
@@ -120,6 +119,8 @@ class Session {
   private face = new FaceTracker();
   /** Fotogramas de vídeo novos desde a última deteção da face. */
   private faceGap = 0;
+  /** Com uma ronda aberta: alguma mão à vista está fechada (`isFist`), para ativar a energia. */
+  private fist = false;
   private detections = 0;
   /** Diagnóstico (`__vsc.session.stats`): chamadas ao detetor das mãos e ao da face. */
   readonly stats = { handDetects: 0, faceDetects: 0 };
@@ -1182,16 +1183,15 @@ class Session {
         });
       }
     }
-    // A energia só precisa da boca com uma ronda a decorrer (a tocar ou em pausa): no menu e no
-    // resultado (this.game já null nessas fases) a boca volta a seguir só o mouthFx, como sempre.
-    const inGame = s.game?.phase === 'playing' || s.game?.phase === 'paused';
-    // A face (boca) só corre com um efeito da boca escolhido ou com uma ronda aberta, e nunca
-    // antes das mãos: num tick sem fotograma novo ou, se não houver nenhum, depois das mãos (ver
-    // FACE_EVERY).
+    // A face (boca) só corre no modo livre com um efeito da boca escolhido, e nunca antes das
+    // mãos: num tick sem fotograma novo ou, se não houver nenhum, depois das mãos (ver
+    // FACE_EVERY). No jogo (menu, ronda e resultado) nunca corre: a energia ativa-se com a mão
+    // fechada (decisão 75), e assim a deteção da face não pesa nos computadores mais lentos.
+    const faceOn = s.mouthFx !== 'off' && !s.game;
     if (
       v &&
       this.face.ready &&
-      (s.mouthFx !== 'off' || inGame) &&
+      faceOn &&
       v.readyState >= 2 &&
       this.faceGap >= FACE_EVERY &&
       (!fresh || this.faceGap >= FACE_MAX_GAP)
@@ -1208,18 +1208,18 @@ class Session {
       } catch (e) {
         console.warn('[visão] erro na deteção da face', e);
       }
-    } else if (s.mouthFx === 'off' && !inGame) live.lips = null;
+    } else if (!faceOn) live.lips = null;
 
-    // boca (sem isto, com `mouthFx` a "Nenhum" o alvo zerava-se em todos os fotogramas e a boca
-    // nunca chegava a MOUTH_ACTIVATE, mesmo com a câmara a detetá-la bem na ronda)
-    if (live.spaceHeld) live.mouthTarget = 1;
-    else if ((s.mouthFx === 'off' && !inGame) || now - live.lipsT > 600) live.mouthTarget = 0;
+    // boca: o espaço abre-a no modo livre; no jogo fica fechada (o efeito não se aplica)
+    if (s.game) live.mouthTarget = 0;
+    else if (live.spaceHeld) live.mouthTarget = 1;
+    else if (!faceOn || now - live.lipsT > 600) live.mouthTarget = 0;
     live.mouth += (live.mouthTarget - live.mouth) * Math.min(1, dt * 18);
-    // no jogo a boca não aplica o efeito de som do modo livre: só ativa a energia (decisão 73)
     audio.setMouth(live.mouth, s.game ? 'off' : s.mouthFx);
     if (this.game) {
       const run = this.game.run;
-      if (run.tryActivatePower(live.mouth >= MOUTH_ACTIVATE, audio.now)) {
+      // energia: a mão fechada (câmara) ou o espaço (teclado), na borda de subida (decisão 75)
+      if (run.tryActivatePower(this.fist || live.spaceHeld, audio.now)) {
         audio.drum(this.game.sound.kit, crashSlotFor(this.game.sound.kit), 0.8);
       }
       // sempre recalculado (não só ao ativar): uma pausa a meio da energia tira o reforço do
@@ -1254,6 +1254,11 @@ class Session {
     const onlySide = game ? playingHandIdx(game.fingers) : null;
     const assigned = assignHands(hands, handedness, this.handState, onlySide);
     live.assignedHands = assigned;
+    // a mão fechada ativa a energia do jogo (decisão 75): basta uma das mãos à vista
+    if (game) {
+      const aspect = aspectOf({ videoW: live.videoW, videoH: live.videoH });
+      this.fist = assigned.some((lm) => lm !== null && isFist(curls(lm, aspect)));
+    } else this.fist = false;
     // A calibração recolhe as dobras de todos os dedos, polegares incluídos, mesmo com os
     // polegares desligados (o gestureEngine não calcula a dobra dos dedos inativos).
     if (this.cal) {

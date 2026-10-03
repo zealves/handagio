@@ -18,9 +18,9 @@ export interface GameLabels {
   combo: (n: number) => string;
   /** Nome curto da mão e do dedo de cada faixa (só aparece com faixas largas). */
   lanes: string[];
-  /** Barra da energia cheia, por câmara ("Abre a boca!") ou teclado ("Espaço!"). */
   /** Nome da barra da energia, ao lado dela enquanto não está pronta. */
   energy: string;
+  /** Barra da energia cheia, por câmara ("Fecha a mão!") ou teclado ("Espaço!"). */
   powerReady: string;
   powerReadyKey: string;
   /** "×2", junto à pontuação enquanto a energia está ativa. */
@@ -88,7 +88,7 @@ const LIFE_OK = '#3ee08a';
 const TALLY_TOP = 98;
 /** Período (s) do pulsar do aviso da vida baixa. */
 const LIFE_PULSE_S = 0.8;
-/** Período (s) do pulsar do texto "Abre a boca!"/"Espaço!" com a barra cheia. */
+/** Período (s) do pulsar do texto "Fecha a mão!"/"Espaço!" com a barra cheia. */
 const POWER_PULSE_S = 1.1;
 
 /** Profundidade 0 (topo) … 1 (linha) de uma nota que chega daqui a `dt` s, com perspetiva. */
@@ -122,7 +122,7 @@ export function drawGame(
   // `now` já vem congelado em pausa (`GameRun.viewNow`): a energia some com o resto da pista.
   const powerActive = run.powerActive(now);
   const powerFull = !powerActive && run.energy >= 1;
-  // o convite a abrir a boca só aparece quando a energia dá mesmo para ativar agora, não só com
+  // o convite a fechar a mão só aparece quando a energia dá mesmo para ativar agora, não só com
   // a barra cheia (nunca na contagem de uma retoma nem na cauda depois da última nota); a barra
   // em si continua dourada com `powerFull`, sem precisar da música a tocar.
   const canActivate = run.canActivate(now);
@@ -287,7 +287,7 @@ export function drawGame(
 
   // barra da energia (Star Power): horizontal, por baixo da pontuação (`ENERGY_BAR_TOP`), cheia
   // da esquerda para a direita; à direita, o nome ("Energia") ou, pronta a ativar, o convite a
-  // pulsar ("Abre a boca!"/"Espaço!"), sempre medido para nunca sair do canvas
+  // pulsar ("Fecha a mão!"/"Espaço!"), sempre medido para nunca sair do canvas
   const promptText = keyMode ? labels.powerReadyKey : labels.powerReady;
   g.font = '700 15px system-ui, sans-serif';
   const promptW = g.measureText(promptText).width;

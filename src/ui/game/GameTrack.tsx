@@ -15,9 +15,9 @@ import s from './GameTrack.module.css';
 export function GameTrack() {
   const tr = useT();
   const fingers = useStore((st) => st.game?.fingers ?? DEFAULT_GAME_FINGERS);
-  // Sem deteção da boca (câmara sem face), o convite da energia mostra a tecla, não "Abre a
-  // boca!": só o espaço dá para ativar nesse caso.
-  const keyMode = useStore((st) => st.engine === 'keyboard' || st.faceState === 'unavailable');
+  // Sem os pontos das mãos (teclado, ou o modo movimento), não há mão fechada para ativar a
+  // energia: o convite mostra a tecla ("Espaço!") em vez de "Fecha a mão!" (decisão 75).
+  const keyMode = useStore((st) => st.engine !== 'hands');
   const labels: GameLabels = {
     go: tr.game.go,
     judge: tr.game.judge,

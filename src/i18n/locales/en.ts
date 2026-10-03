@@ -543,7 +543,7 @@ const en = {
     misses: 'Missed',
     failed: 'You failed!',
     reached: (pct: number) => `You played ${pct}% of the song`,
-    powerReady: 'Open your mouth!',
+    powerReady: 'Make a fist!',
     powerReadyKey: 'Space!',
     powerMult: '×2',
     powerUses: (n: number) => `Energy used: ${n} ${n === 1 ? 'time' : 'times'}`,

@@ -128,6 +128,14 @@ export const LIFE_NEAR = 0.02;
 export const LIFE_LOW = 0.25;
 /** Duração da energia ativa (s, tempo de áudio); a barra desce de 1 a 0 neste tempo. */
 export const POWER_S = 8;
+/**
+ * Mão fechada (decisão 75): ativa a energia quando os 4 dedos compridos de uma mão estão todos
+ * com a dobra crua (`curls`, 0 esticado … 1 dobrado) acima disto. O polegar não conta (não joga).
+ */
+export const FIST_CURL = 0.6;
+/** As dobras de uma mão (`curls`: polegar, indicador … mindinho) fazem uma mão fechada. */
+export const isFist = (c: readonly number[]): boolean =>
+  c.length >= 5 && c.slice(1, 5).every((x) => x >= FIST_CURL);
 /** Durante a energia ativa, cada acerto vale isto vezes mais (já com o multiplicador do combo). */
 export const POWER_MULTIPLIER = 2;
 /** Quanto o reverb sobe enquanto a energia está ativa (limitado a 1; repõe-se ao acabar). */

@@ -121,11 +121,10 @@ export class GameRun {
   /** A ronda acabou por a vida chegar a 0 (não por a música chegar ao fim). */
   failed = false;
   /**
-   * Armada para ativar a energia numa borda de subida da boca (ou do espaço): só true depois de
-   * a boca ter sido vista fechada (abaixo de `MOUTH_ACTIVATE`, decidido fora daqui). Sem isto, se
-   * a boca já estivesse aberta (ou a falar) quando a barra encheu, a energia ativar-se-ia logo,
-   * sem o jogador ter feito nada (decisão 73, revisão). Começa armada: no início da ronda a barra
-   * está vazia, por isso não faz diferença.
+   * Armada para ativar a energia numa borda de subida da mão fechada (ou do espaço): só true
+   * depois de a mão ter sido vista aberta. Sem isto, uma mão já fechada quando a barra encheu
+   * ativaria a energia logo, sem o jogador ter feito nada (decisões 73 e 75). Começa armada: no
+   * início da ronda a barra está vazia, por isso não faz diferença.
    */
   private armed = true;
   /** Notas que já ensinaram o atraso com um Cedo/Tarde (só o primeiro de cada nota conta). */
@@ -321,24 +320,29 @@ export class GameRun {
     return this.energy >= 1 && !this.powerActive(now) && this.isMusicTime(now);
   }
 
-  /** Ativa a energia (boca aberta ou espaço, decidido fora daqui); devolve se ativou. */
+  /**
+   * Ativa a energia (mão fechada ou espaço, decidido fora daqui); devolve se ativou. Os toques
+   * soltos ainda pendentes (`NEIGHBOUR_GRACE_S`) são os dedos da própria mão a fechar-se: não
+   * contam como errados (decisão 75).
+   */
   activatePower(now: number): boolean {
     if (!this.canActivate(now)) return false;
     this.powerUntil = now + POWER_S;
     this.energy = 0;
     this.powerUses++;
+    this.pendingStrays = [];
     return true;
   }
 
   /**
-   * Tenta ativar a energia a cada fotograma, com `open` a dizer se a boca (ou o espaço) está
-   * aberta agora. Só tenta na borda de subida (`armed`: a boca esteve fechada desde a última
-   * tentativa, ou desde o início da ronda); enquanto a boca se mantém aberta não volta a tentar,
+   * Tenta ativar a energia a cada fotograma, com `trigger` a dizer se a mão está fechada (ou o
+   * espaço premido) agora. Só tenta na borda de subida (`armed`: a mão esteve aberta desde a
+   * última tentativa, ou desde o início da ronda); enquanto se mantém fechada não volta a tentar,
    * mesmo que a barra entretanto encha. Devolve se ativou.
    */
-  tryActivatePower(open: boolean, now: number): boolean {
-    const activated = open && this.armed && this.activatePower(now);
-    this.armed = !open;
+  tryActivatePower(trigger: boolean, now: number): boolean {
+    const activated = trigger && this.armed && this.activatePower(now);
+    this.armed = !trigger;
     return activated;
   }
 
