@@ -485,7 +485,7 @@ const en = {
     menu: 'Game menu',
     freeMode: 'Free play',
     levels: 'Levels',
-    levelNames: { pop: 'Pop', lofi: 'Lo-fi', electro: 'Electronic' },
+    levelNames: { pop: 'Pop', lofi: 'Night', electro: 'Neon' },
     levelLabel: (n: number) => `Level ${n}`,
     locked: 'Locked',
     unlockHint: 'Score ★ on the previous level',

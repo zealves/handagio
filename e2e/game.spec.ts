@@ -18,6 +18,7 @@ type Vsc = {
     nextLevel(): void;
     pauseGame(): void;
     readonly gameMelody: string | null;
+    gameNoteMidi(index: number): number | null;
   };
   audio: { now: number; voiceMidi(key: number | string): number | null };
   live: { game: Run | null };
@@ -734,5 +735,57 @@ test.describe('modo de jogo', () => {
     await expect(page.getByTestId('game-stars')).toHaveAttribute('aria-label', '0 de 3 estrelas');
     // o eletrónico é o último nível (sem `next`): a dica nunca aparece, mesmo com 0 estrelas
     await expect(page.getByTestId('game-unlock-hint')).toHaveCount(0);
+  });
+
+  test('níveis 2 e 3: instrumentos certos, o acerto toca o grau escrito e uma ronda curta do nível 2 chega ao resultado', async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      const v = (window as unknown as { __vsc: Vsc }).__vsc;
+      v.session.gameBars = 2;
+      // abre a Noite e o Neon com o progresso posto a dedo, sem jogar o Pop
+      v.store.getState().set({
+        levelProgress: {
+          pop: { stars: 3, points: 500, accuracy: 1 },
+          lofi: { stars: 3, points: 500, accuracy: 1 },
+        },
+      });
+      v.session.startLevel('lofi');
+    });
+    await expect(page.getByTestId('game-track')).toBeVisible();
+    expect(
+      await page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.session.gameMelody),
+    ).toBe('vibes');
+
+    // o acerto da 1.ª nota toca o grau escrito (`gameNoteMidi`), não o da faixa (decisão 72)
+    const hit = await page.evaluate(async () => {
+      const v = (window as unknown as { __vsc: Vsc }).__vsc;
+      const run = v.live.game!;
+      const keys = ['d', 'f', 'j', 'k'];
+      const fingers = [2, 1, 6, 7];
+      const lane = run.chart.notes[0].lane;
+      while (v.audio.now < run.times[0]) await new Promise((r) => setTimeout(r, 2));
+      document.body.dispatchEvent(
+        new KeyboardEvent('keydown', { key: keys[lane], bubbles: true }),
+      );
+      const midi = v.audio.voiceMidi(fingers[lane]);
+      const expected = v.session.gameNoteMidi(0);
+      document.body.dispatchEvent(new KeyboardEvent('keyup', { key: keys[lane], bubbles: true }));
+      return { midi, expected };
+    });
+    expect(hit.expected).not.toBeNull();
+    expect(hit.midi).toBe(hit.expected);
+
+    const r = await hitNotes(page, 99);
+    expect(r.hits).toBeGreaterThan(0);
+    await expect(page.getByTestId('game-result')).toBeVisible({ timeout: 15_000 });
+
+    await page.evaluate(() => {
+      (window as unknown as { __vsc: Vsc }).__vsc.session.startLevel('electro');
+    });
+    await expect(page.getByTestId('game-track')).toBeVisible();
+    expect(
+      await page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.session.gameMelody),
+    ).toBe('pluck');
   });
 });

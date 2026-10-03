@@ -95,3 +95,8 @@ export const END_TAIL_S = 0.6;
 export const START_MARGIN_S = 0.05;
 /** Duração máxima (semicolcheias) da nota de um acerto: 1 tempo. */
 export const MAX_HIT_STEPS = 4;
+/**
+ * O mesmo, mas para as notas escritas das músicas (níveis 2 e 3, `ChartNote.degree`): 2 tempos,
+ * para as notas longas das frases soarem mais (ainda largadas antes se o dedo subir).
+ */
+export const MAX_SONG_HIT_STEPS = 8;

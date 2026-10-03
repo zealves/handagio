@@ -10,7 +10,7 @@ import { Clock, quantizeTime, STEPS_PER_BAR, STEPS_PER_BEAT, TapTempo } from '..
 import { clamp, chordName, degreeToMidi, noteName, scaleLength, type ScaleName } from '../audio/theory';
 import { live, pushBurst } from '../state/live';
 import { getState, setState, useStore, type Store } from '../state/store';
-import { DIFFICULTY, LAG_SAVE_MIN_HITS, MAX_HIT_STEPS, roundLagMs } from '../game/config';
+import { DIFFICULTY, LAG_SAVE_MIN_HITS, MAX_HIT_STEPS, MAX_SONG_HIT_STEPS, roundLagMs } from '../game/config';
 import { generateChart } from '../game/generator';
 import {
   isUnlocked,
@@ -22,7 +22,8 @@ import {
   type LevelProgress,
 } from '../game/levels';
 import { gameStartBar, GameRun } from '../game/run';
-import type { BackingEvent, Difficulty, GameResult } from '../game/types';
+import type { Song } from '../game/songs';
+import type { BackingEvent, ChartNote, Difficulty, GameResult } from '../game/types';
 import { CAMERA_SIZE, CameraError, listCameras, openCamera, stopStream } from '../vision/camera';
 import { isActive, KEYMAP, slotOf } from '../vision/fingerMap';
 import { aspectOf, GestureEngine, type GestureOptions } from '../vision/gestureEngine';
@@ -59,6 +60,9 @@ const KEY_VELOCITY = 0.75;
 const PREVIEW_MS = 450;
 /** Nível contínuo equivalente ao ganho 0.16 que o protótipo usava no modo teclado. */
 const KEY_CONT_LEVEL = Math.sqrt(0.16 / 0.18);
+/** Oitavas abaixo da melodia a que o acompanhamento escrito das músicas toca (decisão 72). */
+const PAD_OCTAVE_DROP = 1;
+const BASS_OCTAVE_DROP = 2;
 
 const fingerPan = (i: number) => (i - 4.5) / 6;
 /** Chave da voz: o dedo (nota única ou fundamental) ou `dedo:k` para as outras notas do acorde. */
@@ -78,7 +82,9 @@ interface RoundSpec {
   drums?: DrumStyle;
   bassLine?: BassLine;
   swing?: number;
-  sound: { melody: string; kit: string; bass: string };
+  /** Música escrita à mão (níveis 2 e 3); sem ela, a partitura é procedural. */
+  song?: Song;
+  sound: { melody: string; kit: string; bass: string; pad?: string };
   tuning: { root: number; scale: ScaleName; octave: number };
 }
 
@@ -134,7 +140,7 @@ class Session {
     run: GameRun;
     fingers: readonly number[];
     levelId: string;
-    sound: { melody: string; kit: string; bass: string };
+    sound: { melody: string; kit: string; bass: string; pad?: string };
     tuning: { root: number; scale: ScaleName; octave: number };
     hitSeq: number[];
   } | null = null;
@@ -286,22 +292,28 @@ class Session {
   /** Toque de um dedo durante o jogo: a ronda decide se é música (`GameRun.press`: um acerto
    *  que o juiz aceita conta sempre, mesmo com o atraso da câmara a levá-lo para lá da última
    *  nota ou um toque cedo na contagem; o resto só durante a música, nunca em pausa). Quando é,
-   *  soa a nota da faixa; os pontos dependem só do juiz. */
+   *  soa a nota da faixa (ou, nas músicas escritas, o grau escrito dessa nota — decisão 72; um
+   *  toque solto, sem nota por perto, continua a soar o grau da faixa); os pontos dependem só do
+   *  juiz. */
   private gamePress(i: number, velocity: number, fromKey: boolean): void {
     const g = this.game!;
     const lane = g.fingers.indexOf(i);
     if (lane < 0) return;
     const r = g.run.press(lane, audio.now, !fromKey);
     if (!r) return;
-    const midi = degreeToMidi(lane, tuningOf({ ...g.tuning, instrument: g.sound.melody }));
+    // Cedo/Tarde e acertos sabem qual nota (`index`); um toque solto não tem nenhuma por perto
+    const note: ChartNote | undefined = 'index' in r ? g.run.chart.notes[r.index] : undefined;
+    const midi = this.degreeMidi(note?.degree ?? lane);
     this.fingerNote[i] = [midi];
     audio.noteOn(i, g.sound.melody, midi, velocity, fingerPan(i));
     const fx = live.fx[i];
     fx.flash = 1;
     fx.midi = midi;
     fx.label = noteName(midi);
-    // larga a nota ao fim da duração da partitura (ou antes, se o dedo subir: `fingerOff`)
-    const steps = r && 'note' in r ? Math.min(r.note.dur, MAX_HIT_STEPS) : MAX_HIT_STEPS;
+    // larga a nota ao fim da duração da partitura (ou antes, se o dedo subir: `fingerOff`); as
+    // notas escritas (com grau) podem ser longas de mais e tocam até `MAX_SONG_HIT_STEPS`
+    const cap = note?.degree !== undefined ? MAX_SONG_HIT_STEPS : MAX_HIT_STEPS;
+    const steps = r && 'note' in r ? Math.min(r.note.dur, cap) : cap;
     const seq = ++g.hitSeq[i];
     this.at(audio.now + steps * this.clock.stepDur, () => {
       if (this.game === g && g.hitSeq[i] === seq && this.fingerNote[i]) this.fingerOff(i);
@@ -584,7 +596,8 @@ class Session {
       drums: style.drums,
       bassLine: style.bassLine,
       swing: style.swing,
-      sound: { melody: style.melody, kit: style.kit, bass: style.bass },
+      song: level.song,
+      sound: { melody: style.melody, kit: style.kit, bass: style.bass, pad: style.pad },
       tuning: { root: style.root, scale: style.scale, octave: style.octave },
     });
   }
@@ -624,6 +637,7 @@ class Session {
       drums: spec.drums,
       bassLine: spec.bassLine,
       swing: spec.swing,
+      song: spec.song,
       kit: spec.sound.kit,
       split: fingers.filter((f) => f < 5).length,
     });
@@ -632,6 +646,7 @@ class Session {
     this.loadSamples(spec.sound.melody);
     this.loadSamples(spec.sound.bass);
     this.loadSamples(spec.sound.kit);
+    if (spec.sound.pad) this.loadSamples(spec.sound.pad);
     const run = new GameRun(
       chart,
       { playBacking: (ev, when) => this.playBacking(ev, when) },
@@ -769,19 +784,32 @@ class Session {
     this.clock.setBpm(getState().bpm);
   }
 
-  /** Acompanhamento da ronda: o kit e o baixo da ronda, uma oitava abaixo da melodia. */
+  /**
+   * Acompanhamento da ronda: o kit, o baixo (duas oitavas abaixo da melodia) e, nas músicas
+   * escritas, o tapete de acordes (`style.pad`, uma oitava abaixo), que larga ao fim de `dur`
+   * como as outras vozes do acompanhamento (decisão 72).
+   */
   private playBacking(ev: BackingEvent, when: number): void {
     const g = this.game!;
     if (ev.kind === 'drum') {
       audio.drum(g.sound.kit, ev.slot, ev.vel, 0, when);
       return;
     }
-    if (ev.kind === 'pad') return; // o tapete ainda não toca (falta ligar `style.pad`)
     const melodyOctave = tuningOf({ ...g.tuning, instrument: g.sound.melody }).octave;
+    if (ev.kind === 'pad') {
+      const tuning = { root: g.tuning.root, scale: g.tuning.scale, octave: melodyOctave - PAD_OCTAVE_DROP };
+      for (const d of ev.degrees) {
+        const midi = degreeToMidi(d, tuning);
+        const key = `P${++this.loopSeq}`;
+        audio.noteOn(key, g.sound.pad ?? 'pad', midi, ev.vel, 0, when);
+        this.at(when + ev.dur * this.clock.stepDur, () => audio.noteOff(key));
+      }
+      return;
+    }
     const midi = degreeToMidi(ev.degree, {
       root: g.tuning.root,
       scale: g.tuning.scale,
-      octave: melodyOctave - 1,
+      octave: melodyOctave - BASS_OCTAVE_DROP,
     });
     const key = `G${++this.loopSeq}`;
     audio.noteOn(key, g.sound.bass, midi, ev.vel, 0, when);
@@ -791,6 +819,22 @@ class Session {
   /** Diagnóstico e testes: instrumento da melodia da ronda (`null` fora do jogo). */
   get gameMelody(): string | null {
     return this.game?.sound.melody ?? null;
+  }
+
+  /** Nota MIDI do grau `d` na afinação da melodia da ronda (oitava já ajustada ao registo do
+   *  instrumento, via `tuningOf`). */
+  private degreeMidi(d: number): number {
+    const g = this.game!;
+    return degreeToMidi(d, tuningOf({ ...g.tuning, instrument: g.sound.melody }));
+  }
+
+  /** Diagnóstico e testes: nota MIDI que um acerto na nota `index` da partitura toca de facto —
+   *  o grau escrito nas músicas escritas (decisão 72), a faixa na partitura procedural. `null`
+   *  fora do jogo ou com um índice inválido. */
+  gameNoteMidi(index: number): number | null {
+    const g = this.game;
+    const note = g?.run.chart.notes[index];
+    return note ? this.degreeMidi(note.degree ?? note.lane) : null;
   }
 
   // ---------- modo teclado ----------
