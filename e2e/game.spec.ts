@@ -9,6 +9,9 @@ type Run = {
   last: { kind: string; at: number } | null;
   countTo: number;
   viewNow(now: number): number;
+  /** Barra da energia (Star Power), 0 a 1 (decisão 73). */
+  energy: number;
+  powerActive(now: number): boolean;
 };
 type Vsc = {
   session: {
@@ -18,10 +21,16 @@ type Vsc = {
     nextLevel(): void;
     pauseGame(): void;
     readonly gameMelody: string | null;
+    feedHands(
+      h: unknown[],
+      handedness?: ({ label: 'Left' | 'Right'; score: number } | null)[],
+    ): void;
+    hiddenHandSide(): 'left' | 'right' | null;
   };
   audio: { now: number; voiceMidi(key: number | string): number | null };
   live: { game: Run | null };
   store: { getState(): Record<string, unknown> & { set(p: Record<string, unknown>): void } };
+  syntheticHand(closed: boolean[] | boolean, x?: number, y?: number): unknown;
 };
 const field = (page: Page, k: string) =>
   page.evaluate((k) => (window as unknown as { __vsc: Vsc }).__vsc.store.getState()[k], k);
@@ -790,5 +799,108 @@ test.describe('modo de jogo', () => {
     expect(
       await page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.session.gameMelody),
     ).toBe('pluck');
+  });
+
+  test('energia: o espaço ativa a energia com a barra cheia, dobra o próximo acerto e aparece no resultado', async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      (window as unknown as { __vsc: Vsc }).__vsc.session.gameBars = 2;
+    });
+    await startEasy(page);
+
+    const r = await page.evaluate(async () => {
+      const v = (window as unknown as { __vsc: Vsc }).__vsc;
+      const run = v.live.game!;
+      const keys = ['d', 'f', 'j', 'k'];
+      const fingers = [2, 1, 6, 7];
+
+      // espera pelo fim da contagem (a energia só se ativa durante a música) e põe a barra cheia
+      // pelo diagnóstico, como pediria uma câmara real com a boca fechada até aqui
+      while (v.audio.now < run.countTo) await new Promise((res) => setTimeout(res, 5));
+      run.energy = 1;
+
+      // o espaço no teclado faz `live.mouth` subir até `MOUTH_ACTIVATE`; espera pelo tick da
+      // sessão que lê esse valor e ativa a energia (sem dormir um tempo fixo às cegas)
+      document.body.dispatchEvent(
+        new KeyboardEvent('keydown', { key: ' ', code: 'Space', bubbles: true }),
+      );
+      const deadline = v.audio.now + 3;
+      while (!run.powerActive(v.audio.now)) {
+        if (v.audio.now > deadline) throw new Error('a energia não ativou a tempo');
+        await new Promise((res) => setTimeout(res, 5));
+      }
+      document.body.dispatchEvent(
+        new KeyboardEvent('keyup', { key: ' ', code: 'Space', bubbles: true }),
+      );
+      const activeAfterSpace = run.powerActive(v.audio.now);
+
+      // acerta a próxima nota por julgar: com a energia ativa e sem combo (1.º acerto, ×1), os
+      // pontos ganhos são o dobro dos de hoje (POWER_MULTIPLIER = 2, decisão 73)
+      let idx = -1;
+      for (let k = 0; k < run.times.length; k++) {
+        if (run.judge.state[k] === 0 && run.times[k] > v.audio.now) {
+          idx = k;
+          break;
+        }
+      }
+      if (idx < 0) throw new Error('sem nenhuma nota por julgar depois de ativar a energia');
+      const lane = run.chart.notes[idx].lane;
+      const before = {
+        points: run.score.points,
+        perfect: run.score.perfect,
+        good: run.score.good,
+      };
+      while (v.audio.now < run.times[idx]) await new Promise((res) => setTimeout(res, 2));
+      document.body.dispatchEvent(
+        new KeyboardEvent('keydown', { key: keys[lane], bubbles: true }),
+      );
+      const voice = v.audio.voiceMidi(fingers[lane]) !== null;
+      document.body.dispatchEvent(new KeyboardEvent('keyup', { key: keys[lane], bubbles: true }));
+      const after = {
+        points: run.score.points,
+        perfect: run.score.perfect,
+        good: run.score.good,
+      };
+      return { activeAfterSpace, before, after, voice };
+    });
+
+    expect(r.activeAfterSpace).toBe(true);
+    expect(r.voice).toBe(true);
+    const judgedPerfect = r.after.perfect > r.before.perfect;
+    expect(judgedPerfect || r.after.good > r.before.good).toBe(true); // mesmo acerto contado
+    const base = judgedPerfect ? 100 : 50; // POINTS.perfect / POINTS.good (config.ts)
+    expect(r.after.points - r.before.points).toBe(base * 2); // POWER_MULTIPLIER = 2
+
+    // termina a ronda (pendingOnly: a nota já acertada à mão não se volta a premir)
+    await hitNotes(page, 99, undefined, undefined, true);
+    const result = page.getByTestId('game-result');
+    await expect(result).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('game-power-uses')).toBeVisible();
+    await expect(page.getByTestId('game-power-uses')).toContainText('Energia usada: 1 vez');
+  });
+
+  test('só a mão direita escolhida: com só essa mão à vista, o diagnóstico esconde a esquerda', async ({
+    page,
+  }) => {
+    await page.getByTestId('mode-game').click();
+    const dlg = page.getByTestId('game-dialog');
+    await dlg.getByTestId('game-preset-right').click();
+    expect(await field(page, 'gameFingers')).toEqual([6, 7, 8, 9]);
+    await dlg.getByTestId('game-start').click();
+    await expect(page.getByTestId('game-track')).toBeVisible();
+
+    const hidden = await page.evaluate(() => {
+      const v = (window as unknown as { __vsc: Vsc }).__vsc;
+      // sem nenhuma mão à vista, a mão que joga não está identificada: não se esconde nada ainda
+      // (decisão 73: só se esconde a outra mão quando a que joga está mesmo identificada)
+      const before = v.session.hiddenHandSide();
+      // só a mão direita à vista (pulso a x = 0.7, o lado direito do ecrã já espelhado)
+      v.session.feedHands([v.syntheticHand(false, 0.7)]);
+      const after = v.session.hiddenHandSide();
+      return { before, after };
+    });
+    expect(hidden.before).toBeNull();
+    expect(hidden.after).toBe('left');
   });
 });
