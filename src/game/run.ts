@@ -73,6 +73,12 @@ export class GameRun {
   readonly hitAt: Float64Array;
   /** Último juízo, para o texto do canvas. */
   last: { kind: Judgement | 'miss' | 'early' | 'late' | 'wrong'; at: number } | null = null;
+  /**
+   * Tempo do último acerto aceite (não Cedo/Tarde), para `flushStrays` julgar em ordem de tempo:
+   * um toque solto que ficou pendente antes de um acerto não lhe deve partir o combo nem roubar
+   * o `last` quando, mais tarde, a janela desse toque solto passa e ele conta como erro.
+   */
+  private lastHitAt = -Infinity;
   /** Toques soltos à espera de `NEIGHBOUR_GRACE_S`: um acerto vizinho perdoa-os (tempo de áudio). */
   private pendingStrays: { lane: number; at: number }[] = [];
   /** Compasso 1 (fim da entrada) e fim da ronda; mudam com a pausa. */
@@ -190,6 +196,7 @@ export class GameRun {
     this.score.hit(out.kind, out.offset);
     this.judgedAt[out.index] = now;
     this.hitAt[lane] = now;
+    this.lastHitAt = now;
     // um toque solto vizinho pouco antes deste acerto foi o dedo ao lado arrastado
     this.pendingStrays = this.pendingStrays.filter(
       (p) => !(this.sameHandNear(p.lane, lane) && now - p.at <= NEIGHBOUR_GRACE_S),
@@ -209,15 +216,21 @@ export class GameRun {
     return false;
   }
 
-  /** Conta como errados os toques soltos pendentes cuja janela já passou (todos, com `all`). */
+  /**
+   * Conta como errados os toques soltos pendentes cuja janela já passou (todos, com `all`). Em
+   * ordem de tempo: se um acerto aconteceu depois do toque solto (`lastHitAt > p.at`), esse
+   * acerto já tinha o combo a crescer a seguir ao toque solto, por isso este não o pode partir
+   * (`breakCombo` falso); e se o `last` mostrado já é desse acerto mais recente (`this.last.at >
+   * p.at`), o "Errado" deste toque solto não lho deve tapar.
+   */
   private flushStrays(now: number, all = false): void {
     if (!this.pendingStrays.length) return;
     const keep: { lane: number; at: number }[] = [];
     for (const p of this.pendingStrays) {
       if (!all && now - p.at <= NEIGHBOUR_GRACE_S) keep.push(p);
       else {
-        this.score.wrongTap();
-        this.last = { kind: 'wrong', at: now };
+        this.score.wrongTap(this.lastHitAt <= p.at);
+        if (!this.last || this.last.at <= p.at) this.last = { kind: 'wrong', at: now };
       }
     }
     this.pendingStrays = keep;
@@ -283,6 +296,7 @@ export class GameRun {
       this.judgedAt[k] += dt;
     }
     for (let l = 0; l < this.hitAt.length; l++) this.hitAt[l] += dt;
+    if (this.lastHitAt > -Infinity) this.lastHitAt += dt;
     if (this.last) this.last = { ...this.last, at: this.last.at + dt };
     for (const p of this.pendingStrays) p.at += dt;
     this.start = newStart;

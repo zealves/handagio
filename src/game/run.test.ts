@@ -421,6 +421,32 @@ describe('GameRun.press: toques errados', () => {
     expect(run.score.wrongTaps).toBe(1);
   });
 
+  it('um toque solto julgado depois de um acerto mais recente não lhe parte o combo nem tapa o último juízo (carregado da v5)', () => {
+    const { run } = make();
+    // o toque solto fica pendente (faixa 3, longe de qualquer nota)
+    expect(run.press(3, 12.05)).toEqual({ kind: 'stray', lane: 3 });
+    // um acerto depois dele começa o combo e torna-se o último juízo
+    expect(run.press(0, 12.1)?.kind).toBe('perfect');
+    expect(run.score.combo).toBe(1);
+    // a janela do toque solto (0,15 s) já passou quando o `update` o julga: conta como erro, mas
+    // em ordem de tempo não pode desfazer o que o acerto mais recente já construiu
+    run.update(12.05 + NEIGHBOUR_GRACE_S + 0.01);
+    expect(run.score.wrongTaps).toBe(1);
+    expect(run.score.combo).toBe(1);
+    expect(run.last).toEqual({ kind: 'perfect', at: 12.1 });
+  });
+
+  it('um toque solto julgado antes de qualquer acerto continua a partir o combo e a mostrar "Errado" (comportamento de sempre)', () => {
+    const { run } = make();
+    expect(run.press(0, 12.1)?.kind).toBe('perfect');
+    expect(run.score.combo).toBe(1);
+    expect(run.press(3, 12.2)).toEqual({ kind: 'stray', lane: 3 });
+    run.update(12.2 + NEIGHBOUR_GRACE_S + 0.01);
+    expect(run.score.wrongTaps).toBe(1);
+    expect(run.score.combo).toBe(0);
+    expect(run.last?.kind).toBe('wrong');
+  });
+
   it('um vizinho de mão diferente conta como erro mesmo dentro da janela (antes ou depois)', () => {
     const run = makeOneNote(1); // split 1: a faixa 0 fica sozinha de um lado, a 1 já é da outra mão
     run.press(1, 12.1 - 0.01);

@@ -40,10 +40,14 @@ export class Score {
     this.lateTaps++;
   }
 
-  /** Um toque errado: fora de qualquer nota por julgar, sem a tolerância do vizinho. */
-  wrongTap(): void {
+  /**
+   * Um toque errado: fora de qualquer nota por julgar, sem a tolerância do vizinho. Um toque
+   * solto flutuante (`GameRun.flushStrays`), julgado depois de um acerto mais recente, não deve
+   * apagar o combo que esse acerto já construiu: `breakCombo` é falso nesse caso.
+   */
+  wrongTap(breakCombo = true): void {
     this.wrongTaps++;
-    this.combo = 0;
+    if (breakCombo) this.combo = 0;
   }
 
   /** Um "Cedo!"/"Tarde!": não conta como errado, mas parte o combo. */

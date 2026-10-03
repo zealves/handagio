@@ -72,6 +72,14 @@ describe('Score', () => {
     expect(s.combo).toBe(0);
   });
 
+  it('wrongTap(false) conta o toque errado mas não parte o combo', () => {
+    const s = new Score();
+    s.hit('perfect', 0);
+    s.wrongTap(false);
+    expect(s.wrongTaps).toBe(1);
+    expect(s.combo).toBe(1);
+  });
+
   it('sem toques errados, a precisão não muda e wrongTaps fica a 0', () => {
     const s = new Score();
     s.hit('perfect', 0);
