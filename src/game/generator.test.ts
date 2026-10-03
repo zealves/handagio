@@ -8,6 +8,7 @@ import {
   generateChart,
   minGapSteps,
   mirrorLane,
+  padVoicing,
   progressionFor,
   songLane,
   spaceLanes,
@@ -620,6 +621,8 @@ describe('sem música, a partitura procedural fica igual', () => {
       });
       expect(c.notes).toHaveLength(73);
       expect(signature(c)).toBe(sig);
+      expect(c.notes.some((n) => 'degree' in n)).toBe(false);
+      expect(c.backing.some((e) => e.kind === 'pad')).toBe(false);
     }
   });
 
@@ -678,12 +681,37 @@ describe('com uma música escrita (Song)', () => {
         s.song.melody.map((n) => ({ step: pass * s.song.bars * 16 + n.step, lane: n.degree })),
       );
       expect(c.notes.map(({ step, lane }) => ({ step, lane }))).toEqual(expected);
+      expect(c.notes.map((n) => n.degree)).toEqual(expected.map((n) => n.lane));
       const last = c.notes[c.notes.length - 1];
       expect(last.step).toBe((c.bars - 1) * 16);
       expect(last.lane % 7).toBe(0);
       // a duração escrita, limitada pela nota seguinte
       expect(c.notes[0].dur).toBe(s.song.melody[0].dur);
     }
+  });
+
+  it('com menos faixas, cada nota guarda o grau escrito (o que se ouve é a música)', () => {
+    for (const s of SONGS)
+      for (const [lanes, split] of [
+        [4, 2],
+        [6, 3],
+        [3, 0],
+      ]) {
+        const c = chartOf(s, lanes, split);
+        const written = new Map(
+          [0, 1].flatMap((pass) =>
+            s.song.melody.map((n): [number, number] => [pass * s.song.bars * 16 + n.step, n.degree]),
+          ),
+        );
+        for (const n of c.notes) expect(n.degree).toBe(written.get(n.step));
+        expect(c.notes[c.notes.length - 1].degree! % 7).toBe(0);
+      }
+  });
+
+  it('as músicas pedem uma escala de 7 notas', () => {
+    expect(() =>
+      generateChart({ difficulty: 'easy', seed: 1, scaleSize: 5, lanes: 4, song: NIGHT }),
+    ).toThrow(/7 notas/);
   });
 
   it('com 4 e 6 faixas (e uma só mão), os invariantes de sempre', () => {
@@ -713,24 +741,41 @@ describe('com uma música escrita (Song)', () => {
       }
   });
 
-  it('`bars` mais curto corta a música e acaba na tónica', () => {
-    const c = chartOf(SONGS[0], 8, 4, 4);
-    expect(c.bars).toBe(4);
-    const last = c.notes[c.notes.length - 1];
-    expect(last.step).toBe(3 * 16);
-    expect(last.lane % 7).toBe(0);
-    expect(c.notes.every((n) => n.step <= 3 * 16)).toBe(true);
+  it('`bars` mais curto corta a música e acaba na tónica, a durar o compasso', () => {
+    for (const s of SONGS)
+      for (let bars = 2; bars < 32; bars++)
+        for (const [lanes, split] of [
+          [8, 4],
+          [4, 2],
+        ]) {
+          const c = chartOf(s, lanes, split, bars);
+          expect(c.bars).toBe(bars);
+          const last = c.notes[c.notes.length - 1];
+          expect(last.step).toBe((bars - 1) * 16);
+          expect(last.lane % 7).toBe(0);
+          expect(c.notes.every((n) => n.step <= (bars - 1) * 16)).toBe(true);
+          expect(last.dur).toBe(16);
+          expect(last.degree! % 7).toBe(0);
+        }
   });
 
-  it('um tapete por compasso (exceto o último), com a tríade do acorde e volume baixo', () => {
+  it('padVoicing: a tríade, uma oitava abaixo a partir do grau 4', () => {
+    expect(padVoicing(0)).toEqual([0, 2, 4]);
+    expect(padVoicing(3)).toEqual([3, 5, 7]);
+    expect(padVoicing(4)).toEqual([-3, -1, 1]);
+    expect(padVoicing(6)).toEqual([-1, 1, 3]);
+  });
+
+  it('um tapete por compasso, com a tríade do acorde e volume baixo; no último, a tónica', () => {
     for (const s of SONGS) {
       const c = chartOf(s, 8, 4);
       const pads = c.backing.filter((e) => e.kind === 'pad');
-      expect(pads.map((p) => p.step)).toEqual(Array.from({ length: c.bars - 1 }, (_, b) => b * 16));
+      expect(pads.map((p) => p.step)).toEqual(Array.from({ length: c.bars }, (_, b) => b * 16));
       pads.forEach((p, bar) => {
         if (p.kind !== 'pad') return;
-        const root = s.song.chords[bar % s.song.bars];
-        expect(p.degrees).toEqual([root, root + 2, root + 4]);
+        const root = bar === c.bars - 1 ? 0 : s.song.chords[bar % s.song.bars];
+        expect(p.degrees).toEqual(padVoicing(root));
+        expect(Math.max(...p.degrees)).toBeLessThanOrEqual(7);
         expect(p.dur).toBe(16);
         expect(p.vel).toBeCloseTo(0.25);
       });
@@ -747,9 +792,18 @@ describe('com uma música escrita (Song)', () => {
           .flatMap((e) => (e.kind === 'drum' ? [`${e.step - bar * 16}:${e.slot}:${e.vel}`] : []))
           .sort();
       const hits = (h: DrumHit[]) => h.map((x) => `${x.step}:${x.slot}:${x.vel}`).sort();
+      const crash = crashSlotFor(s.kit);
       for (let bar = 0; bar < c.bars - 1; bar++) {
         const sb = bar % s.song.bars;
-        const pattern = s.song.drums.chorusBars.includes(sb) ? s.song.drums.chorus : s.song.drums.verse;
+        let pattern = s.song.drums.chorusBars.includes(sb) ? s.song.drums.chorus : s.song.drums.verse;
+        // o último compasso da passagem acaba com uma virada de tarola no 4.º tempo
+        if (sb === s.song.bars - 1)
+          pattern = [
+            ...pattern.filter((h) => h.step < 12),
+            ...[0.35, 0.45, 0.55, 0.65].map((vel, k) => ({ step: 12 + k, slot: DRUM_SLOT.snare, vel })),
+          ];
+        // a segunda passagem começa com o prato
+        if (sb === 0 && bar > 0) pattern = [...pattern, { step: 0, slot: crash, vel: 0.5 }];
         expect(drumsOf(bar)).toEqual(hits(pattern));
         const bass = c.backing
           .filter(inBar(bar))
@@ -767,6 +821,7 @@ describe('com uma música escrita (Song)', () => {
         { step: (c.bars - 1) * 16, kind: 'drum', slot: DRUM_SLOT.kick, vel: 0.9 },
         { step: (c.bars - 1) * 16, kind: 'drum', slot: crashSlotFor(s.kit), vel: 0.6 },
         { step: (c.bars - 1) * 16, kind: 'bass', degree: 0, dur: 16, vel: 0.7 },
+        { step: (c.bars - 1) * 16, kind: 'pad', degrees: [0, 2, 4], dur: 16, vel: 0.25 },
       ]);
     }
   });

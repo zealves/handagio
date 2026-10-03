@@ -2,6 +2,8 @@
 // da tónica, passos em semicolcheias (16 por compasso). O gerador (`generator.ts`) mapeia a
 // melodia para as faixas do jogador e tira daqui o baixo, a bateria e o tapete de acordes.
 
+import { DRUM_SLOT } from './config';
+
 /** Passos por compasso (semicolcheias). */
 export const SONG_BAR = 16;
 /** Grau mais alto da melodia (a oitava da tónica): a melodia usa os graus 0..7, um por faixa. */
@@ -47,13 +49,9 @@ const fromBars = (bars: readonly (readonly N[])[]): SongNote[] =>
 const quarters = (bars: readonly (readonly number[])[]): SongNote[] =>
   fromBars(bars.map((bar) => bar.map((degree, k): N => [k * 4, degree, 4])));
 
-// Slots comuns aos kits do jogo (iguais a `DRUM_SLOT`, repetidos para `songs.ts` não depender
-// do gerador).
-const KICK = 0;
-const SNARE = 1;
-const HAT = 2;
-const OPEN_HAT = 3;
-const CLAP = 4;
+const { kick: KICK, snare: SNARE, hat: HAT, openHat: OPEN_HAT, clap: CLAP } = DRUM_SLOT;
+/** Escala das músicas: os graus 0..7 pressupõem 7 notas por oitava (Dórica, Menor). */
+export const SONG_SCALE_SIZE = 7;
 
 const EIGHTHS = [0, 2, 4, 6, 8, 10, 12, 14];
 const OFFBEATS = [2, 6, 10, 14];
@@ -69,17 +67,17 @@ const NIGHT_MELODY: N[][] = [
   [[0, 0, 4], [4, 2, 4], [8, 4, 8]], //            Dm  | Ré Fá Lá——
   [[0, 5, 6], [6, 4, 2], [8, 3, 8]], //            G   | Si. Lá Sol——
   [[0, 2, 4], [4, 3, 2], [6, 4, 2], [8, 2, 4], [12, 1, 4]], // Dm | Fá Sol-Lá Fá Mi
-  [[0, 4, 12]], //                                  Am  | Lá——— (respira)
+  [[0, 4, 10], [14, 6, 2]], //                      Am  | Lá——— · Dó (anacruse para o regresso)
   // A' (5–8), a resposta: o mesmo começo, desce do Ré agudo e resolve na tónica
   [[0, 0, 4], [4, 2, 4], [8, 4, 8]], //            Dm  | Ré Fá Lá——
   [[0, 7, 6], [6, 5, 2], [8, 3, 8]], //            G   | Ré'. Si Sol——
   [[0, 6, 4], [4, 4, 4], [8, 3, 8]], //            C   | Dó Lá Sol——
   [[0, 2, 4], [4, 1, 4], [8, 0, 8]], //            Dm  | Fá Mi Ré——
   // B (9–12), a ponte: sobe para o registo agudo e demora-se no Si dórico sobre o Sol
-  [[0, 4, 8], [8, 6, 4], [12, 7, 4]], //           F   | Lá—— Dó Ré'
+  [[0, 4, 6], [6, 2, 2], [8, 6, 4], [12, 7, 4]], // F | Lá. Fá Dó Ré' (Fá sincopado)
   [[0, 6, 8], [8, 5, 6], [14, 3, 2]], //           C   | Dó—— Si. Sol
   [[0, 5, 8], [8, 7, 4], [12, 6, 4]], //           G   | Si—— Ré' Dó
-  [[0, 5, 4], [4, 4, 12]], //                       Am  | Si Lá——— (respira)
+  [[0, 5, 4], [4, 4, 8], [14, 6, 2]], //           Am  | Si Lá—— · Dó (anacruse para o A')
   // A' (13–16), o fecho: o começo outra vez e a cadência Lá Sol Mi Ré
   [[0, 0, 4], [4, 2, 4], [8, 4, 8]], //            Dm  | Ré Fá Lá——
   [[0, 7, 6], [6, 5, 2], [8, 3, 8]], //            G   | Ré'. Si Sol——
@@ -96,10 +94,11 @@ export const NIGHT: Song = {
   // acorde seguinte no 4.º tempo
   bass: [
     ...quarters([
-      [0, 2, 4, 2], [3, 5, 4, 1], [0, 2, 4, 3], [4, 3, 2, 1], // A
-      [0, 2, 4, 2], [3, 2, 1, 0], [-1, 1, 3, 1], [0, 4, 3, 1], // A'
+      // no 1.º compasso de cada A o baixo desce (Ré Si Lá Fá) enquanto a melodia sobe pelo acorde
+      [0, -2, -3, 2], [3, 5, 4, 1], [0, 2, 4, 3], [4, 3, 2, 1], // A
+      [0, -2, -3, 2], [3, 2, 1, 0], [-1, 1, 3, 1], [0, 4, 3, 1], // A'
       [2, 4, 2, 0], [-1, 1, 3, 2], [3, 0, 1, 3], [4, 3, 2, 1], // B
-      [0, 2, 4, 2], [3, 2, 1, 3], [4, 3, 2, 1], // A'
+      [0, -2, -3, 2], [3, 2, 1, 3], [4, 3, 2, 1], // A'
     ]),
     // último compasso: a tónica e o Lá grave a puxar de volta para o início
     { step: 15 * SONG_BAR, degree: 0, dur: 8 },
@@ -144,8 +143,8 @@ const NEON_MELODY: N[][] = [
   HOOK_ANSWER, //                                   F  | Fá. Mi Dó———
   HOOK, //                                          C  | Lá Mi · Ré Mi— Dó—
   [[0, 6, 6], [6, 4, 2], [8, 3, 8]], //            G  | Sol. Mi Ré———
-  // A' (5–8): o gancho outra vez; a resposta sobe ao Sol para lançar a ponte
-  HOOK, //                                          Am
+  // A' (5–8): o gancho acaba agora no Sol, em vez de descer; a resposta sobe para lançar a ponte
+  [[0, 0, 2], [2, 4, 2], [6, 3, 2], [8, 4, 4], [12, 6, 4]], // Am | Lá Mi · Ré Mi— Sol—
   HOOK_ANSWER, //                                   F
   [[0, 2, 2], [2, 6, 2], [6, 3, 2], [8, 4, 8]], // C  | Dó Sol · Ré Mi———
   [[0, 3, 4], [4, 1, 4], [8, 6, 8]], //            G  | Ré Si Sol———
@@ -164,7 +163,11 @@ const NEON_MELODY: N[][] = [
 /** Fundamental de cada acorde no baixo (graus, perto do Lá): Fá e Sol abaixo, o Dó mais grave. */
 const NEON_BASS_ROOT: Readonly<Record<number, number>> = { 0: 0, 5: -2, 2: -5, 6: -1 };
 const NEON_CHORDS = [0, 5, 2, 6, 0, 5, 2, 6, 5, 6, 0, 6, 0, 5, 6, 0];
-/** Compassos da ponte: o baixo passa a oitavas em colcheias e a bateria ganha semicolcheias. */
+/**
+ * Compassos da ponte: o baixo passa a oitavas em colcheias e a bateria ganha semicolcheias. As
+ * fundamentais estão todas em ≤ 0, por isso a oitava (r + 7) fica no máximo no Lá agudo (grau 7):
+ * tocado duas oitavas abaixo da melodia, nunca passa do Lá3.
+ */
 const NEON_CHORUS = [8, 9, 10, 11];
 const OCTAVE = 7;
 

@@ -1,6 +1,13 @@
 // Modo de jogo: constantes (dedos, tempo, janelas do juiz e pontos).
 import type { Difficulty } from './types';
 
+/**
+ * Slots comuns aos kits usados pelo jogo (`src/audio/drums/acoustic.ts` e `tr808.ts`): bombo,
+ * tarola, choques, prato aberto, palmas, pela mesma ordem nos dois. (O `latin.ts` não segue
+ * esta ordem — precisaria do seu próprio mapa se algum nível vier a usá-lo.)
+ */
+export const DRUM_SLOT = { kick: 0, snare: 1, hat: 2, openHat: 3, clap: 4 } as const;
+
 export const DIFFICULTIES: readonly Difficulty[] = ['easy', 'medium', 'hard'];
 
 /** A dificuldade decide o tempo e a densidade; os dedos escolhem-se à parte. */

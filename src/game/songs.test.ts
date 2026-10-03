@@ -41,6 +41,13 @@ describe.each(SONGS)('música %s', (_, song, bpm) => {
     for (const b of song.drums.chorusBars) expect(b).toBeLessThan(song.bars);
   });
 
+  it('o baixo nunca passa da oitava da tónica (tocado 2 oitavas abaixo da melodia, ≤ Lá3 no Néon)', () => {
+    for (const b of song.bass) {
+      expect(b.degree).toBeLessThanOrEqual(SONG_TOP_DEGREE);
+      expect(b.degree).toBeGreaterThanOrEqual(-SONG_TOP_DEGREE);
+    }
+  });
+
   it('no máximo 2 colcheias seguidas', () => {
     let run = 0;
     song.melody.forEach((n, k) => {

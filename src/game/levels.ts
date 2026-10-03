@@ -39,8 +39,7 @@ export type LevelProgress = Record<string, { stars: number; points: number; accu
 export const STAR_THRESHOLDS = [0.5, 0.7, 0.9] as const;
 
 /**
- * Sementes escolhidas (hoje só o Pop é procedural; os níveis 2 e 3 têm música escrita e as
- * sementes deles ficam só por compatibilidade) (lanes: 4, split: 2, como no teclado por defeito): de 20 candidatas por
+ * Sementes escolhidas (lanes: 4, split: 2, como no teclado por defeito): de 20 candidatas por
  * nível (sementes 1–20, geradas com `generateChart` e os parâmetros de cada nível: `bars`,
  * `bpm`, `style.drums`, `style.bassLine`, `style.swing`), fica a primeira a cumprir as três
  * condições:
@@ -53,6 +52,10 @@ export const STAR_THRESHOLDS = [0.5, 0.7, 0.9] as const;
  * vezes); Lo-fi semente 4 (16 → 29, +81%, no máximo 2 vezes); Eletrónico semente 2 (25 → 40,
  * +60%, no máximo 2 vezes).
  */
+//
+// Só o Pop continua procedural. O Lo-fi (Noite) e o Eletrónico (Néon) têm hoje música escrita
+// (`song`): a semente, `style.drums` e `style.bassLine` deles não se usam e ficam só porque os
+// campos são obrigatórios (os valores são os da escolha original).
 const SEED_POP = 2;
 const SEED_LOFI = 4;
 const SEED_ELECTRO = 2;

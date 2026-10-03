@@ -1,9 +1,9 @@
 // Modo de jogo: partitura procedural (melodia nas faixas + bateria e baixo). Pura e
 // determinística: a mesma semente dá a mesma ronda.
-import { COUNT_IN_STEPS, DIFFICULTY, MIN_NOTE_GAP_S } from './config';
+import { COUNT_IN_STEPS, DIFFICULTY, DRUM_SLOT, MIN_NOTE_GAP_S } from './config';
 import type { BassLine, DrumStyle } from './levels';
 import { mulberry32 } from './rng';
-import { SONG_TOP_DEGREE, type Song } from './songs';
+import { SONG_BAR, SONG_SCALE_SIZE, SONG_TOP_DEGREE, type Song } from './songs';
 import type { BackingEvent, Chart, ChartNote, Difficulty } from './types';
 
 const BAR = 16;
@@ -19,15 +19,17 @@ const SONG_PASSES = 2;
 const PAD_VEL = 0.25;
 /** Volume do baixo escrito das músicas. */
 const SONG_BASS_VEL = 0.65;
+/** Prato no início de cada nova passagem da música. */
+const PASS_CRASH_VEL = 0.5;
+/** Virada no 4.º tempo do último compasso de uma passagem: tarola em semicolcheias, a crescer. */
+const FILL_FROM = 12;
+const FILL_VELS = [0.35, 0.45, 0.55, 0.65];
+/** Grau a partir do qual o tapete desce uma oitava, para ficar por baixo da melodia. */
+const PAD_FOLD_DEGREE = 4;
 /** No tempo 1 de cada compasso, a probabilidade de a melodia ir para uma nota do acorde. */
 const CHORD_PULL = 0.7;
 
-/**
- * Slots comuns aos kits usados pelo jogo (`src/audio/drums/acoustic.ts` e `tr808.ts`): bombo,
- * tarola, choques, prato aberto, palmas, pela mesma ordem nos dois. (O `latin.ts` não segue
- * esta ordem — precisaria do seu próprio mapa se algum nível vier a usá-lo.)
- */
-export const DRUM_SLOT = { kick: 0, snare: 1, hat: 2, openHat: 3, clap: 4 } as const;
+export { DRUM_SLOT };
 
 /**
  * Pancada final da ronda (hoje um crash), por kit: o acústico (`drums`) tem um crash dedicado
@@ -89,7 +91,7 @@ export interface Onset {
   lane: number;
 }
 /** Uma nota com a duração escrita (só nas músicas; sem ela, a duração vem da nota seguinte). */
-type TimedOnset = Onset & { dur?: number };
+type TimedOnset = Onset & { dur?: number; degree?: number };
 
 /**
  * Faixa do grau `d` (0..7) de uma música com `lanes` faixas: com 8 é o próprio grau; com menos,
@@ -186,6 +188,9 @@ export function generateChart(o: GenerateOptions): Chart {
  * (as músicas escrevem-se para isso; `songs.test.ts` confirma).
  */
 function songChart(o: GenerateOptions, song: Song): Chart {
+  // os graus 0..7 são de uma escala de 7 notas: com outra, a tónica e os acordes ficavam errados
+  if (o.scaleSize !== SONG_SCALE_SIZE)
+    throw new Error(`songChart: as músicas pedem uma escala de ${SONG_SCALE_SIZE} notas (veio ${o.scaleSize})`);
   const bpm = o.bpm ?? DIFFICULTY[o.difficulty].bpm;
   const full = song.bars * SONG_PASSES;
   const bars = Math.max(2, Math.min(full, Math.round(o.bars ?? full)));
@@ -197,15 +202,24 @@ function songChart(o: GenerateOptions, song: Song): Chart {
   for (let pass = 0; pass < SONG_PASSES; pass++)
     for (const n of song.melody) {
       const step = pass * song.bars * BAR + n.step;
-      if (step <= endStep) written.push({ step, lane: songLane(n.degree, lanes), dur: n.dur });
+      if (step <= endStep)
+        written.push({ step, lane: songLane(n.degree, lanes), dur: n.dur, degree: n.degree });
     }
   // a final: a nota escrita no início do último compasso (na música, a tónica) ou, com a ronda
   // cortada, a tónica mais perto de onde a melodia está; sempre numa faixa que toca a tónica
   const tonics = Array.from({ length: lanes }, (_, l) => l).filter((l) => l % o.scaleSize === 0);
-  const atEnd = written.find((n) => n.step === endStep);
+  // a ronda inteira acaba na final escrita (a tónica); cortada, acaba na tónica (0 ou 7) mais
+  // perto do grau escrito nesse passo (ou do último tocado), a durar o compasso todo
+  const atEnd = bars === full ? written.find((n) => n.step === endStep) : undefined;
   const before = written.filter((n) => n.step < endStep);
-  const from = atEnd?.lane ?? before[before.length - 1]?.lane ?? 0;
-  const end: TimedOnset = { step: endStep, lane: nearest(tonics, from), dur: atEnd?.dur ?? BAR };
+  const near = (written.find((n) => n.step === endStep) ?? before[before.length - 1])?.degree ?? 0;
+  const endDegree = atEnd?.degree ?? (near > SONG_TOP_DEGREE / 2 ? SONG_TOP_DEGREE : 0);
+  const end: TimedOnset = {
+    step: endStep,
+    lane: nearest(tonics, songLane(endDegree, lanes)),
+    dur: atEnd?.dur ?? BAR,
+    degree: endDegree,
+  };
   const body = before.filter((n) => !(n.lane === end.lane && end.step - n.step < SAME_LANE_GAP));
   body.push(end);
   return {
@@ -241,11 +255,14 @@ function playableNotes(
   const playable = enforceMinGap(hands, minGapStepsExact(bpm), split, lanes, swing);
   return spaceLanes(playable, lanes).map((n, k, all): ChartNote => {
     const dur = n.dur ?? BEAT;
-    return {
+    const note: ChartNote = {
       step: n.step,
       lane: n.lane,
       dur: k + 1 < all.length ? Math.min(dur, all[k + 1].step - n.step) : dur,
     };
+    // o grau só existe nas músicas escritas (a partitura procedural fica igual, sem o campo)
+    if (n.degree !== undefined) note.degree = n.degree;
+    return note;
   });
 }
 
@@ -462,27 +479,44 @@ const sortStable = (ev: BackingEvent[]): BackingEvent[] =>
     .map((x) => x.e);
 
 /**
+ * Tríade do acorde de fundamental `c` para o tapete, por baixo da melodia: `[c, c+2, c+4]`, uma
+ * oitava abaixo a partir do grau 4 (Lá menor em Lá: [−3, −1, 1]).
+ */
+export const padVoicing = (c: number): number[] =>
+  [c, c + 2, c + 4].map((d) => (c >= PAD_FOLD_DEGREE ? d - SONG_SCALE_SIZE : d));
+
+/**
  * Acompanhamento de uma música escrita: em cada compasso, o padrão de bateria (verso ou
- * refrão), o baixo escrito e o tapete com a tríade do acorde; a entrada e o último compasso
- * são os de sempre.
+ * refrão), o baixo escrito e o tapete com a tríade do acorde. Cada nova passagem começa com o
+ * prato e a anterior acaba com uma virada no 4.º tempo. A entrada e o último compasso são os de
+ * sempre, com o tapete na tónica.
  */
 function songBacking(song: Song, bars: number, kit: string): BackingEvent[] {
   const ev: BackingEvent[] = [];
+  const pad = (step: number, c: number) =>
+    ev.push({ step, kind: 'pad', degrees: padVoicing(c), dur: BAR, vel: PAD_VEL });
   countIn((step, slot, vel) => ev.push({ step, kind: 'drum', slot, vel }));
   for (let bar = 0; bar < bars; bar++) {
     const base = bar * BAR;
     if (bar === bars - 1) {
       finalBar(ev, base, kit);
+      pad(base, 0);
       continue;
     }
     const sb = bar % song.bars;
+    const fill = sb === song.bars - 1;
+    if (sb === 0 && bar > 0) ev.push({ step: base, kind: 'drum', slot: crashSlotFor(kit), vel: PASS_CRASH_VEL });
     const hits = song.drums.chorusBars.includes(sb) ? song.drums.chorus : song.drums.verse;
-    for (const h of hits) ev.push({ step: base + h.step, kind: 'drum', slot: h.slot, vel: h.vel });
+    for (const h of hits)
+      if (!fill || h.step < FILL_FROM)
+        ev.push({ step: base + h.step, kind: 'drum', slot: h.slot, vel: h.vel });
+    if (fill)
+      FILL_VELS.forEach((vel, k) =>
+        ev.push({ step: base + FILL_FROM + k, kind: 'drum', slot: DRUM_SLOT.snare, vel }));
     for (const b of song.bass)
-      if (Math.floor(b.step / BAR) === sb)
-        ev.push({ step: base + b.step - sb * BAR, kind: 'bass', degree: b.degree, dur: b.dur, vel: SONG_BASS_VEL });
-    const c = song.chords[sb];
-    ev.push({ step: base, kind: 'pad', degrees: [c, c + 2, c + 4], dur: BAR, vel: PAD_VEL });
+      if (Math.floor(b.step / SONG_BAR) === sb)
+        ev.push({ step: base + b.step - sb * SONG_BAR, kind: 'bass', degree: b.degree, dur: b.dur, vel: SONG_BASS_VEL });
+    pad(base, song.chords[sb]);
   }
   return sortStable(ev);
 }

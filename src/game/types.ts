@@ -9,6 +9,11 @@ export interface ChartNote {
   lane: number;
   /** Duração em semicolcheias (o acerto soa no máximo `MAX_HIT_STEPS`). */
   dur: number;
+  /**
+   * Grau escrito (só nas músicas escritas): o que o acerto deve tocar. A faixa é só a posição;
+   * com menos de 8 faixas, ou depois das regras de jogo, a faixa já não diz o grau.
+   */
+  degree?: number;
 }
 
 /**
