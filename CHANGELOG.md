@@ -5,7 +5,7 @@ Versões segundo [SemVer](https://semver.org/lang/pt-BR/). A mais recente fica n
 ## [3.3.0] — 2026-10-01
 
 - Modo de jogo: no início escolhes Tocar livre ou Jogar, e lá dentro trocas no interruptor Livre | Jogo do cabeçalho. As notas descem pela pista e dobras o dedo certo quando chegam à linha. Cada dobra toca a nota da faixa por cima de bateria e baixo, numa música nova a cada ronda; os pontos dependem do tempo.
-- Escolhes os dedos que jogam (de 2 a 8; por exemplo, só a mão direita) e a dificuldade (Fácil, Médio ou Difícil muda a velocidade).
+- Escolhes os dedos que jogam (de 2 a 8; por exemplo, só a mão direita).
 - Acertar ficou mais fácil:
   - cada dobra soa sempre;
   - as janelas são mais largas;
@@ -15,11 +15,13 @@ Versões segundo [SemVer](https://semver.org/lang/pt-BR/). A mais recente fica n
 - Pausa com o botão, o P ou o Esc, com contagem ao continuar. Esconder o separador também pausa.
 - Rondas de cerca de um minuto e meio, com pontos, precisão, combo máximo e o recorde guardado por dificuldade.
 - As notas rápidas alternam de mão: na mesma mão nunca ficam a menos de 0,3 s uma da outra, e a nota que muda de mão vai para o dedo correspondente da outra (não sempre para o do meio). Só com uma mão, as notas ficam a pelo menos 0,3 s (1 tempo no Médio e no Difícil).
-- O cartão de entrada passa a ser o menu do jogo: dificuldade, dedos, recorde e Jogar, com o atraso da câmara dentro de "Avançado". A pausa, o resultado e o ✕ da pista voltam a este menu em vez de saírem logo para o modo livre.
+- O cartão de entrada é o menu do jogo: a lista dos níveis, os dedos e Jogar, com o atraso da câmara dentro de "Avançado". A pausa, o resultado e o ✕ da pista voltam a este menu em vez de saírem logo para o modo livre.
 - Escolhes os dedos como as duas mãos desenhadas no ecrã, dedo a dedo ou pelos atalhos (só a esquerda, só a direita, indicadores e médios).
-- Níveis: três músicas com estilos diferentes (Pop em Dó Maior a 90 BPM, Lo-fi em Ré Dórica a 96 BPM com swing, Eletrónico em Lá Menor a 118 BPM), cada uma com um instrumento temporário. Acertar dá estrelas: ★ a 50% de precisão abre o nível seguinte. O progresso fica guardado neste dispositivo.
-- Treino: o modo com a dificuldade à escolha passa a chamar-se Treino dentro do Jogar, com uma música nova a cada ronda (a dificuldade Fácil/Médio/Difícil fica igual). A afinação fica fixa durante a ronda.
-- Seletor de instrumentos dentro do jogo (só no Treino): a escolha do instrumento é a mesma do modo livre, mudar num sítio muda nos dois.
+- Níveis: três músicas com estilos diferentes (Pop em Dó Maior a 90 BPM, Lo-fi em Ré Dórica a 96 BPM com swing, Eletrónico em Lá Menor a 118 BPM), cada uma com o seu instrumento. Acertar dá estrelas: ★ a 50% de precisão abre o nível seguinte. O progresso fica guardado neste dispositivo.
+- Fora da música (menu, contagem, cauda, resultado e pausa) nenhuma dobra ou tecla soa nem conta, nem no modo contínuo nem no teclado; os clarões dos dedos e os nomes das notas só aparecem enquanto a nota soa. Abrir o menu do jogo liberta vozes presas (um teremim a soar, por exemplo).
+- Um toque fora do tempo de qualquer nota por julgar conta como toque errado: parte o combo e baixa a precisão (que passa a contar também os falhados e os errados, não só os acertos); um toque a menos de 150 ms de um acerto na faixa ao lado da mesma mão não conta como errado, para a câmara ou um dedo vizinho arrastado não penalizarem. "Cedo!"/"Tarde!" partem o combo mas não contam como errados. O resultado mostra "Toques errados: N".
+- A nota, o alvo e o dedo no desenho das mãos usam sempre a cor do dedo; "Cedo!"/"Tarde!" ficam brancos, e os falhados e os errados, vermelhos. O alvo de cada faixa passa a ser uma pílula com a forma da nota, maior do que antes. Com o jogo a decorrer ou em pausa, o desenho das mãos destaca os dedos que jogam (pílulas maiores, da sua cor, a encher com a dobra) e apaga os outros dedos e o esqueleto.
+- No resultado, a dica de desbloqueio só aparece se existir mesmo um nível seguinte por abrir, e um recorde de 0 pontos mostra "Sem recorde".
 
 ## [3.2.0] — 2026-10-01
 
