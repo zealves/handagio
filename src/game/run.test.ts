@@ -447,6 +447,38 @@ describe('GameRun.press: toques errados', () => {
     expect(run.last?.kind).toBe('wrong');
   });
 
+  it('um combo construído antes do toque solto não sobrevive ao flush: só os acertos depois dele continuam a contar', () => {
+    // 6 faixas, split 3 (0–2 esquerda, 3–5 direita): a faixa 5 não é vizinha de nenhuma das notas
+    const c: Chart = {
+      ...chart,
+      lanes: 6,
+      notes: [
+        { step: 0, lane: 0, dur: 4 }, // 12 s
+        { step: 4, lane: 1, dur: 4 }, // 12,5 s
+        { step: 8, lane: 2, dur: 4 }, // 13 s
+        { step: 10, lane: 3, dur: 4 }, // 13,25 s
+      ],
+      split: 3,
+    };
+    const run = new GameRun(c, { playBacking: () => {} }, { ...timing, lag: 0 });
+    // 3 acertos seguidos constroem o combo a 3
+    expect(run.press(0, 12)?.kind).toBe('perfect');
+    expect(run.press(1, 12.5)?.kind).toBe('perfect');
+    expect(run.press(2, 13)?.kind).toBe('perfect');
+    expect(run.score.combo).toBe(3);
+    // um toque solto na faixa 5 (longe de qualquer acerto) fica pendente a partir daqui
+    expect(run.press(5, 13.2)).toEqual({ kind: 'stray', lane: 5 });
+    // 0,05 s depois, mais um acerto: o combo sobe para 4 antes de a janela do toque solto passar
+    expect(run.press(3, 13.25)?.kind).toBe('perfect');
+    expect(run.score.combo).toBe(4);
+    // quando a janela passa, o toque solto parte o combo no seu próprio instante: só o acerto
+    // que veio a seguir a ele (1, não os 3 de antes) continua a contar
+    run.update(13.2 + NEIGHBOUR_GRACE_S + 0.01);
+    expect(run.score.wrongTaps).toBe(1);
+    expect(run.score.combo).toBe(1);
+    expect(run.score.maxCombo).toBe(4); // o que se viu no ecrã nesse instante não se desfaz
+  });
+
   it('um vizinho de mão diferente conta como erro mesmo dentro da janela (antes ou depois)', () => {
     const run = makeOneNote(1); // split 1: a faixa 0 fica sozinha de um lado, a 1 já é da outra mão
     run.press(1, 12.1 - 0.01);

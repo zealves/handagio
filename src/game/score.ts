@@ -41,9 +41,10 @@ export class Score {
   }
 
   /**
-   * Um toque errado: fora de qualquer nota por julgar, sem a tolerância do vizinho. Um toque
-   * solto flutuante (`GameRun.flushStrays`), julgado depois de um acerto mais recente, não deve
-   * apagar o combo que esse acerto já construiu: `breakCombo` é falso nesse caso.
+   * Um toque errado: fora de qualquer nota por julgar, sem a tolerância do vizinho. `GameRun.
+   * flushStrays` chama com `breakCombo` falso: o toque solto partiu o combo no seu próprio
+   * instante (lá fora, em ordem de tempo), não agora, por isso é o próprio `GameRun` que ajusta
+   * `combo` a seguir, em vez de o deixar ir simplesmente a 0.
    */
   wrongTap(breakCombo = true): void {
     this.wrongTaps++;

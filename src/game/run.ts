@@ -74,13 +74,16 @@ export class GameRun {
   /** Último juízo, para o texto do canvas. */
   last: { kind: Judgement | 'miss' | 'early' | 'late' | 'wrong'; at: number } | null = null;
   /**
-   * Tempo do último acerto aceite (não Cedo/Tarde), para `flushStrays` julgar em ordem de tempo:
-   * um toque solto que ficou pendente antes de um acerto não lhe deve partir o combo nem roubar
-   * o `last` quando, mais tarde, a janela desse toque solto passa e ele conta como erro.
+   * Acertos aceites (não Cedo/Tarde) desde o início da ronda, para `flushStrays` julgar em ordem
+   * de tempo: um toque solto pendente guarda este número no momento em que soou; se, quando a sua
+   * janela passa e ele conta como erro, entretanto já houve acertos a seguir a ele, só esses é que
+   * continuam a contar para o combo (`hits − hitsNaAltura`) — os de antes do toque solto já
+   * tinham sido anulados por ele, mesmo que o combo visto no ecrã, por instantes, não o soubesse
+   * ainda (`Score.maxCombo` fica como estava: foi mesmo o que se viu nesse instante).
    */
-  private lastHitAt = -Infinity;
+  private hits = 0;
   /** Toques soltos à espera de `NEIGHBOUR_GRACE_S`: um acerto vizinho perdoa-os (tempo de áudio). */
-  private pendingStrays: { lane: number; at: number }[] = [];
+  private pendingStrays: { lane: number; at: number; hits: number }[] = [];
   /** Compasso 1 (fim da entrada) e fim da ronda; mudam com a pausa. */
   start: number;
   end: number;
@@ -172,7 +175,7 @@ export class GameRun {
       if (!this.isMusicTime(now) && !this.isMusicTime(t)) return null;
     }
     if (!out) {
-      if (!this.nearHit(lane, now)) this.pendingStrays.push({ lane, at: now });
+      if (!this.nearHit(lane, now)) this.pendingStrays.push({ lane, at: now, hits: this.hits });
       return { kind: 'stray', lane };
     }
     const near = isNear(out);
@@ -196,7 +199,7 @@ export class GameRun {
     this.score.hit(out.kind, out.offset);
     this.judgedAt[out.index] = now;
     this.hitAt[lane] = now;
-    this.lastHitAt = now;
+    this.hits++;
     // um toque solto vizinho pouco antes deste acerto foi o dedo ao lado arrastado
     this.pendingStrays = this.pendingStrays.filter(
       (p) => !(this.sameHandNear(p.lane, lane) && now - p.at <= NEIGHBOUR_GRACE_S),
@@ -218,18 +221,20 @@ export class GameRun {
 
   /**
    * Conta como errados os toques soltos pendentes cuja janela já passou (todos, com `all`). Em
-   * ordem de tempo: se um acerto aconteceu depois do toque solto (`lastHitAt > p.at`), esse
-   * acerto já tinha o combo a crescer a seguir ao toque solto, por isso este não o pode partir
-   * (`breakCombo` falso); e se o `last` mostrado já é desse acerto mais recente (`this.last.at >
-   * p.at`), o "Errado" deste toque solto não lho deve tapar.
+   * ordem de tempo: o toque solto parte o combo no seu próprio instante, não agora — só os
+   * acertos que já tinham acontecido depois dele continuam a contar (`this.hits − p.hits`); os de
+   * antes já estavam anulados por ele, mesmo que o combo no ecrã, por instantes (até a janela
+   * passar), ainda não o soubesse (`Score.maxCombo`, que guarda o que se viu em cada instante,
+   * fica como estava). Também não apaga o `last` de um acerto mais recente do que o toque solto.
    */
   private flushStrays(now: number, all = false): void {
     if (!this.pendingStrays.length) return;
-    const keep: { lane: number; at: number }[] = [];
+    const keep: { lane: number; at: number; hits: number }[] = [];
     for (const p of this.pendingStrays) {
       if (!all && now - p.at <= NEIGHBOUR_GRACE_S) keep.push(p);
       else {
-        this.score.wrongTap(this.lastHitAt <= p.at);
+        this.score.wrongTap(false);
+        this.score.combo = Math.min(this.score.combo, this.hits - p.hits);
         if (!this.last || this.last.at <= p.at) this.last = { kind: 'wrong', at: now };
       }
     }
@@ -296,7 +301,6 @@ export class GameRun {
       this.judgedAt[k] += dt;
     }
     for (let l = 0; l < this.hitAt.length; l++) this.hitAt[l] += dt;
-    if (this.lastHitAt > -Infinity) this.lastHitAt += dt;
     if (this.last) this.last = { ...this.last, at: this.last.at + dt };
     for (const p of this.pendingStrays) p.at += dt;
     this.start = newStart;
