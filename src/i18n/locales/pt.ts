@@ -373,7 +373,7 @@ const pt = {
   game: {
     title: 'Modo de jogo',
     intro:
-      'Dobra o dedo certo quando a nota chega à linha. Cada dobra toca a nota da faixa; os pontos dependem do tempo.',
+      'Dobra o dedo certo quando a nota chega à linha; os pontos dependem do tempo.',
     menu: 'Menu do jogo',
     freeMode: 'Modo livre',
     levels: 'Níveis',

@@ -481,7 +481,7 @@ const en = {
   game: {
     title: 'Game mode',
     intro:
-      'Bend the right finger when the note reaches the line. Every bend plays its lane’s note; points depend on timing.',
+      'Bend the right finger when the note reaches the line; points depend on timing.',
     menu: 'Game menu',
     freeMode: 'Free play',
     levels: 'Levels',
