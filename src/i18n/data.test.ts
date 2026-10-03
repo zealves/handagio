@@ -66,19 +66,41 @@ describe('línguas completas', () => {
 
 /** Carateres não-emoji que o jogo usa como símbolos (estrelas e acidentes musicais). */
 const EMOJI_ALLOW = new Set(['★', '☆', '♯', '♭']);
-const EMOJI_RE = /\p{Extended_Pictographic}/u;
+/** Pictogramas, bandeiras (indicadores regionais) e a marca das teclas (1️⃣ = 1 + U+FE0F + U+20E3). */
+const EMOJI_RE = /\p{Extended_Pictographic}|\p{Regional_Indicator}|\u20E3/u;
 
-/** Amostra de argumentos para chamar um texto em função (`(n: number) => ...`, etc.): números,
- * texto e booleano chegam para qualquer assinatura das mensagens (nunca lançam). */
-const SAMPLE_ARGS = [2, 'x', true, 'y', 3, false];
+/** Conjuntos de argumentos de amostra para chamar um texto em função (`(n: number) => ...`,
+ * etc.): cada função corre com cada valor em todos os argumentos e ainda com uma mistura, para
+ * apanhar ramos diferentes (0, 1, plural, negativo, texto vazio, booleano). */
+const SAMPLE_VALUES: unknown[] = [0, 1, 2, -5, '', 'x', true, false];
+const SAMPLE_SETS: unknown[][] = [
+  ...SAMPLE_VALUES.map((v) => Array<unknown>(6).fill(v)),
+  [2, 'x', true, 'y', 3, false],
+];
 
 /** Todas as strings de um objeto de mensagens, incluindo o resultado de chamar cada função com
- * argumentos de amostra (para apanhar emojis escondidos num texto gerado). */
+ * os argumentos de amostra (para apanhar emojis escondidos num texto gerado). Uma chamada que
+ * lança com argumentos de um tipo que não espera ignora-se. */
 function allTexts(o: unknown, path = ''): { path: string; text: string }[] {
   if (typeof o === 'function') {
     const fn = o as (...args: unknown[]) => unknown;
-    const out = fn(...SAMPLE_ARGS.slice(0, fn.length));
-    return typeof out === 'string' ? [{ path, text: out }] : [];
+    const out: { path: string; text: string }[] = [];
+    for (const args of SAMPLE_SETS) {
+      try {
+        const r = fn(...args.slice(0, fn.length));
+        if (typeof r === 'string')
+          out.push({
+            path: `${path}(${args
+              .slice(0, fn.length)
+              .map((a) => JSON.stringify(a))
+              .join(', ')})`,
+            text: r,
+          });
+      } catch {
+        // argumentos de um tipo que a mensagem não espera
+      }
+    }
+    return out;
   }
   if (typeof o === 'string') return [{ path, text: o }];
   if (Array.isArray(o)) return o.flatMap((v, i) => allTexts(v, `${path}[${i}]`));
