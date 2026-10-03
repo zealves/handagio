@@ -46,6 +46,10 @@ const OTHER_FINGER_ALPHA = 0.25;
  */
 const PLAYING_PILL_W = 2.6; // × r (≈ 1,3 × o diâmetro do anel)
 const PLAYING_PILL_H = 1.6; // × r (bem mais alta que o anel, mas ainda "deitada")
+/** Quanto a pílula cresce (fração do tamanho) quando o dedo soa; volta ao normal com o clarão. */
+const PLAYING_PILL_GROW = 0.35;
+/** Raio constante (× sc) do anel dos dedos que não jogam: pequeno, não cresce com a dobra. */
+const OTHER_FINGER_R = 7;
 
 export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, reduced: boolean) {
   const now = performance.now();
@@ -153,8 +157,8 @@ export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, r
   }
 
   // Anéis nas pontas dos dedos: com o jogo a decorrer ou em pausa, só os dedos com faixa ficam
-  // em destaque (pílula maior, com a forma da nota); os outros ficam com o anel pequeno e
-  // cinzento de sempre, bem apagado.
+  // em destaque (pílula maior, com a forma da nota, que cresce quando soa); os outros ficam com
+  // um anel pequeno, de tamanho fixo, cinzento e bem apagado.
   for (let i = 0; i < 10; i++) {
     const f = live.fingers[i];
     if (!f.tip || !isActive(i, s.thumbs)) continue;
@@ -164,7 +168,7 @@ export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, r
     const r = (10 + f.curl * 14) * sc;
     if (!playing) {
       g.beginPath();
-      g.arc(x, y, r, 0, Math.PI * 2);
+      g.arc(x, y, OTHER_FINGER_R * sc, 0, Math.PI * 2);
       g.globalAlpha = OTHER_FINGER_ALPHA;
       g.lineWidth = 2 * sc;
       g.strokeStyle = OTHER_FINGER_COLOR;
@@ -177,23 +181,28 @@ export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, r
     g.shadowColor = c;
     g.shadowBlur = glow * sc * (0.6 + f.curl);
     g.beginPath();
+    // no jogo, o clarão de um toque que soa é a pílula a crescer e a acender por um instante
+    // (sem o anel que se expande nem o nome da nota por cima das mãos, que tapavam a pista)
+    const pop = inGame ? fx.flash * fx.flash : 0;
     if (inGame) {
       // pílula com a forma da nota, bem maior que o anel de sempre, que enche com a dobra do dedo
-      const pw = r * PLAYING_PILL_W;
-      const ph = r * PLAYING_PILL_H;
+      const k = 1 + PLAYING_PILL_GROW * pop;
+      const pw = r * PLAYING_PILL_W * k;
+      const ph = r * PLAYING_PILL_H * k;
       g.roundRect(x - pw / 2, y - ph / 2, pw, ph, ph / 2);
+      g.shadowBlur = glow * sc * (0.6 + f.curl + 1.5 * pop);
     } else {
       g.arc(x, y, r, 0, Math.PI * 2);
     }
-    g.globalAlpha = 0.15 + 0.4 * f.curl;
+    g.globalAlpha = Math.min(1, 0.15 + 0.4 * f.curl + 0.45 * pop);
     g.fillStyle = c;
     g.fill();
-    g.globalAlpha = 0.55 + 0.45 * f.curl;
+    g.globalAlpha = Math.min(1, 0.55 + 0.45 * f.curl + pop);
     g.lineWidth = 3 * sc;
     g.strokeStyle = c;
     g.stroke();
     g.shadowBlur = 0;
-    if (fx.flash > 0) {
+    if (!inGame && fx.flash > 0) {
       g.beginPath();
       g.arc(x, y, r + (1 - fx.flash) * 50 * sc, 0, Math.PI * 2);
       g.lineWidth = 4 * fx.flash * sc;
