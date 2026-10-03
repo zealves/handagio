@@ -18,6 +18,8 @@ export interface GameLabels {
   /** Nome curto da mão e do dedo de cada faixa (só aparece com faixas largas). */
   lanes: string[];
   /** Barra da energia cheia, por câmara ("Abre a boca!") ou teclado ("Espaço!"). */
+  /** Nome da barra da energia, ao lado dela enquanto não está pronta. */
+  energy: string;
   powerReady: string;
   powerReadyKey: string;
   /** "×2", junto à pontuação enquanto a energia está ativa. */
@@ -62,17 +64,14 @@ const MISS_COLOR = '#ff5c7a';
 const MISS_MAX_DEPTH = 1.04;
 
 /**
- * Barra da energia: vertical, à direita da pista, perto do fundo (ecrãs largos); abaixo de
- * `ENERGY_NARROW_W` a pista já quase enche a largura (sem espaço à direita), por isso passa a
- * horizontal, por baixo da pontuação.
+ * Barra da energia: horizontal, por baixo da pontuação, com o nome (ou o convite, quando está
+ * pronta) à direita. Já esteve vertical ao lado da pista, mas aí, vazia, parecia uma barra
+ * cinzenta solta no meio do palco.
  */
-const ENERGY_BAR_W = 10;
-const ENERGY_BAR_H = 150;
-const ENERGY_BAR_GAP = 20;
-const ENERGY_NARROW_W = 625;
-const ENERGY_BAR_H_NARROW = 8;
-const ENERGY_BAR_W_NARROW_MAX = 110;
-const ENERGY_BAR_W_NARROW_MIN = 40;
+const ENERGY_BAR_TOP = 66;
+const ENERGY_BAR_H = 8;
+const ENERGY_BAR_W_MAX = 110;
+const ENERGY_BAR_W_MIN = 40;
 /** Período (s) do pulsar do texto "Abre a boca!"/"Espaço!" com a barra cheia. */
 const POWER_PULSE_S = 1.1;
 
@@ -128,10 +127,10 @@ export function drawGame(
     g.beginPath();
     g.moveTo(xt, top);
     g.lineTo(xb, yAt(eEnd));
-    // a divisória grossa é mesmo a fronteira das duas mãos (`chart.split`): com faixas de uma só
-    // mão não há nenhuma (`split` fica 0 ou `n`, fora do intervalo 1..n-1 deste ciclo)
-    g.strokeStyle = l === run.chart.split ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.12)';
-    g.lineWidth = l === run.chart.split ? 2 : 1;
+    // todas iguais e ténues: a divisória mais grossa entre as duas mãos parecia uma barra
+    // cinzenta solta ao meio da pista (as cores das faixas já dizem de que mão é cada uma)
+    g.strokeStyle = 'rgba(255,255,255,0.12)';
+    g.lineWidth = 1;
     g.stroke();
   }
   g.restore();
@@ -270,69 +269,46 @@ export function drawGame(
   g.fillStyle = 'rgba(53,224,255,0.85)';
   g.fillRect(0, 0, w * frac, 3);
 
-  // barra da energia (Star Power): vertical à direita da pista (ecrãs largos) — acima dos alvos,
-  // para nunca lhes cair em cima — ou, abaixo de `ENERGY_NARROW_W` (a pista já quase enche a
-  // largura, sem espaço à direita), horizontal por baixo da pontuação. `barLeft`/`barTop` são
-  // sempre o canto superior esquerdo do retângulo, cheio de baixo para cima ou da esquerda para a
-  // direita, conforme a orientação.
-  const narrow = w < ENERGY_NARROW_W;
+  // barra da energia (Star Power): horizontal, por baixo da pontuação (`ENERGY_BAR_TOP`), cheia
+  // da esquerda para a direita; à direita, o nome ("Energia") ou, pronta a ativar, o convite a
+  // pulsar ("Abre a boca!"/"Espaço!"), sempre medido para nunca sair do canvas
   const promptText = keyMode ? labels.powerReadyKey : labels.powerReady;
   g.font = '700 15px system-ui, sans-serif';
   const promptW = g.measureText(promptText).width;
-  const barW = narrow
-    ? Math.max(ENERGY_BAR_W_NARROW_MIN, Math.min(ENERGY_BAR_W_NARROW_MAX, w - 32 - promptW - 12))
-    : ENERGY_BAR_W;
-  const barH = narrow ? ENERGY_BAR_H_NARROW : ENERGY_BAR_H;
-  const barLeft = narrow ? 16 : Math.min(cx + widthAt(1) / 2 + ENERGY_BAR_GAP, w - barW - 8);
-  const barTop = narrow ? 64 : hit - targetH / 2 - 10 - barH;
+  const barW = Math.max(ENERGY_BAR_W_MIN, Math.min(ENERGY_BAR_W_MAX, w - 32 - promptW - 12));
+  const barLeft = 16;
+  const barTop = ENERGY_BAR_TOP;
   const energyFrac = powerActive ? run.powerLeft(now) : Math.min(1, run.energy);
   const energyColor = powerActive || powerFull ? NEON.gold : NEON.cyan;
   g.save();
   g.fillStyle = 'rgba(255,255,255,0.12)';
   g.beginPath();
-  g.roundRect(barLeft, barTop, barW, barH, Math.min(barW, barH) / 2);
+  g.roundRect(barLeft, barTop, barW, ENERGY_BAR_H, ENERGY_BAR_H / 2);
   g.fill();
-  if (narrow) {
-    const fillW = barW * energyFrac;
-    if (fillW > 0) {
-      g.fillStyle = energyColor;
-      g.shadowColor = energyColor;
-      g.shadowBlur = 8;
-      g.beginPath();
-      g.roundRect(barLeft, barTop, fillW, barH, barH / 2);
-      g.fill();
-    }
-  } else {
-    const fillH = barH * energyFrac;
-    if (fillH > 0) {
-      g.fillStyle = energyColor;
-      g.shadowColor = energyColor;
-      g.shadowBlur = 10;
-      g.beginPath();
-      g.roundRect(barLeft, barTop + barH - fillH, barW, fillH, barW / 2);
-      g.fill();
-    }
+  const fillW = barW * energyFrac;
+  if (fillW > 0) {
+    g.fillStyle = energyColor;
+    g.shadowColor = energyColor;
+    g.shadowBlur = 8;
+    g.beginPath();
+    g.roundRect(barLeft, barTop, fillW, ENERGY_BAR_H, ENERGY_BAR_H / 2);
+    g.fill();
   }
   g.restore();
-  // barra cheia e a energia mesmo por ativar: o convite a pulsar ("Abre a boca!"/"Espaço!"),
-  // sempre medido e encostado à barra, para nunca sair do canvas
+  g.save();
+  g.textAlign = 'left';
+  g.textBaseline = 'middle';
   if (canActivate) {
-    const pulse = 0.55 + 0.45 * Math.sin((now / POWER_PULSE_S) * Math.PI * 2);
-    g.save();
-    g.globalAlpha = pulse;
+    g.globalAlpha = 0.55 + 0.45 * Math.sin((now / POWER_PULSE_S) * Math.PI * 2);
     g.fillStyle = NEON.gold;
     g.font = '700 15px system-ui, sans-serif';
-    if (narrow) {
-      g.textAlign = 'left';
-      g.textBaseline = 'middle';
-      g.fillText(promptText, barLeft + barW + 10, barTop + barH / 2);
-    } else {
-      g.textAlign = 'right';
-      g.textBaseline = 'bottom';
-      g.fillText(promptText, barLeft + barW, barTop - 8);
-    }
-    g.restore();
+    g.fillText(promptText, barLeft + barW + 10, barTop + ENERGY_BAR_H / 2);
+  } else if (!powerActive) {
+    g.fillStyle = 'rgba(255,255,255,0.55)';
+    g.font = '600 12px system-ui, sans-serif';
+    g.fillText(labels.energy, barLeft + barW + 10, barTop + ENERGY_BAR_H / 2);
   }
+  g.restore();
 
   // juízo e contagem, ao centro
   g.save();

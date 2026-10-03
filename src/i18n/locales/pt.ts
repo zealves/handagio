@@ -428,6 +428,7 @@ const pt = {
           : `Tocas em média ${-ms} ms cedo.`,
     lateTaps: (n: number) => `Dobras vistas tarde: ${n}`,
     wrongTaps: (n: number) => `Toques errados: ${n}`,
+    energy: 'Energia',
     powerReady: 'Abre a boca!',
     powerReadyKey: 'Espaço!',
     powerMult: '×2',

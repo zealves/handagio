@@ -25,6 +25,7 @@ export function GameTrack() {
     lanes: fingers.map(
       (i) => `${tr.game.handShort[i < 5 ? 'left' : 'right']} ${tr.game.fingerShort[i % 5]}`,
     ),
+    energy: tr.game.energy,
     powerReady: tr.game.powerReady,
     powerReadyKey: tr.game.powerReadyKey,
     powerMult: tr.game.powerMult,

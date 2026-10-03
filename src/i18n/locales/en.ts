@@ -536,6 +536,7 @@ const en = {
           : `You play ${-ms} ms early on average.`,
     lateTaps: (n: number) => `Bends seen late: ${n}`,
     wrongTaps: (n: number) => `Wrong taps: ${n}`,
+    energy: 'Energy',
     powerReady: 'Open your mouth!',
     powerReadyKey: 'Space!',
     powerMult: '×2',
