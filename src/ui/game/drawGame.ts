@@ -1,5 +1,6 @@
 // Pista do modo de jogo (canvas, a 60 fps): faixas em perspetiva, notas a descer, linha de
 // impacto, pontuação, combo e contagem. Lê só o `GameRun` e o tempo de áudio.
+import { LIFE_LOW } from '../../game/config';
 import { NOTE_GOOD, NOTE_MISS, NOTE_PENDING, NOTE_PERFECT } from '../../game/judge';
 import type { GameRun } from '../../game/run';
 import { FINGER_COLORS, NEON } from '../theme';
@@ -24,6 +25,10 @@ export interface GameLabels {
   powerReadyKey: string;
   /** "×2", junto à pontuação enquanto a energia está ativa. */
   powerMult: string;
+  /** Nome da barra da vida, ao lado dela. */
+  life: string;
+  /** "Acertadas 42 · Falhadas 3", por baixo das barras. */
+  tally: (hits: number, misses: number) => string;
 }
 
 /** Topo da pista e linha de impacto (fração da altura). */
@@ -72,6 +77,17 @@ const ENERGY_BAR_TOP = 66;
 const ENERGY_BAR_H = 8;
 const ENERGY_BAR_W_MAX = 110;
 const ENERGY_BAR_W_MIN = 40;
+/**
+ * Barra da vida (decisão 74): por baixo da da energia, com o mesmo tamanho (o canto superior
+ * direito é dos botões de pausa e de sair). Verde, amarela a meio e vermelha abaixo de
+ * `LIFE_LOW`, onde os bordos da pista também pulsam a vermelho.
+ */
+const LIFE_BAR_TOP = 82;
+const LIFE_OK = '#3ee08a';
+/** Linha "Acertadas · Falhadas", por baixo das barras. */
+const TALLY_TOP = 98;
+/** Período (s) do pulsar do aviso da vida baixa. */
+const LIFE_PULSE_S = 0.8;
 /** Período (s) do pulsar do texto "Abre a boca!"/"Espaço!" com a barra cheia. */
 const POWER_PULSE_S = 1.1;
 
@@ -309,6 +325,48 @@ export function drawGame(
     g.fillText(labels.energy, barLeft + barW + 10, barTop + ENERGY_BAR_H / 2);
   }
   g.restore();
+
+  // barra da vida, por baixo da da energia e com a mesma largura
+  const lifeColor = run.life < LIFE_LOW ? MISS_COLOR : run.life < 0.5 ? NEON.gold : LIFE_OK;
+  g.save();
+  g.fillStyle = 'rgba(255,255,255,0.12)';
+  g.beginPath();
+  g.roundRect(barLeft, LIFE_BAR_TOP, barW, ENERGY_BAR_H, ENERGY_BAR_H / 2);
+  g.fill();
+  const lifeW = barW * Math.max(0, Math.min(1, run.life));
+  if (lifeW > 0) {
+    g.fillStyle = lifeColor;
+    g.beginPath();
+    g.roundRect(barLeft, LIFE_BAR_TOP, lifeW, ENERGY_BAR_H, ENERGY_BAR_H / 2);
+    g.fill();
+  }
+  g.textAlign = 'left';
+  g.textBaseline = 'middle';
+  g.fillStyle = 'rgba(255,255,255,0.55)';
+  g.font = '600 12px system-ui, sans-serif';
+  g.fillText(labels.life, barLeft + barW + 10, LIFE_BAR_TOP + ENERGY_BAR_H / 2);
+  // acertadas e falhadas até agora
+  g.textBaseline = 'top';
+  g.fillText(labels.tally(sc.perfect + sc.good, sc.miss), barLeft, TALLY_TOP);
+  g.restore();
+
+  // vida baixa: os bordos do palco pulsam a vermelho (só com a música a tocar)
+  if (run.life < LIFE_LOW && run.state === 'playing') {
+    const a = 0.25 + 0.2 * Math.sin((now / LIFE_PULSE_S) * Math.PI * 2);
+    const edge = Math.min(120, w * 0.12);
+    g.save();
+    for (const [x0, x1] of [
+      [0, edge],
+      [w, w - edge],
+    ]) {
+      const grad = g.createLinearGradient(x0, 0, x1, 0);
+      grad.addColorStop(0, `rgba(255,92,122,${a})`);
+      grad.addColorStop(1, 'rgba(255,92,122,0)');
+      g.fillStyle = grad;
+      g.fillRect(Math.min(x0, x1), 0, edge, h);
+    }
+    g.restore();
+  }
 
   // juízo e contagem, ao centro
   g.save();

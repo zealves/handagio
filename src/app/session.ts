@@ -745,7 +745,8 @@ class Session {
   /**
    * Resultado do fim de um nível: as estrelas da precisão, o máximo de cada campo guardado em
    * `levelProgress` e o id do nível seguinte, se esta ronda o abriu (não estava aberto antes e
-   * ficou).
+   * ficou). Uma ronda falhada (vida a 0, decisão 74) não dá estrelas, recorde nem desbloqueio, e
+   * não mexe no progresso guardado.
    */
   private finishLevel(
     id: string,
@@ -757,6 +758,11 @@ class Session {
     // o recorde é por nível: bate o máximo de pontos já guardado para este `id`, para "Novo
     // recorde!" e o próprio recorde fazerem sentido a repetir
     const base = run.result();
+    if (base.failed)
+      return {
+        result: { ...base, best: false, stars: 0, unlocked: null, levelId: id },
+        levelProgress: progress,
+      };
     const best = base.points > 0 && base.points > prev.points;
     const stars = starsFor(base.accuracy);
     const levelProgress = {

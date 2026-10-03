@@ -105,10 +105,27 @@ export const MAX_MULTIPLIER = 4;
 
 /**
  * Energia (como o Star Power): a barra vai de 0 a 1. Cada Perfeito e cada Bom sobem-na (só fora
- * da energia ativa); toques errados e falhados não a tiram.
+ * da energia ativa); cada falhado e cada toque errado tiram-lhe um pouco (decisão 74).
  */
 export const ENERGY_PERFECT = 0.05;
 export const ENERGY_GOOD = 0.025;
+export const ENERGY_MISS = 0.1;
+export const ENERGY_WRONG = 0.05;
+/** Com a energia ativa, cada falhado ou toque errado corta isto (s) ao tempo que lhe falta. */
+export const POWER_MISS_CUT_S = 1;
+
+/**
+ * Vida (decisão 74): de 0 a 1, começa em `LIFE_START`. Os acertos sobem-na; falhados, toques
+ * errados e Cedo/Tarde descem-na. Em 0 a ronda acaba logo ("Falhaste!"), sem estrelas nem recorde.
+ */
+export const LIFE_START = 0.6;
+export const LIFE_PERFECT = 0.03;
+export const LIFE_GOOD = 0.02;
+export const LIFE_MISS = 0.08;
+export const LIFE_WRONG = 0.04;
+export const LIFE_NEAR = 0.02;
+/** Abaixo disto a pista avisa (bordos a pulsar a vermelho). */
+export const LIFE_LOW = 0.25;
 /** Duração da energia ativa (s, tempo de áudio); a barra desce de 1 a 0 neste tempo. */
 export const POWER_S = 8;
 /** Durante a energia ativa, cada acerto vale isto vezes mais (já com o multiplicador do combo). */

@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { ENERGY_GOOD, ENERGY_PERFECT, NEIGHBOUR_GRACE_S, POWER_S } from './config';
+import {
+  ENERGY_GOOD,
+  ENERGY_MISS,
+  ENERGY_PERFECT,
+  ENERGY_WRONG,
+  GOOD_S,
+  LIFE_GOOD,
+  LIFE_MISS,
+  LIFE_NEAR,
+  LIFE_PERFECT,
+  LIFE_START,
+  LIFE_WRONG,
+  NEIGHBOUR_GRACE_S,
+  POWER_MISS_CUT_S,
+  POWER_S,
+} from './config';
 import { changedLagMs, gameStartBar, GameRun } from './run';
 import type { BackingEvent, Chart } from './types';
 
@@ -629,18 +644,18 @@ describe('GameRun com swing', () => {
 });
 
 describe('GameRun: energia (Star Power)', () => {
-  it('a energia sobe com Perfeitos e Bons; um toque errado não lhe mexe', () => {
+  it('a energia sobe com Perfeitos e Bons; um toque errado tira-lhe um pouco', () => {
     const { run } = make();
     expect(run.press(0, 12.1)?.kind).toBe('perfect');
     expect(run.energy).toBeCloseTo(ENERGY_PERFECT);
     // nota 1 (faixa 1, 12,5 s), 0,15 s tarde (depois de descontar o atraso de 0,1): Bom
     expect(run.press(1, 12.75)?.kind).toBe('good');
     expect(run.energy).toBeCloseTo(ENERGY_PERFECT + ENERGY_GOOD);
-    // toque solto, sem vizinho a perdoá-lo: conta como erro depois da janela, mas não dá energia
+    // toque solto, sem vizinho a perdoá-lo: conta como erro depois da janela e tira energia
     run.press(3, 12.9);
     run.update(12.9 + NEIGHBOUR_GRACE_S + 0.01);
     expect(run.score.wrongTaps).toBe(1);
-    expect(run.energy).toBeCloseTo(ENERGY_PERFECT + ENERGY_GOOD);
+    expect(run.energy).toBeCloseTo(ENERGY_PERFECT + ENERGY_GOOD - ENERGY_WRONG);
   });
 
   it('a energia não sobe durante a própria energia ativa, e fica limitada a 1', () => {
@@ -731,6 +746,78 @@ describe('GameRun: energia (Star Power)', () => {
     expect(run.activatePower(12.1)).toBe(true);
     expect(run.powerUses).toBe(1);
     expect(run.result().powerUses).toBe(1);
+  });
+});
+
+describe('GameRun: vida e penalizações (decisão 74)', () => {
+  // notas da partitura `chart`: faixa 0 em 12 s, faixa 1 em 12,5 s e faixa 0 em 14 s
+  it('a vida começa a meio, sobe com os acertos e não passa de 1', () => {
+    const { run } = make(0);
+    expect(run.life).toBe(LIFE_START);
+    expect(run.press(0, 12, false)?.kind).toBe('perfect');
+    expect(run.life).toBeCloseTo(LIFE_START + LIFE_PERFECT);
+    expect(run.press(1, 12.65, false)?.kind).toBe('good');
+    expect(run.life).toBeCloseTo(LIFE_START + LIFE_PERFECT + LIFE_GOOD);
+    run.life = 0.99;
+    expect(run.press(0, 14, false)?.kind).toBe('perfect');
+    expect(run.life).toBe(1);
+  });
+
+  it('um falhado tira vida e energia (a energia nunca abaixo de 0)', () => {
+    const { run } = make(0);
+    run.energy = 0.5;
+    run.update(12 + GOOD_S + 0.01); // a nota 0 passou sem toque
+    expect(run.score.miss).toBe(1);
+    expect(run.life).toBeCloseTo(LIFE_START - LIFE_MISS);
+    expect(run.energy).toBeCloseTo(0.5 - ENERGY_MISS);
+    run.energy = 0.02;
+    run.update(12.5 + GOOD_S + 0.01); // a nota 1 também
+    expect(run.energy).toBe(0);
+  });
+
+  it('Cedo/Tarde tira um pouco de vida mas não energia; insistir na mesma nota conta como errado', () => {
+    const { run } = make(0);
+    run.energy = 0.5;
+    expect(run.press(0, 12 + 0.3, false)?.kind).toBe('late');
+    expect(run.life).toBeCloseTo(LIFE_START - LIFE_NEAR);
+    expect(run.energy).toBe(0.5);
+    expect(run.press(0, 12 + 0.3, false)?.kind).toBe('late');
+    expect(run.score.wrongTaps).toBe(1);
+    expect(run.life).toBeCloseTo(LIFE_START - LIFE_NEAR - LIFE_WRONG);
+    expect(run.energy).toBeCloseTo(0.5 - ENERGY_WRONG);
+  });
+
+  it('com a energia ativa, um falhado corta-lhe tempo em vez de tirar da barra', () => {
+    const { run } = make(0);
+    run.energy = 1;
+    expect(run.activatePower(11.9 + 0.11)).toBe(true);
+    const until = run.powerUntil;
+    run.update(12 + GOOD_S + 0.01);
+    expect(run.powerUntil).toBeCloseTo(until - POWER_MISS_CUT_S);
+    expect(run.energy).toBe(0);
+  });
+
+  it('com a vida a 0 a ronda acaba logo como falhada, com a parte da música já tocada', () => {
+    const { run } = make(0);
+    expect(run.press(0, 12, false)?.kind).toBe('perfect');
+    run.life = LIFE_MISS / 2;
+    expect(run.update(12.5 + GOOD_S + 0.01)).toBe(true); // a nota 1 falhada esgota a vida
+    expect(run.state).toBe('over');
+    expect(run.failed).toBe(true);
+    expect(run.press(0, 14, false)).toBeNull();
+    const r = run.result();
+    expect(r.failed).toBe(true);
+    expect(r.reached).toBeCloseTo(2 / 3);
+  });
+
+  it('uma ronda que chega ao fim não é falhada e tem `reached` 1', () => {
+    const { run } = make(0);
+    run.press(0, 12, false);
+    run.press(1, 12.5, false);
+    run.press(0, 14, false);
+    expect(run.update(run.end)).toBe(true);
+    expect(run.failed).toBe(false);
+    expect(run.result()).toMatchObject({ failed: false, reached: 1 });
   });
 });
 

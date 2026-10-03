@@ -124,6 +124,14 @@
   color: var(--cyan);
   font-weight: 700;
 }
+/* ronda falhada (vida a 0): o vermelho do "Falhado" da pista, legível nos dois temas */
+.failed {
+  margin: 0;
+}
+.failed strong {
+  color: #e0405f;
+  font-size: 20px;
+}
 .stats {
   display: grid;
   grid-template-columns: auto 1fr;

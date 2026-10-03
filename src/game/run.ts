@@ -6,13 +6,22 @@ import {
   COUNT_IN_STEPS,
   END_TAIL_S,
   ENERGY_GOOD,
+  ENERGY_MISS,
   ENERGY_PERFECT,
+  ENERGY_WRONG,
   LAG_LEARN,
   LAG_MAX_MS,
   LAG_MIN_MS,
   LAG_SAVE_MIN_HITS,
+  LIFE_GOOD,
+  LIFE_MISS,
+  LIFE_NEAR,
+  LIFE_PERFECT,
+  LIFE_START,
+  LIFE_WRONG,
   NEAR_S,
   NEIGHBOUR_GRACE_S,
+  POWER_MISS_CUT_S,
   POWER_MULTIPLIER,
   POWER_S,
   roundLagMs,
@@ -105,6 +114,13 @@ export class GameRun {
   /** Vezes que a energia foi ativada na ronda. */
   powerUses = 0;
   /**
+   * Vida, de 0 a 1 (decisão 74): os acertos sobem-na, os erros descem-na (`penalize`). Em 0, o
+   * próximo `update` acaba a ronda como falhada.
+   */
+  life = LIFE_START;
+  /** A ronda acabou por a vida chegar a 0 (não por a música chegar ao fim). */
+  failed = false;
+  /**
    * Armada para ativar a energia numa borda de subida da boca (ou do espaço): só true depois de
    * a boca ter sido vista fechada (abaixo de `MOUTH_ACTIVATE`, decidido fora daqui). Sem isto, se
    * a boca já estivesse aberta (ou a falar) quando a barra encheu, a energia ativar-se-ia logo,
@@ -186,7 +202,7 @@ export class GameRun {
    * certo, ou um segundo disparo do mesmo dedo).
    */
   press(lane: number, now: number, fromCamera = true): PressResult | null {
-    if (this.state === 'paused' || this.state === 'over') return null;
+    if (this.state === 'paused' || this.state === 'over' || this.life <= 0) return null;
     const t = now - (fromCamera ? this.lag : 0);
     const out = this.judge.press(lane, t);
     if (!out || isNear(out)) {
@@ -209,13 +225,19 @@ export class GameRun {
     }
     this.last = { kind: out.kind, at: now };
     if (near) {
-      if (this.nearCount[out.index] > 0) this.score.wrongTap();
-      else this.score.nearTap();
+      if (this.nearCount[out.index] > 0) {
+        this.score.wrongTap();
+        this.penalize(LIFE_WRONG, ENERGY_WRONG, now);
+      } else {
+        this.score.nearTap();
+        this.penalize(LIFE_NEAR, 0, now);
+      }
       if (this.nearCount[out.index] < 255) this.nearCount[out.index]++;
       return { ...out, lane };
     }
     const powered = this.powerActive(now);
     this.score.hit(out.kind, out.offset, powered ? POWER_MULTIPLIER : 1);
+    this.life = Math.min(1, this.life + (out.kind === 'perfect' ? LIFE_PERFECT : LIFE_GOOD));
     // a energia não sobe durante a própria energia ativa (só volta a encher-se depois)
     if (!powered) {
       this.energy = Math.min(
@@ -231,6 +253,17 @@ export class GameRun {
       (p) => !(this.sameHandNear(p.lane, lane) && now - p.at <= NEIGHBOUR_GRACE_S),
     );
     return { ...out, lane, note: this.chart.notes[out.index] };
+  }
+
+  /**
+   * Um erro: desce a vida e a energia por encher; com a energia ativa, corta-lhe
+   * `POWER_MISS_CUT_S` em vez disso (`energy` 0: um Cedo/Tarde não toca na energia).
+   */
+  private penalize(life: number, energy: number, now: number): void {
+    this.life = Math.max(0, this.life - life);
+    if (energy <= 0) return;
+    if (this.powerActive(now)) this.powerUntil -= POWER_MISS_CUT_S;
+    else this.energy = Math.max(0, this.energy - energy);
   }
 
   /** As faixas `a` e `b` são a mesma ou vizinhas, da mesma mão. */
@@ -260,6 +293,7 @@ export class GameRun {
       if (!all && now - p.at <= NEIGHBOUR_GRACE_S) keep.push(p);
       else {
         this.score.wrongTap(false);
+        this.penalize(LIFE_WRONG, ENERGY_WRONG, now);
         this.score.combo = Math.min(this.score.combo, this.hits - p.hits);
         if (!this.last || this.last.at <= p.at) this.last = { kind: 'wrong', at: now };
       }
@@ -314,14 +348,23 @@ export class GameRun {
     return Math.max(0, Math.min(1, (this.powerUntil - now) / POWER_S));
   }
 
-  /** A cada fotograma: falhados, fase e fim. Devolve true na chamada em que a ronda acaba. */
+  /**
+   * A cada fotograma: falhados, fase e fim. Devolve true na chamada em que a ronda acaba: no fim
+   * da música ou, antes disso, com a vida a 0 (`failed`).
+   */
   update(now: number): boolean {
     if (this.state === 'over' || this.state === 'paused') return false;
     this.flushStrays(now);
     for (const k of this.judge.sweep(now - this.lag)) {
       this.score.missed();
+      this.penalize(LIFE_MISS, ENERGY_MISS, now);
       this.judgedAt[k] = now;
       this.last = { kind: 'miss', at: now };
+    }
+    if (this.life <= 0) {
+      this.failed = true;
+      this.state = 'over';
+      return true;
     }
     this.state = now < this.countTo ? 'countdown' : 'playing';
     if (now >= this.end && this.judge.done) {
@@ -411,8 +454,12 @@ export class GameRun {
   /** Falta `best`, `stars`, `unlocked` e `levelId`: só a sessão sabe se é um novo recorde e de
    *  que nível. */
   result(): Omit<GameResult, 'best' | 'stars' | 'unlocked' | 'levelId'> {
+    const sc = this.score;
+    const total = this.chart.notes.length;
     return {
-      ...this.score.result(this.chart.notes.length),
+      ...sc.result(total),
+      failed: this.failed,
+      reached: this.failed && total > 0 ? (sc.perfect + sc.good + sc.miss) / total : 1,
       startLagMs: roundLagMs(this.timing.lag),
       lagMs: this.cameraHits >= LAG_SAVE_MIN_HITS ? roundLagMs(this.lag) : null,
       powerUses: this.powerUses,

@@ -74,4 +74,8 @@ export interface GameResult {
   levelId: string;
   /** Vezes que a energia (Star Power) foi ativada na ronda. */
   powerUses: number;
+  /** A vida chegou a 0 e a ronda acabou antes da música (decisão 74): 0 estrelas, sem recorde. */
+  failed: boolean;
+  /** Fração das notas já julgadas quando a ronda acabou (1 numa ronda que chegou ao fim). */
+  reached: number;
 }

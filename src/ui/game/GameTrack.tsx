@@ -29,6 +29,8 @@ export function GameTrack() {
     powerReady: tr.game.powerReady,
     powerReadyKey: tr.game.powerReadyKey,
     powerMult: tr.game.powerMult,
+    life: tr.game.life,
+    tally: tr.game.tally,
   };
   const ref = useCanvas((g, w, h) => {
     g.clearRect(0, 0, w, h);

@@ -237,7 +237,14 @@ export function GameDialog() {
       {r && game && (
         <div className={s.body} data-testid="game-result">
           <h2 id={`${id}-t`}>{levelName(r.levelId)}</h2>
-          <Stars n={r.stars} big testId="game-stars" />
+          {/* a vida chegou a 0 (decisão 74): sem estrelas, só quanto da música se tocou */}
+          {r.failed ? (
+            <p className={s.failed} data-testid="game-failed">
+              <strong>{tr.failed}</strong> {tr.reached(Math.round(r.reached * 100))}
+            </p>
+          ) : (
+            <Stars n={r.stars} big testId="game-stars" />
+          )}
           {r.unlocked && (
             <p className={s.unlocked} data-testid="game-unlocked">
               {tr.unlocked(levelName(r.unlocked))}
@@ -252,6 +259,10 @@ export function GameDialog() {
           <dl className={s.stats}>
             <dt>{tr.accuracy}</dt>
             <dd>{Math.round(r.accuracy * 100)}%</dd>
+            <dt>{tr.hits}</dt>
+            <dd data-testid="game-hits">{r.perfect + r.good}</dd>
+            <dt>{tr.misses}</dt>
+            <dd data-testid="game-misses">{r.miss}</dd>
             <dt>{tr.maxCombo}</dt>
             <dd>{r.maxCombo}</dd>
           </dl>

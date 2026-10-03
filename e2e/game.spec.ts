@@ -11,6 +11,10 @@ type Run = {
   viewNow(now: number): number;
   /** Barra da energia (Star Power), 0 a 1 (decisão 73). */
   energy: number;
+  /** Vida, 0 a 1: em 0 a ronda acaba como falhada (decisão 74). */
+  life: number;
+  failed: boolean;
+  end: number;
   powerActive(now: number): boolean;
 };
 type Vsc = {
@@ -366,6 +370,9 @@ test.describe('modo de jogo', () => {
     const r = await page.evaluate(async () => {
       const v = (window as unknown as { __vsc: Vsc }).__vsc;
       const run = v.live.game!;
+      // as notas passam sem toque até ao intervalo escolhido: sem isto, a vida (decisão 74)
+      // esgotava-se antes e a ronda acabava como falhada
+      run.life = 100;
       // escolhe o maior intervalo entre notas julgáveis (contando o da contagem à 1.ª nota) e
       // espera pelo seu meio: longe o bastante (> 0,35 s de cada lado, a janela do juiz) para o
       // toque ser mesmo um errado, não um acerto por sorte
@@ -728,6 +735,34 @@ test.describe('modo de jogo', () => {
     expect(messy.accuracy).toBeLessThan(clean.accuracy);
     await expect(page.getByTestId('game-wrong-taps')).toBeVisible();
     await expect(page.getByTestId('game-wrong-taps')).toContainText(String(messy.wrongTaps));
+  });
+
+  test('vida a 0: a música para antes do fim, "Falhaste!" sem estrelas e o progresso fica como estava', async ({
+    page,
+  }) => {
+    await startEasy(page);
+    // quase sem vida: o primeiro falhado esgota-a
+    await page.evaluate(() => {
+      (window as unknown as { __vsc: Vsc }).__vsc.live.game!.life = 0.01;
+    });
+    const ended = await page.evaluate(async () => {
+      const v = (window as unknown as { __vsc: Vsc }).__vsc;
+      const run = v.live.game!;
+      while (run.state !== 'over') await new Promise((r) => setTimeout(r, 20));
+      return { failed: run.failed, early: v.audio.now < run.end };
+    });
+    expect(ended).toEqual({ failed: true, early: true });
+    await expect(page.getByTestId('game-result')).toBeVisible();
+    await expect(page.getByTestId('game-failed')).toContainText('Falhaste!');
+    await expect(page.getByTestId('game-stars')).toHaveCount(0);
+    await expect(page.getByTestId('game-new-best')).toHaveCount(0);
+    await expect(page.getByTestId('game-misses')).toHaveText('1');
+    await expect(page.getByTestId('game-hits')).toHaveText('0');
+    expect(await field(page, 'levelProgress')).toEqual({});
+    // e o "Repetir" recomeça com a vida a meio
+    await page.getByTestId('game-again').click();
+    await expect(page.getByTestId('game-track')).toBeVisible();
+    expect((await liveGame(page))!.life).toBeCloseTo(0.6);
   });
 
   test('no último nível, com o progresso posto a dedo e 0 estrelas, não aparece a dica de desbloqueio', async ({

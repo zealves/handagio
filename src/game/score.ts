@@ -63,7 +63,15 @@ export class Score {
     total: number,
   ): Omit<
     GameResult,
-    'best' | 'lagMs' | 'startLagMs' | 'stars' | 'unlocked' | 'levelId' | 'powerUses'
+    | 'best'
+    | 'lagMs'
+    | 'startLagMs'
+    | 'stars'
+    | 'unlocked'
+    | 'levelId'
+    | 'powerUses'
+    | 'failed'
+    | 'reached'
   > {
     const hits = this.perfect + this.good;
     const base = total + WRONG_TAP_WEIGHT * this.wrongTaps;
