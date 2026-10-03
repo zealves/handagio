@@ -11,7 +11,7 @@ import { clamp, chordName, degreeToMidi, noteName, scaleLength, type ScaleName }
 import { live, pushBurst } from '../state/live';
 import { getState, setState, useStore, type Store } from '../state/store';
 import { DIFFICULTY, LAG_SAVE_MIN_HITS, MAX_HIT_STEPS, MAX_SONG_HIT_STEPS, roundLagMs } from '../game/config';
-import { generateChart } from '../game/generator';
+import { crashSlotFor, generateChart } from '../game/generator';
 import {
   isUnlocked,
   LEVELS,
@@ -39,6 +39,7 @@ import {
 import { MotionDetector } from '../vision/motionFallback';
 import type { Pt } from '../vision/types';
 import { FINGER_COLORS } from '../ui/theme';
+import { idleHandSide } from '../ui/stage/drawOverlay';
 import { isTypingTarget } from '../lib/keys';
 import { fingerChordOf, fingerMidiOf } from './notes';
 
@@ -66,6 +67,10 @@ const PAD_OCTAVE_DROP = 1;
 const SONG_BASS_OCTAVE_DROP = 2;
 /** Baixo da partitura procedural (Pop): uma oitava abaixo, como sempre. */
 const PROCEDURAL_BASS_OCTAVE_DROP = 1;
+/** Boca aberta o suficiente para ativar a energia do jogo (decisão 73; o espaço já chega a 1). */
+const MOUTH_ACTIVATE = 0.6;
+/** Quanto o reverb sobe enquanto a energia está ativa (limitado a 1; repõe-se ao acabar). */
+const POWER_REVERB_BOOST = 0.3;
 
 const fingerPan = (i: number) => (i - 4.5) / 6;
 /** Chave da voz: o dedo (nota única ou fundamental) ou `dedo:k` para as outras notas do acorde. */
@@ -151,6 +156,8 @@ class Session {
   } | null = null;
   /** Diagnóstico e testes: compassos de uma ronda (null = os da dificuldade). */
   gameBars: number | null = null;
+  /** A energia do jogo está ativa: `syncParams` soma `POWER_REVERB_BOOST` ao reverb do jogador. */
+  private powerReverbOn = false;
 
   constructor() {
     this.gesture.on('noteOn', ({ finger, velocity, shift }) =>
@@ -226,7 +233,8 @@ class Session {
     audio.setParams({
       volume: s.volume,
       muted: s.muted,
-      reverb: s.reverb,
+      // com a energia do jogo ativa o reverb sobe (decisão 73); repõe-se com `powerReverbOn`
+      reverb: this.powerReverbOn ? Math.min(1, s.reverb + POWER_REVERB_BOOST) : s.reverb,
       echo: s.echo,
       filter: s.filter,
       drive: s.drive,
@@ -567,6 +575,13 @@ class Session {
   }
 
   // ---------- modo de jogo ----------
+  /** Liga/desliga o reforço do reverb da energia (sem efeito se já estava assim). */
+  private setPowerReverb(on: boolean): void {
+    if (this.powerReverbOn === on) return;
+    this.powerReverbOn = on;
+    this.syncParams(getState());
+  }
+
   /** Abre o cartão de jogo (a lista dos níveis). */
   openGame(): void {
     this.ensureAudio();
@@ -575,6 +590,7 @@ class Session {
     // ficava a tocar no menu: `gestureOptions()` já desliga o contínuo com o jogo aberto, mas só
     // corta o que vier a seguir, não o que já soava
     this.releaseAll();
+    this.setPowerReverb(false);
     const s = getState();
     setState({
       game: {
@@ -757,6 +773,7 @@ class Session {
     if (!g || g.run.state === 'paused' || g.run.state === 'over') return;
     g.run.pause(audio.now);
     this.releaseAll();
+    this.setPowerReverb(false);
     const ui = getState().game;
     if (ui) setState({ game: { ...ui, phase: 'paused' } });
   }
@@ -789,6 +806,7 @@ class Session {
     live.game = null;
     this.releaseAll();
     this.clock.setBpm(getState().bpm);
+    this.setPowerReverb(false);
   }
 
   /**
@@ -1141,12 +1159,13 @@ class Session {
         });
       }
     }
-    // A face (boca) só corre com um efeito da boca escolhido, e nunca antes das mãos: num tick
+    // A face (boca) só corre com um efeito da boca escolhido ou com o jogo aberto (a energia
+    // precisa da boca mesmo sem efeito de som, ver mais abaixo), e nunca antes das mãos: num tick
     // sem fotograma novo ou, se não houver nenhum, depois das mãos (ver FACE_EVERY).
     if (
       v &&
       this.face.ready &&
-      s.mouthFx !== 'off' &&
+      (s.mouthFx !== 'off' || s.game !== null) &&
       v.readyState >= 2 &&
       this.faceGap >= FACE_EVERY &&
       (!fresh || this.faceGap >= FACE_MAX_GAP)
@@ -1163,13 +1182,23 @@ class Session {
       } catch (e) {
         console.warn('[visão] erro na deteção da face', e);
       }
-    } else if (s.mouthFx === 'off') live.lips = null;
+    } else if (s.mouthFx === 'off' && !s.game) live.lips = null;
 
     // boca
     if (live.spaceHeld) live.mouthTarget = 1;
     else if (s.mouthFx === 'off' || now - live.lipsT > 600) live.mouthTarget = 0;
     live.mouth += (live.mouthTarget - live.mouth) * Math.min(1, dt * 18);
-    audio.setMouth(live.mouth, s.mouthFx);
+    // no jogo a boca não aplica o efeito de som do modo livre: só ativa a energia (decisão 73)
+    audio.setMouth(live.mouth, s.game ? 'off' : s.mouthFx);
+    if (this.game) {
+      const run = this.game.run;
+      if (live.mouth >= MOUTH_ACTIVATE && run.activatePower(audio.now)) {
+        audio.drum(this.game.sound.kit, crashSlotFor(this.game.sound.kit), 0.8);
+        this.setPowerReverb(true);
+      } else if (this.powerReverbOn && !run.powerActive(audio.now)) {
+        this.setPowerReverb(false);
+      }
+    }
     if (this.game?.run.update(audio.now)) this.finishGame();
 
     if (now - this.fpsT > 1000) {
@@ -1193,6 +1222,7 @@ class Session {
     live.hands = hands;
     live.handsT = now;
     const assigned = assignHands(hands, handedness, this.handState);
+    live.assignedHands = assigned;
     // A calibração recolhe as dobras de todos os dedos, polegares incluídos, mesmo com os
     // polegares desligados (o gestureEngine não calcula a dobra dos dedos inativos).
     if (this.cal) {
@@ -1237,6 +1267,13 @@ class Session {
     this.detectionPaused = true;
     if (getState().engine !== 'hands') setState({ engine: 'hands' });
     this.processHands(hands, performance.now(), handedness);
+  }
+
+  /** Diagnóstico e e2e: lado da mão escondida no jogo (joga-se só com a outra), ou null. */
+  hiddenHandSide(): 'left' | 'right' | null {
+    const g = getState().game;
+    if (!g || (g.phase !== 'playing' && g.phase !== 'paused')) return null;
+    return idleHandSide(g.fingers);
   }
 
   // ---------- calibração ----------

@@ -272,6 +272,11 @@ export function GameDialog() {
               {tr.lateTaps(r.lateTaps)}
             </p>
           )}
+          {r.powerUses > 0 && (
+            <p className={s.counts} data-testid="game-power-uses">
+              {tr.powerUses(r.powerUses)}
+            </p>
+          )}
           {/* o recorde do nível só visível no `title` do cartão da lista até aqui: no toque não
               há tooltip, por isso ganha também texto no próprio resultado. Com um recorde novo
               já há "Novo recorde!" lá em cima (seria redundante repetir os mesmos pontos); um

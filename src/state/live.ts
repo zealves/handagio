@@ -1,7 +1,7 @@
 // Store transitório: valores de alta frequência lidos pelos canvas no seu próprio rAF.
 // Nunca passa por estado React.
 import { newFinger, type FingerLive } from '../vision/gestureEngine';
-import type { Pt } from '../vision/types';
+import type { AssignedHands, Pt } from '../vision/types';
 import type { GameRun } from '../game/run';
 
 export interface FingerFx {
@@ -29,6 +29,12 @@ export const live = {
   fx: Array.from({ length: 10 }, () => ({ flash: 0, label: '', midi: 0 })) as FingerFx[],
   hands: [] as Pt[][],
   handsT: 0,
+  /**
+   * As mesmas mãos de `hands`, mas atribuídas a um lado (`assignHands`): `[esquerda, direita]`,
+   * null no lado sem mão. As referências são as mesmas de `hands` (compara-se por identidade para
+   * saber qual delas é qual, sem copiar os pontos).
+   */
+  assignedHands: [null, null] as AssignedHands,
   lips: null as Pt[] | null,
   lipsT: 0,
   mouth: 0,

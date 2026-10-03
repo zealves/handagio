@@ -51,6 +51,18 @@ const PLAYING_PILL_GROW = 0.35;
 /** Raio constante (× sc) do anel dos dedos que não jogam: pequeno, não cresce com a dobra. */
 const OTHER_FINGER_R = 7;
 
+/**
+ * Lado da mão que não joga (para se esconder): só quando todos os `game.fingers` são da mesma
+ * mão (todos < 5, a esquerda, ou todos ≥ 5, a direita — ver `GAME_FINGER_CHOICES`). Com dedos das
+ * duas mãos, ou sem nenhum escolhido, nada se esconde.
+ */
+export function idleHandSide(fingers: readonly number[] | null): 'left' | 'right' | null {
+  if (!fingers || !fingers.length) return null;
+  if (fingers.every((f) => f < 5)) return 'right';
+  if (fingers.every((f) => f >= 5)) return 'left';
+  return null;
+}
+
 export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, reduced: boolean) {
   const now = performance.now();
   const s = getState();
@@ -64,6 +76,12 @@ export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, r
   // destaque; os outros e o esqueleto esmorecem, para as mãos não tirarem a atenção da pista.
   const inGame = s.game?.phase === 'playing' || s.game?.phase === 'paused';
   const playingFingers = inGame ? new Set(s.game!.fingers) : null;
+  // Jogar com uma só mão (decisão 73): a outra não se desenha, nem o esqueleto nem os anéis, para
+  // não distrair. `hiddenSide` vem só do índice do dedo (sempre certo); o esqueleto, por mão, só
+  // se esconde quando a referência bate certo com `live.assignedHands` (senão fica por desenhar,
+  // mas os anéis já chegam para não distrair).
+  const hiddenSide = inGame ? idleHandSide(s.game!.fingers) : null;
+  const hiddenIdx: 0 | 1 | null = hiddenSide === 'left' ? 0 : hiddenSide === 'right' ? 1 : null;
 
   // Modo movimento: uma coluna por dedo.
   if (s.engine === 'motion') {
@@ -81,6 +99,7 @@ export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, r
   // Esqueleto.
   if (s.engine === 'hands' && now - live.handsT < 500) {
     for (const lm of live.hands) {
+      if (hiddenIdx !== null && lm === live.assignedHands[hiddenIdx]) continue;
       let minX = 1;
       let maxX = 0;
       for (const p of lm) {
@@ -160,6 +179,7 @@ export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, r
   // em destaque (pílula maior, com a forma da nota, que cresce quando soa); os outros ficam com
   // um anel pequeno, de tamanho fixo, cinzento e bem apagado.
   for (let i = 0; i < 10; i++) {
+    if ((hiddenSide === 'left' && i < 5) || (hiddenSide === 'right' && i >= 5)) continue;
     const f = live.fingers[i];
     if (!f.tip || !isActive(i, s.thumbs)) continue;
     const playing = !playingFingers || playingFingers.has(i);

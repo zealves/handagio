@@ -15,6 +15,7 @@ import s from './GameTrack.module.css';
 export function GameTrack() {
   const tr = useT();
   const fingers = useStore((st) => st.game?.fingers ?? DEFAULT_GAME_FINGERS);
+  const keyMode = useStore((st) => st.engine === 'keyboard');
   const labels: GameLabels = {
     go: tr.game.go,
     judge: tr.game.judge,
@@ -22,11 +23,14 @@ export function GameTrack() {
     lanes: fingers.map(
       (i) => `${tr.game.handShort[i < 5 ? 'left' : 'right']} ${tr.game.fingerShort[i % 5]}`,
     ),
+    powerReady: tr.game.powerReady,
+    powerReadyKey: tr.game.powerReadyKey,
+    powerMult: tr.game.powerMult,
   };
   const ref = useCanvas((g, w, h) => {
     g.clearRect(0, 0, w, h);
     const run = live.game;
-    if (run) drawGame(g, w, h, run, run.viewNow(audio.now), fingers, labels);
+    if (run) drawGame(g, w, h, run, run.viewNow(audio.now), fingers, labels, keyMode);
   });
   return (
     <>

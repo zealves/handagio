@@ -2,7 +2,7 @@
 // impacto, pontuação, combo e contagem. Lê só o `GameRun` e o tempo de áudio.
 import { NOTE_GOOD, NOTE_MISS, NOTE_PENDING, NOTE_PERFECT } from '../../game/judge';
 import type { GameRun } from '../../game/run';
-import { FINGER_COLORS } from '../theme';
+import { FINGER_COLORS, NEON } from '../theme';
 
 export interface GameLabels {
   go: string;
@@ -17,6 +17,11 @@ export interface GameLabels {
   combo: (n: number) => string;
   /** Nome curto da mão e do dedo de cada faixa (só aparece com faixas largas). */
   lanes: string[];
+  /** Barra da energia cheia, por câmara ("Abre a boca!") ou teclado ("Espaço!"). */
+  powerReady: string;
+  powerReadyKey: string;
+  /** "×2", junto à pontuação enquanto a energia está ativa. */
+  powerMult: string;
 }
 
 /** Topo da pista e linha de impacto (fração da altura). */
@@ -56,6 +61,15 @@ const MISS_COLOR = '#ff5c7a';
  */
 const MISS_MAX_DEPTH = 1.04;
 
+/** Cor da energia (Star Power), cheia ou ativa: dourada, em vez do ciano de sempre. */
+const POWER_GOLD = '#ffd166';
+/** Barra da energia: fina, vertical, à direita da pista, perto do fundo. */
+const ENERGY_BAR_W = 10;
+const ENERGY_BAR_H = 150;
+const ENERGY_BAR_GAP = 20;
+/** Período (s) do pulsar do texto "Abre a boca!"/"Espaço!" com a barra cheia. */
+const POWER_PULSE_S = 1.1;
+
 /** Profundidade 0 (topo) … 1 (linha) de uma nota que chega daqui a `dt` s, com perspetiva. */
 export function depth(dt: number, lead: number): number {
   const p = 1 - dt / lead;
@@ -70,6 +84,7 @@ export function drawGame(
   now: number,
   fingers: readonly number[],
   labels: GameLabels,
+  keyMode: boolean,
 ): void {
   const n = run.chart.lanes;
   const cx = w / 2;
@@ -83,6 +98,9 @@ export function drawGame(
   const color = (lane: number) => FINGER_COLORS[fingers[lane]] ?? '#fff';
   const { lead, stepDur } = run.timing;
   const eEnd = 1.12;
+  // `now` já vem congelado em pausa (`GameRun.viewNow`): a energia some com o resto da pista.
+  const powerActive = run.powerActive(now);
+  const powerFull = !powerActive && run.energy >= 1;
 
   // pista
   g.save();
@@ -106,6 +124,23 @@ export function drawGame(
     g.stroke();
   }
   g.restore();
+
+  // com a energia ativa, a pista ganha um contorno dourado (decisão 73)
+  if (powerActive) {
+    g.save();
+    g.beginPath();
+    g.moveTo(cx - wt / 2, top);
+    g.lineTo(cx + wt / 2, top);
+    g.lineTo(cx + widthAt(eEnd) / 2, yAt(eEnd));
+    g.lineTo(cx - widthAt(eEnd) / 2, yAt(eEnd));
+    g.closePath();
+    g.strokeStyle = POWER_GOLD;
+    g.lineWidth = 3;
+    g.shadowColor = POWER_GOLD;
+    g.shadowBlur = 24;
+    g.stroke();
+    g.restore();
+  }
 
   // notas
   for (let k = 0; k < run.times.length; k++) {
@@ -158,8 +193,9 @@ export function drawGame(
     g.save();
     g.strokeStyle = color(l);
     g.lineWidth = 3;
-    g.shadowColor = color(l);
-    g.shadowBlur = 8 + 20 * flash;
+    // com a energia ativa o brilho dos alvos fica dourado (a cor do dedo continua a identificá-los)
+    g.shadowColor = powerActive ? POWER_GOLD : color(l);
+    g.shadowBlur = (powerActive ? 16 : 8) + 20 * flash;
     g.beginPath();
     g.roundRect(x - tw / 2, hit - th / 2, tw, th, th / 2);
     g.stroke();
@@ -185,7 +221,14 @@ export function drawGame(
   g.textAlign = 'left';
   g.fillStyle = '#fff';
   g.font = '700 26px system-ui, sans-serif';
-  g.fillText(String(sc.points), 16, 14);
+  const pointsText = String(sc.points);
+  g.fillText(pointsText, 16, 14);
+  if (powerActive) {
+    const pw = g.measureText(pointsText).width;
+    g.fillStyle = POWER_GOLD;
+    g.font = '700 18px system-ui, sans-serif';
+    g.fillText(labels.powerMult, 16 + pw + 8, 18);
+  }
   g.font = '600 15px system-ui, sans-serif';
   g.fillStyle = 'rgba(255,255,255,0.8)';
   const mult = sc.multiplier > 1 ? `×${sc.multiplier}  ` : '';
@@ -198,6 +241,40 @@ export function drawGame(
   g.fillRect(0, 0, w, 3);
   g.fillStyle = 'rgba(53,224,255,0.85)';
   g.fillRect(0, 0, w * frac, 3);
+
+  // barra da energia (Star Power): vertical, fina, à direita da pista, perto do fundo
+  const barX = cx + widthAt(1) / 2 + ENERGY_BAR_GAP + ENERGY_BAR_W / 2;
+  const barBottom = hit;
+  const barTop = barBottom - ENERGY_BAR_H;
+  const energyFrac = powerActive ? run.powerLeft(now) : Math.min(1, run.energy);
+  const energyColor = powerActive || powerFull ? POWER_GOLD : NEON.cyan;
+  g.save();
+  g.fillStyle = 'rgba(255,255,255,0.12)';
+  g.beginPath();
+  g.roundRect(barX - ENERGY_BAR_W / 2, barTop, ENERGY_BAR_W, ENERGY_BAR_H, ENERGY_BAR_W / 2);
+  g.fill();
+  const fillH = ENERGY_BAR_H * energyFrac;
+  if (fillH > 0) {
+    g.fillStyle = energyColor;
+    g.shadowColor = energyColor;
+    g.shadowBlur = 10;
+    g.beginPath();
+    g.roundRect(barX - ENERGY_BAR_W / 2, barBottom - fillH, ENERGY_BAR_W, fillH, ENERGY_BAR_W / 2);
+    g.fill();
+  }
+  g.restore();
+  // barra cheia, energia ainda por ativar: o convite a pulsar ("Abre a boca!"/"Espaço!")
+  if (powerFull) {
+    const pulse = 0.55 + 0.45 * Math.sin((now / POWER_PULSE_S) * Math.PI * 2);
+    g.save();
+    g.globalAlpha = pulse;
+    g.fillStyle = POWER_GOLD;
+    g.font = '700 15px system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'bottom';
+    g.fillText(keyMode ? labels.powerReadyKey : labels.powerReady, barX, barTop - 8);
+    g.restore();
+  }
 
   // juízo e contagem, ao centro
   g.save();

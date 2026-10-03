@@ -210,7 +210,10 @@ export class GameRun {
     this.score.hit(out.kind, out.offset, powered ? POWER_MULTIPLIER : 1);
     // a energia não sobe durante a própria energia ativa (só volta a encher-se depois)
     if (!powered) {
-      this.energy = Math.min(1, this.energy + (out.kind === 'perfect' ? ENERGY_PERFECT : ENERGY_GOOD));
+      this.energy = Math.min(
+        1,
+        this.energy + (out.kind === 'perfect' ? ENERGY_PERFECT : ENERGY_GOOD),
+      );
     }
     this.judgedAt[out.index] = now;
     this.hitAt[lane] = now;

@@ -429,6 +429,10 @@ const pt = {
           : `Tocas em média ${-ms} ms cedo.`,
     lateTaps: (n: number) => `Dobras vistas tarde: ${n}`,
     wrongTaps: (n: number) => `Toques errados: ${n}`,
+    powerReady: 'Abre a boca!',
+    powerReadyKey: 'Espaço!',
+    powerMult: '×2',
+    powerUses: (n: number) => `Energia usada: ${n} vezes`,
   },
   meta: {
     htmlLang: 'pt-PT',

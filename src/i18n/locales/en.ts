@@ -537,6 +537,10 @@ const en = {
           : `You play ${-ms} ms early on average.`,
     lateTaps: (n: number) => `Bends seen late: ${n}`,
     wrongTaps: (n: number) => `Wrong taps: ${n}`,
+    powerReady: 'Open your mouth!',
+    powerReadyKey: 'Space!',
+    powerMult: '×2',
+    powerUses: (n: number) => `Energy used: ${n} times`,
   },
   meta: {
     htmlLang: 'en',
