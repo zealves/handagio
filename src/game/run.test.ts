@@ -734,6 +734,52 @@ describe('GameRun: energia (Star Power)', () => {
   });
 });
 
+describe('GameRun: tryActivatePower (borda de subida da boca)', () => {
+  it('ativa com a boca aberta, armada e a barra cheia', () => {
+    const { run } = make();
+    run.energy = 1;
+    expect(run.tryActivatePower(true, 12.1)).toBe(true);
+    expect(run.powerUses).toBe(1);
+  });
+
+  it('já aberta quando a barra enche (nunca fechou entretanto): não ativa', () => {
+    const { run } = make();
+    // a boca já estava aberta antes de a barra encher (desarma logo no 1.º fotograma)
+    expect(run.tryActivatePower(true, 11)).toBe(false); // na contagem, sem barra: não ativa
+    run.energy = 1;
+    expect(run.tryActivatePower(true, 12.1)).toBe(false); // continua aberta: não é uma borda nova
+    expect(run.powerUses).toBe(0);
+  });
+
+  it('fecha e volta a abrir depois de a barra encher: ativa na nova borda', () => {
+    const { run } = make();
+    run.tryActivatePower(true, 11); // aberta antes da barra encher
+    run.energy = 1;
+    expect(run.tryActivatePower(true, 12.1)).toBe(false); // ainda a mesma abertura
+    expect(run.tryActivatePower(false, 12.1)).toBe(false); // fecha: arma-se
+    expect(run.tryActivatePower(true, 12.1)).toBe(true); // reabre: nova borda, ativa
+    expect(run.powerUses).toBe(1);
+  });
+
+  it('com a boca fechada nunca ativa, e fica sempre armada', () => {
+    const { run } = make();
+    run.energy = 1;
+    expect(run.tryActivatePower(false, 12.1)).toBe(false);
+    expect(run.tryActivatePower(false, 12.1)).toBe(false);
+    expect(run.powerUses).toBe(0);
+  });
+
+  it('depois de ativar, mantém a boca aberta sem voltar a ativar (como activatePower)', () => {
+    const { run } = make();
+    run.energy = 1;
+    expect(run.tryActivatePower(true, 12.1)).toBe(true);
+    expect(run.tryActivatePower(true, 12.2)).toBe(false); // ainda aberta: sem nova borda
+    run.energy = 1; // mesmo que a barra enchesse de novo (não enche durante a própria energia)
+    expect(run.tryActivatePower(true, 12.3)).toBe(false); // continua desarmada
+    expect(run.powerUses).toBe(1);
+  });
+});
+
 describe('gameStartBar', () => {
   it('escolhe um compasso que o relógio ainda não agendou', () => {
     const seen: number[] = [];

@@ -107,6 +107,10 @@ export function drawGame(
   // `now` já vem congelado em pausa (`GameRun.viewNow`): a energia some com o resto da pista.
   const powerActive = run.powerActive(now);
   const powerFull = !powerActive && run.energy >= 1;
+  // o convite a abrir a boca só aparece quando a energia dá mesmo para ativar agora, não só com
+  // a barra cheia (nunca na contagem de uma retoma nem na cauda depois da última nota); a barra
+  // em si continua dourada com `powerFull`, sem precisar da música a tocar.
+  const canActivate = run.canActivate(now);
 
   // pista
   g.save();
@@ -310,9 +314,9 @@ export function drawGame(
     }
   }
   g.restore();
-  // barra cheia, energia ainda por ativar: o convite a pulsar ("Abre a boca!"/"Espaço!"), sempre
-  // medido e encostado à barra, para nunca sair do canvas
-  if (powerFull) {
+  // barra cheia e a energia mesmo por ativar: o convite a pulsar ("Abre a boca!"/"Espaço!"),
+  // sempre medido e encostado à barra, para nunca sair do canvas
+  if (canActivate) {
     const pulse = 0.55 + 0.45 * Math.sin((now / POWER_PULSE_S) * Math.PI * 2);
     g.save();
     g.globalAlpha = pulse;

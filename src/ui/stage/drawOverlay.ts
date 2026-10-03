@@ -97,7 +97,10 @@ export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, r
   const run = inGame ? live.game : null;
   const runNow = run ? run.viewNow(audio.now) : 0;
   const energyActive = !!run && run.powerActive(runNow);
-  const energyReady = !!run && !energyActive && run.energy >= 1;
+  // dourado só quando a energia dá mesmo para ativar agora (não só com a barra cheia): nunca na
+  // contagem de uma retoma, na cauda depois da última nota, nem (lá fora) sem música a tocar.
+  // `canActivate` já exclui a própria energia ativa, por isso não precisa de `!energyActive`.
+  const energyReady = !!run && run.canActivate(runNow);
 
   // Modo movimento: uma coluna por dedo.
   if (s.engine === 'motion') {

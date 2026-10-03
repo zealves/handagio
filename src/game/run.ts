@@ -104,6 +104,14 @@ export class GameRun {
   powerUntil = -Infinity;
   /** Vezes que a energia foi ativada na ronda. */
   powerUses = 0;
+  /**
+   * Armada para ativar a energia numa borda de subida da boca (ou do espaço): só true depois de
+   * a boca ter sido vista fechada (abaixo de `MOUTH_ACTIVATE`, decidido fora daqui). Sem isto, se
+   * a boca já estivesse aberta (ou a falar) quando a barra encheu, a energia ativar-se-ia logo,
+   * sem o jogador ter feito nada (decisão 73, revisão). Começa armada: no início da ronda a barra
+   * está vazia, por isso não faz diferença.
+   */
+  private armed = true;
   /** Notas que já ensinaram o atraso com um Cedo/Tarde (só o primeiro de cada nota conta). */
   private readonly nearLearned: Uint8Array;
   /** Cedo/Tarde já dados a cada nota: do segundo em diante contam como toques errados. */
@@ -286,6 +294,18 @@ export class GameRun {
     this.energy = 0;
     this.powerUses++;
     return true;
+  }
+
+  /**
+   * Tenta ativar a energia a cada fotograma, com `open` a dizer se a boca (ou o espaço) está
+   * aberta agora. Só tenta na borda de subida (`armed`: a boca esteve fechada desde a última
+   * tentativa, ou desde o início da ronda); enquanto a boca se mantém aberta não volta a tentar,
+   * mesmo que a barra entretanto encha. Devolve se ativou.
+   */
+  tryActivatePower(open: boolean, now: number): boolean {
+    const activated = open && this.armed && this.activatePower(now);
+    this.armed = !open;
+    return activated;
   }
 
   /** Fração de 0 a 1 da energia ativa que falta, para a barra; 0 fora dela. */

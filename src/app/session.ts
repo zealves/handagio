@@ -1213,7 +1213,7 @@ class Session {
     audio.setMouth(live.mouth, s.game ? 'off' : s.mouthFx);
     if (this.game) {
       const run = this.game.run;
-      if (live.mouth >= MOUTH_ACTIVATE && run.activatePower(audio.now)) {
+      if (run.tryActivatePower(live.mouth >= MOUTH_ACTIVATE, audio.now)) {
         audio.drum(this.game.sound.kit, crashSlotFor(this.game.sound.kit), 0.8);
       }
       // sempre recalculado (não só ao ativar): uma pausa a meio da energia tira o reforço do

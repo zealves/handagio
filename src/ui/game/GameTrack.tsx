@@ -15,7 +15,9 @@ import s from './GameTrack.module.css';
 export function GameTrack() {
   const tr = useT();
   const fingers = useStore((st) => st.game?.fingers ?? DEFAULT_GAME_FINGERS);
-  const keyMode = useStore((st) => st.engine === 'keyboard');
+  // Sem deteção da boca (câmara sem face), o convite da energia mostra a tecla, não "Abre a
+  // boca!": só o espaço dá para ativar nesse caso.
+  const keyMode = useStore((st) => st.engine === 'keyboard' || st.faceState === 'unavailable');
   const labels: GameLabels = {
     go: tr.game.go,
     judge: tr.game.judge,
