@@ -32,7 +32,7 @@ export interface Song {
   melody: SongNote[];
   /** Grau da fundamental do acorde, um por compasso. */
   chords: number[];
-  /** Linha de baixo escrita (graus; a sessão toca-a uma oitava abaixo da melodia). */
+  /** Linha de baixo escrita (graus; a sessão toca-a duas oitavas abaixo da melodia). */
   bass: SongNote[];
   /** Dois compassos-padrão; `chorusBars` diz que compassos usam o refrão. */
   drums: { verse: DrumHit[]; chorus: DrumHit[]; chorusBars: number[] };

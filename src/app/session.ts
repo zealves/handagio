@@ -62,7 +62,10 @@ const PREVIEW_MS = 450;
 const KEY_CONT_LEVEL = Math.sqrt(0.16 / 0.18);
 /** Oitavas abaixo da melodia a que o acompanhamento escrito das músicas toca (decisão 72). */
 const PAD_OCTAVE_DROP = 1;
-const BASS_OCTAVE_DROP = 2;
+/** Baixo das músicas escritas (níveis 2 e 3): duas oitavas abaixo da melodia. */
+const SONG_BASS_OCTAVE_DROP = 2;
+/** Baixo da partitura procedural (Pop): uma oitava abaixo, como sempre. */
+const PROCEDURAL_BASS_OCTAVE_DROP = 1;
 
 const fingerPan = (i: number) => (i - 4.5) / 6;
 /** Chave da voz: o dedo (nota única ou fundamental) ou `dedo:k` para as outras notas do acorde. */
@@ -140,6 +143,8 @@ class Session {
     run: GameRun;
     fingers: readonly number[];
     levelId: string;
+    /** Música escrita desta ronda (níveis 2 e 3); `undefined` no Pop (partitura procedural). */
+    song?: Song;
     sound: { melody: string; kit: string; bass: string; pad?: string };
     tuning: { root: number; scale: ScaleName; octave: number };
     hitSeq: number[];
@@ -311,9 +316,10 @@ class Session {
     fx.midi = midi;
     fx.label = noteName(midi);
     // larga a nota ao fim da duração da partitura (ou antes, se o dedo subir: `fingerOff`); as
-    // notas escritas (com grau) podem ser longas de mais e tocam até `MAX_SONG_HIT_STEPS`
+    // notas escritas (com grau) podem ser longas de mais e tocam até `MAX_SONG_HIT_STEPS`. Um
+    // toque solto (sem nota por perto) não tem duração escrita: toca o tempo cheio do limite.
     const cap = note?.degree !== undefined ? MAX_SONG_HIT_STEPS : MAX_HIT_STEPS;
-    const steps = r && 'note' in r ? Math.min(r.note.dur, cap) : cap;
+    const steps = Math.min(note?.dur ?? cap, cap);
     const seq = ++g.hitSeq[i];
     this.at(audio.now + steps * this.clock.stepDur, () => {
       if (this.game === g && g.hitSeq[i] === seq && this.fingerNote[i]) this.fingerOff(i);
@@ -656,6 +662,7 @@ class Session {
       run,
       fingers,
       levelId: spec.levelId,
+      song: spec.song,
       sound: spec.sound,
       tuning: spec.tuning,
       hitSeq: new Array(10).fill(0),
@@ -785,9 +792,10 @@ class Session {
   }
 
   /**
-   * Acompanhamento da ronda: o kit, o baixo (duas oitavas abaixo da melodia) e, nas músicas
-   * escritas, o tapete de acordes (`style.pad`, uma oitava abaixo), que larga ao fim de `dur`
-   * como as outras vozes do acompanhamento (decisão 72).
+   * Acompanhamento da ronda: o kit, o baixo (uma oitava abaixo da melodia no Pop, duas nas
+   * músicas escritas, cujo baixo anda mais perto da tónica) e, nas músicas escritas, o tapete de
+   * acordes (`style.pad`, uma oitava abaixo), que larga ao fim de `dur` como as outras vozes do
+   * acompanhamento (decisão 72).
    */
   private playBacking(ev: BackingEvent, when: number): void {
     const g = this.game!;
@@ -806,10 +814,11 @@ class Session {
       }
       return;
     }
+    const bassDrop = g.song ? SONG_BASS_OCTAVE_DROP : PROCEDURAL_BASS_OCTAVE_DROP;
     const midi = degreeToMidi(ev.degree, {
       root: g.tuning.root,
       scale: g.tuning.scale,
-      octave: melodyOctave - BASS_OCTAVE_DROP,
+      octave: melodyOctave - bassDrop,
     });
     const key = `G${++this.loopSeq}`;
     audio.noteOn(key, g.sound.bass, midi, ev.vel, 0, when);
@@ -826,15 +835,6 @@ class Session {
   private degreeMidi(d: number): number {
     const g = this.game!;
     return degreeToMidi(d, tuningOf({ ...g.tuning, instrument: g.sound.melody }));
-  }
-
-  /** Diagnóstico e testes: nota MIDI que um acerto na nota `index` da partitura toca de facto —
-   *  o grau escrito nas músicas escritas (decisão 72), a faixa na partitura procedural. `null`
-   *  fora do jogo ou com um índice inválido. */
-  gameNoteMidi(index: number): number | null {
-    const g = this.game;
-    const note = g?.run.chart.notes[index];
-    return note ? this.degreeMidi(note.degree ?? note.lane) : null;
   }
 
   // ---------- modo teclado ----------

@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 type Run = {
   times: number[];
-  chart: { notes: { lane: number }[] };
+  chart: { notes: { lane: number; degree?: number }[] };
   score: { points: number; perfect: number; good: number; wrongTaps: number };
   state: 'countdown' | 'playing' | 'paused' | 'over';
   judge: { state: Uint8Array };
@@ -18,7 +18,6 @@ type Vsc = {
     nextLevel(): void;
     pauseGame(): void;
     readonly gameMelody: string | null;
-    gameNoteMidi(index: number): number | null;
   };
   audio: { now: number; voiceMidi(key: number | string): number | null };
   live: { game: Run | null };
@@ -757,24 +756,28 @@ test.describe('modo de jogo', () => {
       await page.evaluate(() => (window as unknown as { __vsc: Vsc }).__vsc.session.gameMelody),
     ).toBe('vibes');
 
-    // o acerto da 1.ª nota toca o grau escrito (`gameNoteMidi`), não o da faixa (decisão 72)
-    const hit = await page.evaluate(async () => {
+    // a nota 1 (passo 4, grau 2, Fá) é a 1.ª em que o grau escrito difere da faixa (4 faixas: a
+    // nota 0 tem grau 0 na faixa 0, onde o teste não distinguiria um acerto certo de um bug a
+    // tocar a faixa); a faixa 1 sozinha tocaria o grau 1 (Mi4, midi 64) — o acerto tem de tocar o
+    // grau escrito (Fá4, midi 65: Ré dórico, tónica Ré = grau 2, oitava 4, decisão 72)
+    const note1 = await page.evaluate(
+      () => (window as unknown as { __vsc: Vsc }).__vsc.live.game!.chart.notes[1],
+    );
+    expect(note1).toMatchObject({ lane: 1, degree: 2 });
+    const hit = await page.evaluate(async (lane) => {
       const v = (window as unknown as { __vsc: Vsc }).__vsc;
-      const run = v.live.game!;
       const keys = ['d', 'f', 'j', 'k'];
       const fingers = [2, 1, 6, 7];
-      const lane = run.chart.notes[0].lane;
-      while (v.audio.now < run.times[0]) await new Promise((r) => setTimeout(r, 2));
+      while (v.audio.now < v.live.game!.times[1]) await new Promise((r) => setTimeout(r, 2));
       document.body.dispatchEvent(
         new KeyboardEvent('keydown', { key: keys[lane], bubbles: true }),
       );
       const midi = v.audio.voiceMidi(fingers[lane]);
-      const expected = v.session.gameNoteMidi(0);
       document.body.dispatchEvent(new KeyboardEvent('keyup', { key: keys[lane], bubbles: true }));
-      return { midi, expected };
-    });
-    expect(hit.expected).not.toBeNull();
-    expect(hit.midi).toBe(hit.expected);
+      return midi;
+    }, note1.lane);
+    expect(hit).toBe(65); // Fá4: o grau escrito (2), não o da faixa (1, Mi4 = 64)
+    expect(hit).not.toBe(64);
 
     const r = await hitNotes(page, 99);
     expect(r.hits).toBeGreaterThan(0);
