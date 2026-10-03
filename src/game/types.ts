@@ -57,10 +57,10 @@ export interface GameResult {
   startLagMs: number;
   /** Atraso aprendido na ronda (ms), quando houve toques da câmara suficientes; senão null. */
   lagMs: number | null;
-  /** Estrelas ganhas (só nos níveis; null no Treino). */
-  stars: number | null;
-  /** Id do nível que esta ronda desbloqueou, se foi o caso (só nos níveis; senão null). */
+  /** Estrelas ganhas nesta ronda (0 a 3). */
+  stars: number;
+  /** Id do nível que esta ronda desbloqueou, se foi o caso (senão null). */
   unlocked: string | null;
-  /** Id do nível desta ronda (null no Treino). */
-  levelId: string | null;
+  /** Id do nível desta ronda. */
+  levelId: string;
 }

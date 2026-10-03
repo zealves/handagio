@@ -1,5 +1,5 @@
-// Modo de jogo: menu do jogo (dificuldade, dedos, avançado), cartão de pausa e cartão de
-// resultado. A pausa não fecha o cartão: fica aqui, por cima da pista congelada (Tarefa 3).
+// Modo de jogo: menu do jogo (níveis, dedos, avançado), cartão de pausa e cartão de resultado.
+// A pausa não fecha o cartão: fica aqui, por cima da pista congelada.
 import { type SyntheticEvent, useEffect, useId, useRef } from 'react';
 import { session } from '../../app/session';
 import { LAG_MAX_MS, LAG_MIN_MS, LAG_STEP_MS } from '../../game/config';
@@ -127,8 +127,11 @@ export function GameDialog() {
   const learnedLag = r ? changedLagMs(r) : null;
   // "Próximo nível" só aparece se existir e já estiver aberto (pode já o estar de uma ronda
   // anterior, não só por esta: repetir um nível já todo com 3 estrelas não esconde o botão)
-  const next = r?.levelId ? LEVELS[levelIndex(r.levelId) + 1] : undefined;
+  const next = r ? LEVELS[levelIndex(r.levelId) + 1] : undefined;
   const nextOpen = !!next && isUnlocked(levelIndex(next.id), progress);
+  // a dica de desbloqueio só faz sentido quando há mesmo um nível seguinte por abrir: no último
+  // nível (sem `next`) nunca aparece, mesmo com 0 estrelas
+  const nextLocked = !!next && !nextOpen;
 
   return (
     <dialog
@@ -149,8 +152,8 @@ export function GameDialog() {
         <div className={s.body}>
           <h2 id={`${id}-t`}>{tr.title}</h2>
           <p className={s.intro}>{tr.intro}</p>
-          {/* sem Treino (decisão 71): só a lista dos níveis; os separadores, a dificuldade e o
-              seletor de instrumentos do Treino saem na Tarefa 3 (aqui ainda não o lê ninguém) */}
+          {/* sem Treino (decisão 71): só a lista dos níveis; saíram os separadores, a
+              dificuldade e o seletor de instrumentos do Treino */}
           <LevelList />
           <FingerPicker value={sel} onChange={(v) => set({ gameFingers: v })} />
           <details className={s.advanced} data-testid="game-advanced">
@@ -233,26 +236,23 @@ export function GameDialog() {
       )}
       {r && game && (
         <div className={s.body} data-testid="game-result">
-          <h2 id={`${id}-t`}>{r.levelId ? levelName(r.levelId) : tr.over}</h2>
-          {r.levelId && (
-            <>
-              <Stars n={r.stars ?? 0} big testId="game-stars" />
-              {r.unlocked && (
-                <p className={s.unlocked} data-testid="game-unlocked">
-                  {tr.unlocked(levelName(r.unlocked))}
-                </p>
-              )}
-              {/* o recorde do nível, como no Treino (`tr.best`/`tr.noBest`), só visível no
-                  `title` do cartão até aqui: no toque não há tooltip, por isso ganha também
-                  texto no próprio resultado */}
-              <p className={s.counts} data-testid="level-best">
-                {progress[r.levelId] ? tr.best(progress[r.levelId].points) : tr.noBest}
-              </p>
-              {/* mesma dica visível do separador Níveis (decisão 70): com 0 estrelas o nível
-                  continua fechado, por isso a condição de desbloqueio repete-se aqui */}
-              {(r.stars ?? 0) === 0 && <UnlockHintLine testId="game-unlock-hint" />}
-            </>
+          <h2 id={`${id}-t`}>{levelName(r.levelId)}</h2>
+          <Stars n={r.stars} big testId="game-stars" />
+          {r.unlocked && (
+            <p className={s.unlocked} data-testid="game-unlocked">
+              {tr.unlocked(levelName(r.unlocked))}
+            </p>
           )}
+          {/* o recorde do nível só visível no `title` do cartão da lista até aqui: no toque não
+              há tooltip, por isso ganha também texto no próprio resultado. Um recorde de 0
+              pontos (ainda por bater) mostra a mesma `noBest` da lista */}
+          <p className={s.counts} data-testid="level-best">
+            {progress[r.levelId]?.points ? tr.best(progress[r.levelId].points) : tr.noBest}
+          </p>
+          {/* mesma dica visível do separador Níveis (decisão 70), mas só quando há mesmo um
+              nível seguinte por abrir (`nextLocked`); alinhada à esquerda como as outras linhas
+              do cartão, ao contrário da da lista, que fica centrada */}
+          {nextLocked && <UnlockHintLine testId="game-unlock-hint" left />}
           {r.best && (
             <p className={s.newBest} data-testid="game-new-best">
               {tr.newBest}
@@ -277,6 +277,11 @@ export function GameDialog() {
               {tr.lateTaps(r.lateTaps)}
             </p>
           )}
+          {r.wrongTaps > 0 && (
+            <p className={s.counts} data-testid="game-wrong-taps">
+              {tr.wrongTaps(r.wrongTaps)}
+            </p>
+          )}
           <div className={s.actions}>
             <button
               type="button"
@@ -286,35 +291,24 @@ export function GameDialog() {
             >
               {tr.menu}
             </button>
-            {r.levelId ? (
-              <>
-                <button
-                  type="button"
-                  className={nextOpen ? s.secondary : s.primary}
-                  onClick={() => session.restartGame()}
-                  data-testid="game-again"
-                >
-                  {tr.repeat}
-                </button>
-                {nextOpen && (
-                  <button
-                    type="button"
-                    className={s.primary}
-                    onClick={() => session.nextLevel()}
-                    data-testid="game-next"
-                  >
-                    {tr.next}
-                  </button>
-                )}
-              </>
-            ) : (
+            {/* `restartGame`/"Repetir" voltam sempre ao mesmo nível (sem Treino já não há outra
+                ronda possível aqui) */}
+            <button
+              type="button"
+              className={nextOpen ? s.secondary : s.primary}
+              onClick={() => session.restartGame()}
+              data-testid="game-again"
+            >
+              {tr.repeat}
+            </button>
+            {nextOpen && (
               <button
                 type="button"
                 className={s.primary}
-                onClick={() => session.restartGame()}
-                data-testid="game-again"
+                onClick={() => session.nextLevel()}
+                data-testid="game-next"
               >
-                {tr.again}
+                {tr.next}
               </button>
             )}
           </div>

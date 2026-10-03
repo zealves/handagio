@@ -60,3 +60,8 @@
   font-size: 12px;
   text-align: center;
 }
+/* mesma dica, mas no resultado: alinhada à esquerda, como as outras linhas do cartão */
+.unlockLineLeft {
+  composes: unlockLine;
+  text-align: left;
+}

@@ -21,12 +21,14 @@ const UNLOCK_PCT = Math.round(STAR_THRESHOLDS[0] * 100);
 /**
  * Linha visível com a condição de desbloqueio (decisão 70): a dica ficava só no `title` do
  * cartão (sem tooltip no toque, e um botão `disabled` nem recebe foco), por isso ganha aqui uma
- * linha de texto, partilhada pelos cartões bloqueados da lista e pelo resultado com 0 estrelas.
+ * linha de texto, partilhada pelos cartões bloqueados da lista e pelo resultado com o nível
+ * seguinte ainda fechado. A da lista fica centrada (`left` omitido); a do resultado alinha-se à
+ * esquerda, como as outras linhas do cartão.
  */
-export function UnlockHintLine({ testId }: { testId?: string }) {
+export function UnlockHintLine({ testId, left }: { testId?: string; left?: boolean }) {
   const tr = useT().game;
   return (
-    <p className={s.unlockLine} data-testid={testId}>
+    <p className={left ? s.unlockLineLeft : s.unlockLine} data-testid={testId}>
       {tr.unlockLine(UNLOCK_PCT)}
     </p>
   );
@@ -73,7 +75,7 @@ export function LevelList() {
 
   return (
     <>
-      <div className={s.list} role="group" aria-label={tr.tabs.levels}>
+      <div className={s.list} role="group" aria-label={tr.levels}>
         {LEVELS.map((level, i) => {
           const open = isUnlocked(i, progress);
           const entry = progress[level.id];

@@ -36,72 +36,11 @@
   color: var(--muted);
   font-size: 14px;
 }
-/* Separadores Níveis | Treino, por baixo do título */
-.tabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-.tab {
-  min-height: 44px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--muted);
-  font-weight: 600;
-}
-.tab[aria-pressed='true'] {
-  border-color: var(--cyan);
-  background: color-mix(in srgb, var(--cyan) 14%, transparent);
-  color: var(--cyan);
-}
-/* Treino: linha "Instrumento: Piano" que abre e fecha o seletor partilhado por baixo */
-.instrumentRow {
-  display: grid;
-  gap: 8px;
-}
-.instrumentToggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 44px;
-  padding: 0 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: inherit;
-  font-size: 14px;
-  font-weight: 600;
-}
 .unlocked {
   margin: 0;
   color: var(--cyan);
   font-weight: 700;
 }
-/* 3 opções numa só linha (em vez de 3 cartões empilhados): a 1280×800 isso poupa espaço
-   vertical suficiente para o Start ficar visível sem scroll */
-.levels {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-.level {
-  display: grid;
-  align-content: start;
-  gap: 1px;
-  min-height: 44px;
-  padding: 8px 6px;
-  text-align: center;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: inherit;
-}
-.level[aria-pressed='true'] {
-  border-color: var(--cyan);
-  background: color-mix(in srgb, var(--cyan) 14%, transparent);
-}
-.level span,
 .lag small {
   color: var(--muted);
   font-size: 11px;

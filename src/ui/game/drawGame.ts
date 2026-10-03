@@ -6,7 +6,14 @@ import { FINGER_COLORS } from '../theme';
 
 export interface GameLabels {
   go: string;
-  judge: { perfect: string; good: string; miss: string; early: string; late: string };
+  judge: {
+    perfect: string;
+    good: string;
+    miss: string;
+    early: string;
+    late: string;
+    wrong: string;
+  };
   combo: (n: number) => string;
   /** Nome curto da mão e do dedo de cada faixa (só aparece com faixas largas). */
   lanes: string[];
@@ -25,9 +32,8 @@ const JUDGE_S = 0.6;
 const MISS_FADE_S = 0.5;
 /** Largura mínima (px) de uma faixa para escrever o nome do dedo. */
 const LABEL_MIN_LANE = 56;
+/** Cor de um falhado e de um toque errado ("Errado!"). */
 const MISS_COLOR = '#ff5c7a';
-/** Cor de "Cedo!"/"Tarde!": nem o branco de um acerto, nem o vermelho de um falhado. */
-const NEAR_COLOR = '#ffd166';
 /**
  * Profundidade máxima de uma nota falhada: sem isto, `depth` continua a avançar com `dt` e, com
  * atrasos típicos (~120 ms) e janelas curtas (Difícil), a nota já teria passado o fundo do canvas
@@ -119,22 +125,29 @@ export function drawGame(
     g.restore();
   }
 
-  // linha de impacto: um alvo por faixa, que acende num acerto
+  // linha de impacto: um alvo-pílula por faixa, com a forma das notas (maior, para a área de
+  // toque se ver bem), que acende num acerto
   const lw1 = widthAt(1) / n;
-  const r = Math.min(lw1 * 0.42, 44);
+  const nw1 = lw1 * 0.86;
+  const nh1 = Math.max(10, nw1 * 0.38);
+  const targetW = Math.min(1.2 * nw1, lw1 * 0.95);
+  const targetH = 1.4 * nh1;
   for (let l = 0; l < n; l++) {
     const x = laneX(l, 1);
     // guarda contra `hitAt` no futuro (retoma): sem isto o clarão acenderia ao máximo durante a
     // contagem, para um acerto que já lá estava antes da pausa
     const sinceHit = now - run.hitAt[l];
     const flash = sinceHit >= 0 ? Math.max(0, 1 - sinceHit / FLASH_S) : 0;
+    const scale = 1 + 0.25 * flash;
+    const tw = targetW * scale;
+    const th = targetH * scale;
     g.save();
     g.strokeStyle = color(l);
     g.lineWidth = 3;
     g.shadowColor = color(l);
     g.shadowBlur = 8 + 20 * flash;
     g.beginPath();
-    g.arc(x, hit, r * (1 + 0.25 * flash), 0, Math.PI * 2);
+    g.roundRect(x - tw / 2, hit - th / 2, tw, th, th / 2);
     g.stroke();
     if (flash > 0) {
       g.globalAlpha = flash;
@@ -147,7 +160,7 @@ export function drawGame(
       g.font = '500 12px system-ui, sans-serif';
       g.textAlign = 'center';
       g.textBaseline = 'top';
-      g.fillText(labels.lanes[l], x, hit + r + 8);
+      g.fillText(labels.lanes[l], x, hit + targetH / 2 + 8);
     }
   }
 
@@ -183,12 +196,12 @@ export function drawGame(
     const a = 1 - sinceJudge / JUDGE_S;
     const { kind } = run.last;
     g.globalAlpha = a;
-    g.fillStyle =
-      kind === 'miss' ? MISS_COLOR : kind === 'early' || kind === 'late' ? NEAR_COLOR : '#fff';
+    // "Cedo!"/"Tarde!" ficam a branco, como um acerto; só o falhado e o toque errado ficam a
+    // vermelho (não há mais nenhuma cor de juízo no jogo)
+    g.fillStyle = kind === 'miss' || kind === 'wrong' ? MISS_COLOR : '#fff';
     g.font = '700 24px system-ui, sans-serif';
-    // 'wrong' ainda não tem texto nem cor próprios (Task 3 decide-os e faz o i18n)
-    const judgeText = kind === 'wrong' ? undefined : labels.judge[kind];
-    if (judgeText) g.fillText(judgeText, cx, hit - r - 34 - 10 * (1 - a));
+    const judgeText = labels.judge[kind];
+    g.fillText(judgeText, cx, hit - targetH / 2 - 34 - 10 * (1 - a));
   }
   g.globalAlpha = 1;
   const beat = 4 * stepDur;

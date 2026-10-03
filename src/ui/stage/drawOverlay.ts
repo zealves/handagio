@@ -43,6 +43,11 @@ export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, r
   g.lineCap = 'round';
   g.lineJoin = 'round';
 
+  // Com o jogo a decorrer ou em pausa, só os dedos com faixa (`game.fingers`) ficam em
+  // destaque; os outros e o esqueleto esmorecem, para as mãos não tirarem a atenção da pista.
+  const inGame = s.game?.phase === 'playing' || s.game?.phase === 'paused';
+  const playingFingers = inGame ? new Set(s.game!.fingers) : null;
+
   // Modo movimento: uma coluna por dedo.
   if (s.engine === 'motion') {
     const order = activeScreenOrder(s.thumbs);
@@ -73,6 +78,7 @@ export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, r
       g.lineWidth = Math.max(2.5, W / 300);
       g.shadowColor = NEON.cyan;
       g.shadowBlur = glow * sc;
+      g.globalAlpha = inGame ? 0.4 : 1;
       g.beginPath();
       for (const [a, b] of CONN) {
         g.moveTo(lm[a].x * W, lm[a].y * H);
@@ -86,6 +92,7 @@ export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, r
         g.arc(p.x * W, p.y * H, 2.6 * sc, 0, Math.PI * 2);
         g.fill();
       }
+      g.globalAlpha = 1;
     }
   }
 
@@ -132,19 +139,39 @@ export function drawOverlay(g: CanvasRenderingContext2D, W: number, H: number, r
     g.globalAlpha = 1;
   }
 
-  // Anéis nas pontas dos dedos.
+  // Anéis nas pontas dos dedos: com o jogo a decorrer ou em pausa, só os dedos com faixa ficam
+  // em destaque (pílula maior, com a forma da nota); os outros ficam com o anel pequeno e
+  // cinzento de sempre, bem apagado.
   for (let i = 0; i < 10; i++) {
     const f = live.fingers[i];
     if (!f.tip || !isActive(i, s.thumbs)) continue;
-    const fx = live.fx[i];
-    const c = FINGER_COLORS[i];
+    const playing = !playingFingers || playingFingers.has(i);
     const x = f.tip.x * W;
     const y = f.tip.y * H;
     const r = (10 + f.curl * 14) * sc;
+    if (!playing) {
+      g.beginPath();
+      g.arc(x, y, r, 0, Math.PI * 2);
+      g.globalAlpha = 0.25;
+      g.lineWidth = 2 * sc;
+      g.strokeStyle = '#8a93a6';
+      g.stroke();
+      g.globalAlpha = 1;
+      continue;
+    }
+    const fx = live.fx[i];
+    const c = FINGER_COLORS[i];
     g.shadowColor = c;
     g.shadowBlur = glow * sc * (0.6 + f.curl);
     g.beginPath();
-    g.arc(x, y, r, 0, Math.PI * 2);
+    if (inGame) {
+      // pílula com a forma da nota, ~1,3× o anel de sempre, que enche com a dobra do dedo
+      const pw = r * 2 * 1.3;
+      const ph = pw * 0.44;
+      g.roundRect(x - pw / 2, y - ph / 2, pw, ph, ph / 2);
+    } else {
+      g.arc(x, y, r, 0, Math.PI * 2);
+    }
     g.globalAlpha = 0.15 + 0.4 * f.curl;
     g.fillStyle = c;
     g.fill();
