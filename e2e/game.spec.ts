@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 type Run = {
   times: number[];
   chart: { notes: { lane: number }[] };
-  score: { points: number; perfect: number; good: number };
+  score: { points: number; perfect: number; good: number; wrongTaps: number };
   state: 'countdown' | 'playing' | 'paused' | 'over';
   judge: { state: Uint8Array };
   last: { kind: string; at: number } | null;
@@ -13,7 +13,6 @@ type Run = {
 type Vsc = {
   session: {
     gameBars: number | null;
-    startGame(d: string): void;
     startLevel(id: string): void;
     restartGame(): void;
     nextLevel(): void;
@@ -68,25 +67,21 @@ function hitNotes(
   );
 }
 
+/** Começa o nível 1 (Pop), já selecionado por omissão no menu sem separadores. */
 async function startEasy(page: Page) {
   await page.getByTestId('mode-game').click();
   const dlg = page.getByTestId('game-dialog');
   await expect(dlg).toBeVisible();
-  // a dificuldade do Treino vive agora no separador Treino, não no de Níveis (que abre por
-  // omissão)
-  await dlg.getByTestId('game-tab-practice').click();
-  await dlg.getByTestId('game-level-easy').click();
   await dlg.getByTestId('game-start').click();
   await expect(dlg).toBeHidden();
   await expect(page.getByTestId('game-track')).toBeVisible();
 }
 
-/** Começa um nível pelo seu cartão, no separador Níveis (aberto por omissão). */
+/** Começa um nível pelo seu cartão, na lista de níveis (já sem separadores). */
 async function startLevel(page: Page, id: string) {
   await page.getByTestId('mode-game').click();
   const dlg = page.getByTestId('game-dialog');
   await expect(dlg).toBeVisible();
-  await dlg.getByTestId('game-tab-levels').click();
   await dlg.getByTestId(`game-level-card-${id}`).click();
   await dlg.getByTestId('game-start').click();
   await expect(dlg).toBeHidden();
@@ -153,7 +148,9 @@ test.describe('modo de jogo', () => {
     const result = page.getByTestId('game-result');
     await expect(result).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId('game-new-best')).toBeVisible();
-    expect(((await field(page, 'gameBest')) as { easy: number }).easy).toBeGreaterThan(0);
+    expect(
+      ((await field(page, 'levelProgress')) as Record<string, { points: number }>).pop.points,
+    ).toBeGreaterThan(0);
     await page.getByTestId('game-again').click();
     await expect(page.getByTestId('game-track')).toBeVisible();
     await page.getByTestId('game-exit').click();
@@ -231,7 +228,7 @@ test.describe('modo de jogo', () => {
     const result = await page.evaluate(async () => {
       const v = (window as unknown as { __vsc: Vsc }).__vsc;
       const d = document.querySelector<HTMLDialogElement>('[data-testid="game-dialog"]')!;
-      v.session.startGame('easy');
+      v.session.startLevel('pop');
       // deixa o React fechar o cartão (microtarefas), mas pausa antes da tarefa do `close`
       for (let i = 0; i < 5; i++) await Promise.resolve();
       const closed = !d.open;
@@ -295,7 +292,9 @@ test.describe('modo de jogo', () => {
     });
     await expect(page.getByTestId('game-paused')).toBeVisible();
     expect(((await field(page, 'game')) as { phase: string }).phase).toBe('paused');
-    expect(((await field(page, 'gameBest')) as { easy: number }).easy).toBe(0);
+    expect(
+      ((await field(page, 'levelProgress')) as Record<string, { points: number }>).pop,
+    ).toBeUndefined();
   });
 
   test('início: o botão Jogar abre o cartão do jogo', async ({ page }) => {
@@ -344,16 +343,30 @@ test.describe('modo de jogo', () => {
     expect(r.hits).toBe(r.count);
   });
 
-  test('toque fora da janela soa na mesma', async ({ page }) => {
+  test('toque fora da janela, durante a música, soa e conta como errado', async ({ page }) => {
     await startEasy(page);
-    const sounded = await page.evaluate(async () => {
+    const r = await page.evaluate(async () => {
       const v = (window as unknown as { __vsc: Vsc }).__vsc;
+      const run = v.live.game!;
+      // escolhe o maior intervalo entre notas julgáveis (contando o da contagem à 1.ª nota) e
+      // espera pelo seu meio: longe o bastante (> 0,35 s de cada lado, a janela do juiz) para o
+      // toque ser mesmo um errado, não um acerto por sorte
+      const bounds = [run.countTo, ...run.times];
+      let best = { gap: -1, mid: 0 };
+      for (let i = 1; i < bounds.length; i++) {
+        const gap = bounds[i] - bounds[i - 1];
+        if (gap > best.gap) best = { gap, mid: (bounds[i] + bounds[i - 1]) / 2 };
+      }
+      if (best.gap < 0.7) throw new Error(`sem intervalo longo o bastante (maior: ${best.gap}s)`);
+      while (v.audio.now < best.mid) await new Promise((res) => setTimeout(res, 2));
+      const before = run.score.wrongTaps;
       document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', bubbles: true }));
       const on = v.audio.voiceMidi(2) !== null;
       document.body.dispatchEvent(new KeyboardEvent('keyup', { key: 'd', bubbles: true }));
-      return on;
+      return { on, wrong: run.score.wrongTaps - before };
     });
-    expect(sounded).toBe(true);
+    expect(r.on).toBe(true);
+    expect(r.wrong).toBe(1);
   });
 
   test('pausa: P e o botão; nada muda em pausa; continuar volta a contar', async ({ page }) => {
@@ -391,7 +404,9 @@ test.describe('modo de jogo', () => {
     await expect(page.getByTestId('game-paused')).toBeHidden();
     expect(((await field(page, 'game')) as { phase: string }).phase).toBe('setup');
     expect(await liveGame(page)).toBeNull();
-    expect(((await field(page, 'gameBest')) as { easy: number }).easy).toBe(0);
+    expect(
+      ((await field(page, 'levelProgress')) as Record<string, { points: number }>).pop,
+    ).toBeUndefined();
     const dlg = page.getByTestId('game-dialog');
     await expect(dlg.getByTestId('game-start')).toBeVisible();
     await dlg.getByTestId('game-start').click();
@@ -498,14 +513,18 @@ test.describe('modo de jogo', () => {
     }
   });
 
-  test('o menu abre no separador Níveis, com o nível 1 aberto e os níveis 2 e 3 bloqueados', async ({
+  test('menu sem separadores nem Treino: só a lista dos níveis, com o nível 1 aberto e os níveis 2 e 3 bloqueados', async ({
     page,
   }) => {
     await page.getByTestId('mode-game').click();
     const dlg = page.getByTestId('game-dialog');
     await expect(dlg).toBeVisible();
-    await expect(dlg.getByTestId('game-tab-levels')).toHaveAttribute('aria-pressed', 'true');
-    await expect(dlg.getByTestId('game-tab-practice')).toHaveAttribute('aria-pressed', 'false');
+    // sem separadores (decisão 71): nem Níveis/Treino, nem a dificuldade do Treino
+    await expect(dlg.locator('[data-testid^="game-tab-"]')).toHaveCount(0);
+    await expect(dlg.getByTestId('game-level-easy')).toHaveCount(0);
+    await expect(dlg.getByTestId('game-level-medium')).toHaveCount(0);
+    await expect(dlg.getByTestId('game-level-hard')).toHaveCount(0);
+    await expect(dlg.getByTestId('game-instrument')).toHaveCount(0);
     await expect(dlg.getByTestId('game-level-card-pop')).toBeEnabled();
     await expect(dlg.getByTestId('game-level-card-pop')).toHaveAttribute('aria-pressed', 'true');
     await expect(dlg.getByTestId('game-level-card-lofi')).toBeDisabled();
@@ -568,7 +587,7 @@ test.describe('modo de jogo', () => {
     expect(((await field(page, 'game')) as { levelId: string | null }).levelId).toBe('pop');
   });
 
-  test('nível: o recorde acompanha o progresso do próprio nível e "Novo recorde!" repete-se ao melhorá-lo', async ({
+  test('nível: o recorde acompanha o progresso do próprio nível, "Novo recorde!" repete-se ao melhorá-lo e o recorde fica escondido enquanto o for', async ({
     page,
   }) => {
     await page.evaluate(() => {
@@ -576,15 +595,16 @@ test.describe('modo de jogo', () => {
     });
     await startLevel(page, 'pop');
     // só 1 acerto: poucos pontos, mas é o 1.º recorde deste nível (antes da correção, o
-    // resultado dos níveis nunca marcava `best`, por mais pontos que tivesse)
+    // resultado dos níveis nunca marcava `best`, por mais pontos que tivesse). Sendo um novo
+    // recorde, "level-best" (o recorde de antes) fica escondido: seria redundante com "Novo
+    // recorde!"
     await hitNotes(page, 1);
     const result = page.getByTestId('game-result');
     await expect(result).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId('game-new-best')).toBeVisible();
-    await expect(page.getByTestId('level-best')).toBeVisible();
-    const first = (
-      (await field(page, 'levelProgress')) as Record<string, { points: number }>
-    ).pop.points;
+    await expect(page.getByTestId('level-best')).toHaveCount(0);
+    const first = ((await field(page, 'levelProgress')) as Record<string, { points: number }>).pop
+      .points;
     expect(first).toBeGreaterThan(0);
 
     await page.getByTestId('game-again').click();
@@ -593,47 +613,123 @@ test.describe('modo de jogo', () => {
     expect(r.hits).toBeGreaterThan(0);
     await expect(result).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId('game-new-best')).toBeVisible();
-    const second = (
-      (await field(page, 'levelProgress')) as Record<string, { points: number }>
-    ).pop.points;
+    await expect(page.getByTestId('level-best')).toHaveCount(0);
+    const second = ((await field(page, 'levelProgress')) as Record<string, { points: number }>).pop
+      .points;
     expect(second).toBeGreaterThan(first);
+
+    // uma 3.ª ronda pior (sem nenhum acerto) já não bate o recorde: "Novo recorde!" desaparece e
+    // "level-best" mostra-o, visível desta vez
+    await page.getByTestId('game-again').click();
+    await expect(page.getByTestId('game-track')).toBeVisible();
+    await hitNotes(page, 0);
+    await expect(result).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('game-new-best')).toHaveCount(0);
+    await expect(page.getByTestId('level-best')).toBeVisible();
     await expect(page.getByTestId('level-best')).toContainText(String(second));
+    expect(
+      ((await field(page, 'levelProgress')) as Record<string, { points: number }>).pop.points,
+    ).toBe(second);
   });
 
-  test('Treino: o seletor de instrumento muda o instrument do store e o modo livre fica com ele', async ({
+  test('silêncio fora da música: no menu, na contagem e no resultado nenhuma tecla de dedo toca', async ({
     page,
   }) => {
-    // o rótulo da pill com o instrumento inicial (ainda no modo livre, antes de abrir o jogo)
-    const pillBefore = await page.getByTestId('pill-instrument').getAttribute('aria-label');
+    await page.evaluate(() => {
+      (window as unknown as { __vsc: Vsc }).__vsc.session.gameBars = 2;
+    });
+    const press = () =>
+      page.evaluate(() => {
+        const v = (window as unknown as { __vsc: Vsc }).__vsc;
+        document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', bubbles: true }));
+        const on = v.audio.voiceMidi(2);
+        document.body.dispatchEvent(new KeyboardEvent('keyup', { key: 'd', bubbles: true }));
+        return on;
+      });
+
+    // no menu: a ronda interna nem existe (`session.game` continua `null`), por isso o dedo não
+    // soa nada, nem a nota livre
     await page.getByTestId('mode-game').click();
     const dlg = page.getByTestId('game-dialog');
     await expect(dlg).toBeVisible();
-    await dlg.getByTestId('game-tab-practice').click();
-    await dlg.getByTestId('game-instrument').click();
-    const before = await field(page, 'instrument');
-    // o primeiro cartão de instrumento que não seja o atual
-    const tiles = dlg.locator('[data-testid^="tile-"]');
-    const count = await tiles.count();
-    let picked: string | null = null;
-    for (let i = 0; i < count; i++) {
-      const testId = await tiles.nth(i).getAttribute('data-testid');
-      if (testId && testId !== `tile-${before}`) {
-        picked = testId.slice('tile-'.length);
-        await tiles.nth(i).click();
-        break;
-      }
-    }
-    expect(picked).not.toBeNull();
-    expect(await field(page, 'instrument')).toBe(picked);
-    // sai do jogo para o modo livre pelo botão do próprio cartão (o atalho `mode-free` do
-    // cabeçalho fica inerte com o <dialog> modal aberto por cima)
-    await dlg.getByTestId('game-free').click();
+    expect(await press()).toBeNull();
+
+    // começa o nível: a ronda já existe, mas a contagem ainda não acabou (`isMusicTime` é falso)
+    await dlg.getByTestId('game-start').click();
     await expect(dlg).toBeHidden();
-    await expect(page.getByTestId('mode-free')).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.getByTestId('pills')).toBeVisible();
-    await expect(page.getByTestId('pill-instrument')).not.toHaveAttribute(
-      'aria-label',
-      pillBefore!,
-    );
+    await expect(page.getByTestId('game-track')).toBeVisible();
+    const stillCounting = await page.evaluate(() => {
+      const v = (window as unknown as { __vsc: Vsc }).__vsc;
+      return v.audio.now < v.live.game!.countTo;
+    });
+    expect(stillCounting).toBe(true);
+    expect(await press()).toBeNull();
+
+    // chega ao resultado (fora da música outra vez) e confirma o mesmo silêncio
+    await hitNotes(page, 99);
+    await expect(page.getByTestId('game-result')).toBeVisible({ timeout: 15_000 });
+    expect(await press()).toBeNull();
+  });
+
+  test('premir todas as faixas sem parar dá toques errados e uma precisão pior que uma ronda limpa', async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      (window as unknown as { __vsc: Vsc }).__vsc.session.gameBars = 2;
+    });
+    // ronda limpa: só os acertos certos, sem nenhum toque errado
+    await startEasy(page);
+    await hitNotes(page, 99);
+    await expect(page.getByTestId('game-result')).toBeVisible({ timeout: 15_000 });
+    const clean = ((await field(page, 'game')) as { result: { accuracy: number } }).result;
+    await expect(page.getByTestId('game-wrong-taps')).toHaveCount(0);
+
+    // ronda da trapalhada: carrega nas 4 teclas sem parar, sem olhar ao tempo das notas
+    await page.getByTestId('game-again').click();
+    await expect(page.getByTestId('game-track')).toBeVisible();
+    await page.evaluate(async () => {
+      const v = (window as unknown as { __vsc: Vsc }).__vsc;
+      const run = v.live.game!;
+      const keys = ['d', 'f', 'j', 'k'];
+      while (run.state !== 'over') {
+        for (const k of keys) {
+          document.body.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
+          document.body.dispatchEvent(new KeyboardEvent('keyup', { key: k, bubbles: true }));
+        }
+        await new Promise((r) => setTimeout(r, 15));
+      }
+    });
+    await expect(page.getByTestId('game-result')).toBeVisible({ timeout: 15_000 });
+    const messy = (
+      (await field(page, 'game')) as { result: { accuracy: number; wrongTaps: number } }
+    ).result;
+    expect(messy.wrongTaps).toBeGreaterThan(0);
+    expect(messy.accuracy).toBeLessThan(clean.accuracy);
+    await expect(page.getByTestId('game-wrong-taps')).toBeVisible();
+    await expect(page.getByTestId('game-wrong-taps')).toContainText(String(messy.wrongTaps));
+  });
+
+  test('no último nível, com o progresso posto a dedo e 0 estrelas, não aparece a dica de desbloqueio', async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      const v = (window as unknown as { __vsc: Vsc }).__vsc;
+      v.session.gameBars = 2;
+      // abre o último nível (eletrónico) sem jogar os anteriores: 3 estrelas nos dois primeiros
+      v.store.getState().set({
+        levelProgress: {
+          pop: { stars: 3, points: 500, accuracy: 1 },
+          lofi: { stars: 3, points: 500, accuracy: 1 },
+        },
+      });
+    });
+    await startLevel(page, 'electro');
+    // sem nenhum toque: 0 estrelas garantidas (precisão 0)
+    await hitNotes(page, 0);
+    const result = page.getByTestId('game-result');
+    await expect(result).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('game-stars')).toHaveAttribute('aria-label', '0 de 3 estrelas');
+    // o eletrónico é o último nível (sem `next`): a dica nunca aparece, mesmo com 0 estrelas
+    await expect(page.getByTestId('game-unlock-hint')).toHaveCount(0);
   });
 });
