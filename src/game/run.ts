@@ -5,12 +5,16 @@
 import {
   COUNT_IN_STEPS,
   END_TAIL_S,
+  ENERGY_GOOD,
+  ENERGY_PERFECT,
   LAG_LEARN,
   LAG_MAX_MS,
   LAG_MIN_MS,
   LAG_SAVE_MIN_HITS,
   NEAR_S,
   NEIGHBOUR_GRACE_S,
+  POWER_MULTIPLIER,
+  POWER_S,
   roundLagMs,
   START_MARGIN_S,
 } from './config';
@@ -94,6 +98,12 @@ export class GameRun {
   lag: number;
   /** Toques da câmara julgados (acertos e o primeiro Cedo/Tarde de cada nota). */
   cameraHits = 0;
+  /** Barra da energia (Star Power), de 0 a 1: sobe com os acertos, some-se ao ativar-se. */
+  energy = 0;
+  /** Tempo de áudio em que a energia ativa acaba; `-Infinity` quando nunca foi ativada. */
+  powerUntil = -Infinity;
+  /** Vezes que a energia foi ativada na ronda. */
+  powerUses = 0;
   /** Notas que já ensinaram o atraso com um Cedo/Tarde (só o primeiro de cada nota conta). */
   private readonly nearLearned: Uint8Array;
   /** Cedo/Tarde já dados a cada nota: do segundo em diante contam como toques errados. */
@@ -196,7 +206,12 @@ export class GameRun {
       if (this.nearCount[out.index] < 255) this.nearCount[out.index]++;
       return { ...out, lane };
     }
-    this.score.hit(out.kind, out.offset);
+    const powered = this.powerActive(now);
+    this.score.hit(out.kind, out.offset, powered ? POWER_MULTIPLIER : 1);
+    // a energia não sobe durante a própria energia ativa (só volta a encher-se depois)
+    if (!powered) {
+      this.energy = Math.min(1, this.energy + (out.kind === 'perfect' ? ENERGY_PERFECT : ENERGY_GOOD));
+    }
     this.judgedAt[out.index] = now;
     this.hitAt[lane] = now;
     this.hits++;
@@ -246,6 +261,34 @@ export class GameRun {
     if (this.state === 'paused' || this.state === 'over') return false;
     const lastNote = this.times.length ? this.times[this.times.length - 1] : this.start;
     return now >= this.countTo && now <= lastNote + NEAR_S;
+  }
+
+  /**
+   * A energia está ativa (dobra os pontos). Em pausa, a sessão passa a vista congelada
+   * (`viewNow`), não o relógio a correr, por isso esta conta como congelada também.
+   */
+  powerActive(now: number): boolean {
+    return now < this.powerUntil && this.state !== 'over';
+  }
+
+  /** Pode ativar-se: a barra cheia, a energia ainda não ativa e a música a tocar. */
+  canActivate(now: number): boolean {
+    return this.energy >= 1 && !this.powerActive(now) && this.isMusicTime(now);
+  }
+
+  /** Ativa a energia (boca aberta ou espaço, decidido fora daqui); devolve se ativou. */
+  activatePower(now: number): boolean {
+    if (!this.canActivate(now)) return false;
+    this.powerUntil = now + POWER_S;
+    this.energy = 0;
+    this.powerUses++;
+    return true;
+  }
+
+  /** Fração de 0 a 1 da energia ativa que falta, para a barra; 0 fora dela. */
+  powerLeft(now: number): number {
+    if (!this.powerActive(now)) return 0;
+    return Math.max(0, Math.min(1, (this.powerUntil - now) / POWER_S));
   }
 
   /** A cada fotograma: falhados, fase e fim. Devolve true na chamada em que a ronda acaba. */
@@ -303,6 +346,8 @@ export class GameRun {
     for (let l = 0; l < this.hitAt.length; l++) this.hitAt[l] += dt;
     if (this.last) this.last = { ...this.last, at: this.last.at + dt };
     for (const p of this.pendingStrays) p.at += dt;
+    // só desloca se já houve uma ativação; `-Infinity + dt` continuaria `-Infinity` à mesma
+    if (Number.isFinite(this.powerUntil)) this.powerUntil += dt;
     this.start = newStart;
     this.end += dt;
     this.startStep = barStep - this.pRel;
@@ -347,6 +392,7 @@ export class GameRun {
       ...this.score.result(this.chart.notes.length),
       startLagMs: roundLagMs(this.timing.lag),
       lagMs: this.cameraHits >= LAG_SAVE_MIN_HITS ? roundLagMs(this.lag) : null,
+      powerUses: this.powerUses,
     };
   }
 }

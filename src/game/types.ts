@@ -72,4 +72,6 @@ export interface GameResult {
   unlocked: string | null;
   /** Id do nível desta ronda. */
   levelId: string;
+  /** Vezes que a energia (Star Power) foi ativada na ronda. */
+  powerUses: number;
 }

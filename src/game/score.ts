@@ -18,9 +18,12 @@ export class Score {
     return Math.min(MAX_MULTIPLIER, 1 + Math.floor(this.combo / COMBO_STEP));
   }
 
-  /** Um acerto; devolve os pontos ganhos (com o multiplicador de antes deste acerto). */
-  hit(j: Judgement, offset: number): number {
-    const pts = POINTS[j] * this.multiplier;
+  /**
+   * Um acerto; devolve os pontos ganhos (com o multiplicador de antes deste acerto). `mult`
+   * é o fator da energia ativa (`POWER_MULTIPLIER` quando está, 1 fora dela).
+   */
+  hit(j: Judgement, offset: number, mult = 1): number {
+    const pts = POINTS[j] * this.multiplier * mult;
     this.points += pts;
     this.combo++;
     this.maxCombo = Math.max(this.maxCombo, this.combo);
@@ -58,7 +61,10 @@ export class Score {
 
   result(
     total: number,
-  ): Omit<GameResult, 'best' | 'lagMs' | 'startLagMs' | 'stars' | 'unlocked' | 'levelId'> {
+  ): Omit<
+    GameResult,
+    'best' | 'lagMs' | 'startLagMs' | 'stars' | 'unlocked' | 'levelId' | 'powerUses'
+  > {
     const hits = this.perfect + this.good;
     const base = total + WRONG_TAP_WEIGHT * this.wrongTaps;
     return {

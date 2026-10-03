@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NEIGHBOUR_GRACE_S } from './config';
+import { ENERGY_GOOD, ENERGY_PERFECT, NEIGHBOUR_GRACE_S, POWER_S } from './config';
 import { changedLagMs, gameStartBar, GameRun } from './run';
 import type { BackingEvent, Chart } from './types';
 
@@ -625,6 +625,112 @@ describe('GameRun com swing', () => {
     // o passo 2 (a nota em `times[1]`) cai depois da contagem da retoma, nunca dentro dela
     expect(run.times[1]).toBeGreaterThanOrEqual(run.countTo);
     expect(run.times[1]).toBeCloseTo(run.countTo + 0.6 * stepDur);
+  });
+});
+
+describe('GameRun: energia (Star Power)', () => {
+  it('a energia sobe com Perfeitos e Bons; um toque errado não lhe mexe', () => {
+    const { run } = make();
+    expect(run.press(0, 12.1)?.kind).toBe('perfect');
+    expect(run.energy).toBeCloseTo(ENERGY_PERFECT);
+    // nota 1 (faixa 1, 12,5 s), 0,15 s tarde (depois de descontar o atraso de 0,1): Bom
+    expect(run.press(1, 12.75)?.kind).toBe('good');
+    expect(run.energy).toBeCloseTo(ENERGY_PERFECT + ENERGY_GOOD);
+    // toque solto, sem vizinho a perdoá-lo: conta como erro depois da janela, mas não dá energia
+    run.press(3, 12.9);
+    run.update(12.9 + NEIGHBOUR_GRACE_S + 0.01);
+    expect(run.score.wrongTaps).toBe(1);
+    expect(run.energy).toBeCloseTo(ENERGY_PERFECT + ENERGY_GOOD);
+  });
+
+  it('a energia não sobe durante a própria energia ativa, e fica limitada a 1', () => {
+    const { run } = make();
+    run.energy = 1;
+    expect(run.activatePower(12.1)).toBe(true); // esvazia a barra
+    expect(run.press(0, 12.1)?.kind).toBe('perfect');
+    expect(run.energy).toBe(0); // continuou a 0: o acerto foi durante a energia ativa
+  });
+
+  it('canActivate só com a barra cheia, fora da energia ativa e durante a música', () => {
+    const { run } = make();
+    expect(run.canActivate(12.1)).toBe(false); // barra vazia
+    run.energy = 1;
+    expect(run.canActivate(11)).toBe(false); // ainda na contagem (antes de countTo), não é música
+    expect(run.canActivate(12.1)).toBe(true);
+    expect(run.activatePower(12.1)).toBe(true);
+    expect(run.canActivate(12.1)).toBe(false); // a energia já está ativa
+  });
+
+  it('activatePower falha sem a barra cheia ou fora da música, e não gasta a barra nesse caso', () => {
+    const { run } = make();
+    run.energy = 1;
+    expect(run.activatePower(11)).toBe(false); // na contagem, não é música
+    expect(run.energy).toBe(1);
+    expect(run.powerUses).toBe(0);
+  });
+
+  it('um acerto durante a energia ativa dá o dobro dos pontos (com o multiplicador do combo)', () => {
+    const { run } = make();
+    run.energy = 1;
+    expect(run.activatePower(12.1)).toBe(true);
+    expect(run.press(0, 12.1)?.kind).toBe('perfect');
+    expect(run.score.points).toBe(200); // 100 × ×1 do combo × 2 da energia
+  });
+
+  it('a energia ativa acaba ao fim de POWER_S, e powerLeft desce de 1 a 0', () => {
+    const { run } = make();
+    run.energy = 1;
+    run.activatePower(12.1); // powerUntil = 12,1 + POWER_S
+    expect(POWER_S).toBe(8);
+    expect(run.powerActive(12.1)).toBe(true);
+    expect(run.powerLeft(12.1)).toBeCloseTo(1);
+    expect(run.powerLeft(12.1 + POWER_S / 2)).toBeCloseTo(0.5);
+    expect(run.powerActive(12.1 + POWER_S - 0.001)).toBe(true);
+    expect(run.powerActive(12.1 + POWER_S)).toBe(false);
+    expect(run.powerLeft(12.1 + POWER_S)).toBe(0);
+  });
+
+  it('powerActive é falso quando a ronda já acabou, mesmo dentro dos 8 s', () => {
+    const { run } = make();
+    run.energy = 1;
+    run.activatePower(12.1);
+    run.update(16.8);
+    expect(run.update(16.91)).toBe(true); // a ronda acaba (como no teste de fim de ronda acima)
+    expect(run.state).toBe('over');
+    expect(run.powerActive(12.1)).toBe(false);
+  });
+
+  it('a pausa congela a energia ativa; a retoma desloca `powerUntil` pelo mesmo dt dos tempos', () => {
+    const { run } = make();
+    run.energy = 1;
+    expect(run.activatePower(12.1)).toBe(true); // powerUntil = 12,1 + POWER_S
+    run.update(12.2);
+    run.pause(12.2);
+    expect(run.powerUntil).toBe(12.1 + POWER_S); // não se mexe durante a pausa
+    const timeBefore = run.times[0];
+    run.resume(80, 16);
+    const dt = run.times[0] - timeBefore; // o mesmo deslocamento que `hitAt`/`judgedAt` levam
+    expect(run.powerUntil).toBeCloseTo(12.1 + POWER_S + dt);
+    // o tempo restante (até powerUntil) mantém-se: continua ativa logo a seguir à retoma
+    expect(run.powerActive(run.times[0])).toBe(true);
+  });
+
+  it('powerUntil não se desloca na retoma se a energia nunca foi ativada', () => {
+    const { run } = make();
+    run.pause(12.2);
+    run.resume(80, 16);
+    expect(run.powerUntil).toBe(-Infinity);
+  });
+
+  it('powerUses conta as ativações, e aparece no resultado', () => {
+    const { run } = make();
+    expect(run.powerUses).toBe(0);
+    expect(run.activatePower(12.1)).toBe(false); // barra vazia
+    expect(run.powerUses).toBe(0);
+    run.energy = 1;
+    expect(run.activatePower(12.1)).toBe(true);
+    expect(run.powerUses).toBe(1);
+    expect(run.result().powerUses).toBe(1);
   });
 });
 

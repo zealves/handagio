@@ -85,4 +85,12 @@ describe('Score', () => {
     s.hit('perfect', 0);
     expect(s.result(1).wrongTaps).toBe(0);
   });
+
+  it('o fator da energia (mult) multiplica os pontos por cima do combo', () => {
+    const s = new Score();
+    expect(s.hit('perfect', 0, 2)).toBe(200);
+    for (let k = 0; k < 9; k++) s.hit('perfect', 0);
+    expect(s.multiplier).toBe(2);
+    expect(s.hit('good', 0, 2)).toBe(200); // 50 × ×2 do combo × 2 da energia
+  });
 });

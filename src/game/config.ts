@@ -61,6 +61,17 @@ export const POINTS: Record<'perfect' | 'good', number> = { perfect: 100, good: 
 export const COMBO_STEP = 10;
 export const MAX_MULTIPLIER = 4;
 
+/**
+ * Energia (como o Star Power): a barra vai de 0 a 1. Cada Perfeito e cada Bom sobem-na (só fora
+ * da energia ativa); toques errados e falhados não a tiram.
+ */
+export const ENERGY_PERFECT = 0.05;
+export const ENERGY_GOOD = 0.025;
+/** Duração da energia ativa (s, tempo de áudio); a barra desce de 1 a 0 neste tempo. */
+export const POWER_S = 8;
+/** Durante a energia ativa, cada acerto vale isto vezes mais (já com o multiplicador do combo). */
+export const POWER_MULTIPLIER = 2;
+
 /** Atraso por defeito da câmara e da deteção (ms), descontado aos toques; a afinar com mãos reais. */
 export const GAME_INPUT_LAG_MS = 120;
 export const LAG_MIN_MS = 0;
