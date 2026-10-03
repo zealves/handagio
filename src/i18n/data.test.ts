@@ -64,6 +64,49 @@ describe('línguas completas', () => {
   });
 });
 
+/** Carateres não-emoji que o jogo usa como símbolos (estrelas e acidentes musicais). */
+const EMOJI_ALLOW = new Set(['★', '☆', '♯', '♭']);
+const EMOJI_RE = /\p{Extended_Pictographic}/u;
+
+/** Amostra de argumentos para chamar um texto em função (`(n: number) => ...`, etc.): números,
+ * texto e booleano chegam para qualquer assinatura das mensagens (nunca lançam). */
+const SAMPLE_ARGS = [2, 'x', true, 'y', 3, false];
+
+/** Todas as strings de um objeto de mensagens, incluindo o resultado de chamar cada função com
+ * argumentos de amostra (para apanhar emojis escondidos num texto gerado). */
+function allTexts(o: unknown, path = ''): { path: string; text: string }[] {
+  if (typeof o === 'function') {
+    const fn = o as (...args: unknown[]) => unknown;
+    const out = fn(...SAMPLE_ARGS.slice(0, fn.length));
+    return typeof out === 'string' ? [{ path, text: out }] : [];
+  }
+  if (typeof o === 'string') return [{ path, text: o }];
+  if (Array.isArray(o)) return o.flatMap((v, i) => allTexts(v, `${path}[${i}]`));
+  if (o && typeof o === 'object')
+    return Object.entries(o).flatMap(([k, v]) => allTexts(v, path ? `${path}.${k}` : k));
+  return [];
+}
+
+describe('sem emojis', () => {
+  let pt: Messages;
+  let en: Messages;
+  beforeAll(async () => {
+    pt = await loadLang('pt');
+    en = await loadLang('en');
+  });
+  it('nenhum texto da interface tem emojis (★ ☆ ♯ ♭ continuam)', () => {
+    for (const [lang, msgs] of [
+      ['pt', pt],
+      ['en', en],
+    ] as const) {
+      for (const { path, text } of allTexts(msgs)) {
+        const bad = [...text].filter((ch) => EMOJI_RE.test(ch) && !EMOJI_ALLOW.has(ch));
+        expect(bad, `${lang}.${path}: ${JSON.stringify(text)}`).toEqual([]);
+      }
+    }
+  });
+});
+
 describe('textos pelo id', () => {
   beforeAll(() => setLang('en'));
   afterAll(() => setLang('pt'));

@@ -123,7 +123,7 @@ const pt = {
   coach: {
     hands: 'Mostra as duas mãos à câmara',
     bend: 'Dobra um dedo para tocar',
-    mouth: 'Abre a boca para um efeito 👄',
+    mouth: 'Abre a boca para um efeito',
     touch: 'Toca nas teclas para ouvir',
   },
   header: {
@@ -151,7 +151,7 @@ const pt = {
     title: 'Começar a tocar com as mãos',
     free: 'Tocar livre',
     game: 'Jogar',
-    privacy: '🔒 O vídeo fica no teu dispositivo: nada é enviado.',
+    privacy: 'O vídeo fica no teu dispositivo: nada é enviado.',
     touch: 'Sem câmara? Tocar no ecrã',
     keys: 'Teclado:',
     rightKeys: ['J', 'K', 'L', 'Ç'],
@@ -210,7 +210,7 @@ const pt = {
     empty: 'Nenhum instrumento encontrado.',
   },
   fx: {
-    mouthTitle: 'Efeito da boca 👄',
+    mouthTitle: 'Efeito da boca',
     title: 'Efeitos',
     reset: 'Repor efeitos',
     resetConfirm: 'Repor? Toca outra vez',
@@ -360,7 +360,7 @@ const pt = {
     title: 'Gravações',
     withVideo: 'Gravar também vídeo',
     list: 'Gravações desta sessão',
-    empty: 'Ainda não há gravações. Carrega em ⏺ no topo e toca.',
+    empty: 'Ainda não há gravações. Carrega no botão de gravar no topo e toca.',
     play: (n: string) => `Ouvir ${n}`,
     stop: (n: string) => `Fechar ${n}`,
     download: (n: string) => `Descarregar ${n}`,

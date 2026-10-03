@@ -232,7 +232,7 @@ const en = {
   coach: {
     hands: 'Show both hands to the camera',
     bend: 'Bend a finger to play',
-    mouth: 'Open your mouth for an effect 👄',
+    mouth: 'Open your mouth for an effect',
     touch: 'Tap the keys to hear them',
   },
   header: {
@@ -260,7 +260,7 @@ const en = {
     title: 'Start playing with your hands',
     free: 'Free play',
     game: 'Play the game',
-    privacy: '🔒 The video stays on your device: nothing is sent.',
+    privacy: 'The video stays on your device: nothing is sent.',
     touch: 'No camera? Play on screen',
     keys: 'Keyboard:',
     rightKeys: ['J', 'K', 'L', ';'],
@@ -319,7 +319,7 @@ const en = {
     empty: 'No instrument found.',
   },
   fx: {
-    mouthTitle: 'Mouth effect 👄',
+    mouthTitle: 'Mouth effect',
     title: 'Effects',
     reset: 'Reset effects',
     resetConfirm: 'Reset? Tap again',
@@ -468,7 +468,7 @@ const en = {
     title: 'Recordings',
     withVideo: 'Record video too',
     list: 'Recordings of this session',
-    empty: 'No recordings yet. Press ⏺ at the top and play.',
+    empty: 'No recordings yet. Press the record button at the top and play.',
     play: (n: string) => `Play ${n}`,
     stop: (n: string) => `Close ${n}`,
     download: (n: string) => `Download ${n}`,
